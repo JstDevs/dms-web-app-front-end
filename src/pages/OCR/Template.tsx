@@ -1,5 +1,5 @@
 import { Select } from "@/components/ui/Select";
-import { Text } from "@chakra-ui/react";
+import { Button, Text } from "@chakra-ui/react";
 import { useRef, useState } from "react";
 import { documents, Rect } from "./Unrecorded";
 
@@ -113,12 +113,12 @@ export const TemplateOCR = () => {
               onChange={(e) => setTemplateName(e.target.value)}
             />
             <div className="flex gap-2 my-3">
-              <button className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded text-sm flex-1">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm flex-1">
                 Add Template
-              </button>
-              <button className="bg-red-500 hover:bg-red-600 text-white p-2 rounded text-sm flex-1">
+              </Button>
+              <Button className="bg-red-600 hover:bg-red-700 text-white p-2 rounded text-sm flex-1">
                 Delete Template
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -133,7 +133,7 @@ export const TemplateOCR = () => {
               value={headerName}
               onChange={(e) => setHeaderName(e.target.value)}
             />
-            <button className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded text-sm mt-1 w-full">
+            <button className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm mt-1 w-full">
               Save Header Tag
             </button>
           </div>
@@ -152,10 +152,10 @@ export const TemplateOCR = () => {
                 { value: "header", label: "Header" },
               ]}
             />
-            <button className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded text-sm w-full ">
+            <button className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm w-full ">
               Save Field
             </button>
-            <button className="bg-red-500 hover:bg-red-600 text-white p-2 rounded text-sm w-full">
+            <button className="bg-red-600 hover:bg-red-700 text-white p-2 rounded text-sm w-full">
               Delete Field
             </button>
           </div>
@@ -165,7 +165,7 @@ export const TemplateOCR = () => {
               <label className="block text-sm font-medium text-gray-700">
                 Select PDF
               </label>
-              <button className="bg-blue-500 hover:bg-blue-600 text-white p-2 px-4 rounded text-sm">
+              <button className="bg-blue-600 hover:bg-blue-700 text-white p-2 px-4 rounded text-sm">
                 Upload
               </button>
             </div>

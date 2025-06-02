@@ -152,15 +152,14 @@ const DocumentView: React.FC = () => {
                 <div className="flex mt-4 gap-2">
                   <Button
                     onClick={handleSave}
-                    className="btn btn-primary flex items-center gap-2"
+                    className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
                   >
                     <Save size={16} />
                     Save Changes
                   </Button>
                   <Button
                     onClick={handleCancel}
-                    className="btn btn-outline"
-                    // variant="secondary"
+                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-2"
                     variant={"outline"}
                   >
                     Cancel
@@ -187,7 +186,10 @@ const DocumentView: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={handleEdit} className="btn btn-primary">
+                    <Button
+                      onClick={handleEdit}
+                      className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
+                    >
                       Edit Document
                     </Button>
                   </div>

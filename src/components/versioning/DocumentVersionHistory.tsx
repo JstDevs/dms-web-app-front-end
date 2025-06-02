@@ -106,7 +106,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                   compareVersion === null &&
                   version.id !== "current" && (
                     <div className="mt-3 flex gap-2">
-                      <button
+                      <Button
                         onClick={(e) => {
                           e.stopPropagation();
                           const currentVersionIndex = allVersions.findIndex(
@@ -114,11 +114,11 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                           );
                           handleCompareSelect(allVersions[currentVersionIndex]);
                         }}
-                        className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-md flex items-center gap-1"
+                        className="text-xs border border-gray-300 bg-gray-100 hover:bg-gray-200 text-black px-2 py-1 rounded-md flex items-center gap-1"
                       >
-                        <ArrowRight size={12} />
                         Compare with Current
-                      </button>
+                        <ArrowRight size={12} />
+                      </Button>
                     </div>
                   )}
 
@@ -214,7 +214,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                 {selectedVersion.id !== "current" && (
                   <Button
                     onClick={handleRestore}
-                    className="btn btn-primary flex items-center gap-1 text-sm py-1"
+                    className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
                   >
                     <RefreshCw size={14} />
                     Restore this Version

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { FieldSettingsPanel } from "../FieldSetting";
+import { Button } from "@chakra-ui/react";
 
 type PermissionKey =
   | "view"
@@ -207,18 +208,18 @@ export const AllocationPanel = () => {
               ))}
           </select>
 
-          <button
+          <Button
             onClick={addUser}
             className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 sm:w-auto w-full"
           >
             Add
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowAddUser(false)}
             className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 text-sm hover:bg-gray-300  sm:w-auto w-full"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       )}
 
@@ -275,39 +276,39 @@ export const AllocationPanel = () => {
                   {user.username !== "admin" && (
                     <div className="flex justify-center gap-2">
                       {user.isEditing ? (
-                        <>
-                          <button
+                        <div className="flex gap-2">
+                          <Button
                             onClick={() => saveUser(user.username)}
-                            className="text-green-600 hover:text-green-800"
+                            className="text-green-600 hover:text-green-800 bg-gray-50 hover:bg-gray-100 "
                             title="Save"
                           >
                             <Save className="w-4 h-4" />
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             onClick={() => toggleEditMode(user.username)}
-                            className="text-gray-600 hover:text-gray-800"
+                            className="text-gray-600 hover:text-gray-800 bg-gray-50 hover:bg-gray-100"
                             title="Cancel"
                           >
                             <X className="w-4 h-4" />
-                          </button>
-                        </>
+                          </Button>
+                        </div>
                       ) : (
-                        <>
-                          <button
+                        <div className="flex gap-2">
+                          <Button
                             onClick={() => toggleEditMode(user.username)}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-blue-600 hover:text-blue-800 bg-gray-50 hover:bg-gray-100"
                             title="Edit"
                           >
                             <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             onClick={() => removeUser(user.username)}
-                            className="text-red-600 hover:text-red-800"
+                            className="text-red-600 hover:text-red-800 bg-gray-50 hover:bg-gray-100"
                             title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
+                          </Button>
+                        </div>
                       )}
                     </div>
                   )}

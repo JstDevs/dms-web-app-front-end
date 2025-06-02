@@ -1,3 +1,4 @@
+import { Button } from "@chakra-ui/react";
 import { useState } from "react";
 
 export const FieldSettingsPanel = ({
@@ -109,18 +110,18 @@ export const FieldSettingsPanel = ({
       {/* Footer Buttons - Stack on mobile */}
       <div className="flex flex-col-reverse sm:flex-row justify-between items-center pt-4 gap-3">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <button
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-sm w-full"
             onClick={() => setShowFieldsPanel(false)}
           >
             Save
-          </button>
-          <button
-            className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded text-sm w-full"
+          </Button>
+          <Button
+            className="bg-gray-100 hover:bg-gray-200 text-black px-2 py-1 rounded text-sm w-full"
             onClick={() => setShowFieldsPanel(false)}
           >
             Cancel
-          </button>
+          </Button>
         </div>
         {/* <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm w-full sm:w-auto">
           Export to Excel

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useUser } from "../contexts/UserContext";
+import { useNavigate } from "react-router-dom";
 import { FileText } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react"; // Import eye icons
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@chakra-ui/react";
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,7 +51,7 @@ const Login: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="flex justify-center">
-            <div className="h-16 w-16 rounded-full bg-blue-900 flex items-center justify-center">
+            <div className="h-16 w-16 rounded-full bg-blue-600 flex items-center justify-center">
               <FileText className="h-8 w-8 text-white" />
             </div>
           </div>
@@ -137,15 +137,13 @@ const Login: React.FC = () => {
             </div>
           </div> */}
 
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-900 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? "Signing in..." : "Sign in"}
-            </button>
-          </div>
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? "Signing in..." : "Sign in"}
+          </Button>
         </form>
       </div>
       <Toaster

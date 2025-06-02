@@ -291,18 +291,13 @@ const UserAccessPage = () => {
 
         {/* Action Buttons */}
         <div className="mt-6 flex justify-end space-x-3">
-          <button
+          <Button
             className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            // onClick={() => {
-
-            //   setRolesData(originalRolesData);
-            //   setHasChanges(false);
-            // }}
             onClick={handleCancel}
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             className={`px-4 py-2 rounded-md text-sm font-medium text-white focus:outline-none focus:ring-2 ${
               hasChanges
                 ? "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
@@ -312,67 +307,26 @@ const UserAccessPage = () => {
             disabled={!hasChanges}
           >
             Save Changes
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* Add Role Dialog */}
-      {/* <Dialog
-        open={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        className="relative z-50"
-      >
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="mx-auto w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-            <Dialog.Title className="text-lg font-bold text-gray-800 mb-2">
-              Add New Role
-            </Dialog.Title>
-            <input
-              type="text"
-              placeholder="Enter role name"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={newRoleName}
-              onChange={(e) => setNewRoleName(e.target.value)}
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsDialogOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddNewRole}
-                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-              >
-                Add Role
-              </button>
-            </div>
-          </Dialog.Panel>
-        </div>
-      </Dialog> */}
       <Dialog.Root
         lazyMount
         open={isDialogOpen}
         onOpenChange={(e) => setIsDialogOpen(e.open)}
       >
-        <Dialog.Trigger asChild>
-          <Button variant="outline">Open</Button>
-        </Dialog.Trigger>
         <Portal>
           <Dialog.Backdrop />
           <Dialog.Positioner>
             <Dialog.Content>
               <Dialog.Header>
-                <Dialog.Title> Add New Role</Dialog.Title>
+                <Dialog.Title className="text-lg font-semibold ">
+                  {" "}
+                  Add New Role
+                </Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>
-                {/* <Lorem p={2} /> */}
-                Lorem ipsum dolor sit amet consectetur adipisicing elit.
-                Eveniet, numquam voluptatibus, doloremque aperiam natus debitis
-                voluptate ratione pariatur ea odio nisi, quam dolorem
-                consequatur quo ab modi minima id laboriosam!
                 <input
                   type="text"
                   placeholder="Enter role name"
@@ -381,16 +335,23 @@ const UserAccessPage = () => {
                   onChange={(e) => setNewRoleName(e.target.value)}
                 />
               </Dialog.Body>
-              <Dialog.Footer>
+              <Dialog.Footer className="flex justify-end border-t border-gray-200 gap-4">
                 <Dialog.ActionTrigger asChild>
                   <Button
                     variant="outline"
                     onClick={() => setIsDialogOpen(false)}
+                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-2"
                   >
                     Cancel
                   </Button>
                 </Dialog.ActionTrigger>
-                <Button onClick={handleAddNewRole}> Add Role</Button>
+                <Button
+                  onClick={handleAddNewRole}
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-2"
+                >
+                  {" "}
+                  Add Role
+                </Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger asChild>
                 <CloseButton size="sm" />
@@ -404,40 +365,3 @@ const UserAccessPage = () => {
 };
 
 export default UserAccessPage;
-{
-  /* <Dialog
-  open={isDialogOpen}
-  onClose={() => setIsDialogOpen(false)}
-  className="relative z-50"
->
-  <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-  <div className="fixed inset-0 flex items-center justify-center p-4">
-    <Dialog.Panel className="mx-auto w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-      <Dialog.Title className="text-lg font-bold text-gray-800 mb-2">
-        Add New Role
-      </Dialog.Title>
-      <input
-        type="text"
-        placeholder="Enter role name"
-        className="w-full px-4 py-2 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={newRoleName}
-        onChange={(e) => setNewRoleName(e.target.value)}
-      />
-      <div className="flex justify-end gap-2">
-        <button
-          onClick={() => setIsDialogOpen(false)}
-          className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleAddNewRole}
-          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-        >
-          Add Role
-        </button>
-      </div>
-    </Dialog.Panel>
-  </div>
-</Dialog>; */
-}

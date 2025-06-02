@@ -139,7 +139,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
 
           <Button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-1 text-sm font-medium text-gray-700"
+            className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 px-2"
           >
             <Filter className="h-4 w-4" />
             Filters
@@ -235,7 +235,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
             <div className=" flex justify-end">
               <Button
                 onClick={handleClearFilters}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                className="text-sm border border-gray-300 px-2 bg-gray-100 hover:bg-gray-200 text-black"
               >
                 Clear Filters
               </Button>

@@ -99,8 +99,7 @@ export const DocumentTypesPage: React.FC = () => {
               setIsEditing(false);
               setFormData({ name: "", code: "" });
             }}
-            // icon={<Plus className="h-4 w-4" />}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
           >
             <Plus className="h-4 w-4" />
             Create Document Type
@@ -157,10 +156,14 @@ export const DocumentTypesPage: React.FC = () => {
                       setCurrentDocType(null);
                       setFormData({ name: "", code: "" });
                     }}
+                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-2"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-2"
+                  >
                     {isEditing ? "Update" : "Create"}
                   </Button>
                 </div>
@@ -202,12 +205,11 @@ export const DocumentTypesPage: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {type.code}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           className="text-blue-600 hover:text-blue-900 mr-2"
-                          // icon={<Edit className="h-4 w-4" />}
                           onClick={() => handleEditClick(type)}
                         >
                           <Edit className="h-4 w-4" />
@@ -221,7 +223,6 @@ export const DocumentTypesPage: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             className="text-red-600 hover:text-red-900"
-                            // icon={<Trash2 className="h-4 w-4" />}
                           >
                             <Trash2 className="h-4 w-4" />
                             Delete

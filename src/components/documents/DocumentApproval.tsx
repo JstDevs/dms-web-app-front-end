@@ -476,17 +476,17 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
           <div className="flex gap-4">
             <Button
               onClick={handleApprove}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              className="shadow-sm text-white bg-green-600 hover:bg-green-700 px-2"
             >
-              <CheckCircle className="h-4 w-4 mr-2" />
+              <CheckCircle className="h-4 w-4" />
               Approve
             </Button>
 
             <Button
               onClick={handleReject}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              className="text-white bg-red-600 hover:bg-red-700 px-2"
             >
-              <XCircle className="h-4 w-4 mr-2" />
+              <XCircle className="h-4 w-4" />
               Reject
             </Button>
           </div>

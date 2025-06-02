@@ -112,18 +112,19 @@ export const DepartmentsMain: React.FC = () => {
           </p>
         </div>
         <div className="w-full sm:w-auto">
-          <Button
-            onClick={() => {
-              setIsCreating(true);
-              setIsEditing(false);
-              setFormData({ name: "", code: "" });
-            }}
-            // icon={<Plus className="h-4 w-4" />}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            Create Department
-          </Button>
+          {!isCreating && !isEditing && (
+            <Button
+              onClick={() => {
+                setIsCreating(true);
+                setIsEditing(false);
+                setFormData({ name: "", code: "" });
+              }}
+              className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Create Department
+            </Button>
+          )}
         </div>
       </header>
 
@@ -170,16 +171,21 @@ export const DepartmentsMain: React.FC = () => {
                   <Button
                     type="button"
                     variant="outline"
+                    colorPalette={"gray"}
                     onClick={() => {
                       setIsCreating(false);
                       setIsEditing(false);
                       setCurrentDepartment(null);
                       setFormData({ name: "", code: "" });
                     }}
+                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-2"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-2"
+                  >
                     {isEditing ? "Update" : "Create"}
                   </Button>
                 </div>
@@ -212,12 +218,11 @@ export const DepartmentsMain: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {dept.code}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-blue-600 hover:text-blue-900 mr-2"
-                          // icon={<Edit className="h-4 w-4" />}
+                          className="text-blue-600 hover:text-blue-700"
                           onClick={() => handleEditClick(dept)}
                         >
                           <Edit className="h-4 w-4" />
@@ -230,8 +235,7 @@ export const DepartmentsMain: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-600 hover:text-red-900"
-                            // icon={<Trash2 className="h-4 w-4" />}
+                            className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
                             Delete

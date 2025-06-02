@@ -1,5 +1,6 @@
 // import { Button } from "@/components/ui/Button";
 // import { Card, CardContent } from "@/components/ui/Card";
+import { DeleteDialog } from "@/components/ui/DeleteDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@chakra-ui/react";
@@ -241,7 +242,7 @@ export default function DocumentUpload() {
         <div className="flex justify-center">
           <Button
             onClick={handleAddOrUpdate}
-            className="w-full sm:w-2/3 md:w-1/3"
+            className="w-full sm:w-2/3 md:w-1/3 px-2 bg-blue-600 text-white hover:bg-blue-700"
           >
             {editId ? "Update" : "Add"} Document
           </Button>
@@ -301,26 +302,28 @@ export default function DocumentUpload() {
                     <td className="border p-2 hidden sm:table-cell">
                       {doc.fileName || "-"}
                     </td>
-                    <td className="border p-2">
-                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                    <td className="border p-2 ">
+                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleEdit(doc.id)}
-                          className="w-full sm:w-auto"
+                          className="w-full sm:flex-1 bg-gray-100 hover:bg-gray-200"
                         >
                           Edit
                         </Button>
-                        <Button
-                          // variant="danger"
-                          variant="outline"
-                          colorPalette={"red"}
-                          size="sm"
-                          onClick={() => handleDelete(doc.id)}
-                          className="w-full sm:w-auto"
+                        <DeleteDialog
+                          key={doc.id}
+                          onConfirm={() => handleDelete(doc.id)}
                         >
-                          Delete
-                        </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full sm:flex-1 bg-red-600 text-white hover:bg-red-700"
+                          >
+                            Delete
+                          </Button>
+                        </DeleteDialog>
                       </div>
                     </td>
                   </tr>

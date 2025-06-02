@@ -1,4 +1,5 @@
 import { Select } from "@/components/ui/Select";
+import { Button } from "@chakra-ui/react";
 // import { Text } from "@chakra-ui/react";
 import { useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -165,19 +166,19 @@ const OCRUnrecordedUI = () => {
               </div>
 
               <div className="flex gap-2">
-                <button
-                  className="flex-1 bg-gray-300 py-1.5 rounded hover:bg-gray-400 text-sm"
+                <Button
+                  className="flex-1 bg-gray-100 py-1.5 rounded hover:bg-gray-200 text-sm"
                   onClick={handleLoad}
                 >
                   Load
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={handleOCR}
                   disabled={!formData.selectedDoc}
                   className="flex-1 bg-blue-600 text-white py-1.5 rounded hover:bg-blue-700 text-sm"
                 >
                   OCR
-                </button>
+                </Button>
               </div>
             </>
           ) : formData.template === "id" ? (

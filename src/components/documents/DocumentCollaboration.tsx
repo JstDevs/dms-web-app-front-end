@@ -15,7 +15,6 @@ import {
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { Button } from "@chakra-ui/react";
-// import { Button } from "../ui/Button";
 
 interface DocumentCollaborationProps {
   document: Document;
@@ -172,7 +171,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                   <Button
                     onClick={handleAddComment}
                     disabled={!comment.trim()}
-                    className="btn btn-primary flex items-center gap-1 text-sm py-1.5 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700 "
                   >
                     <Send size={14} />
                     Comment

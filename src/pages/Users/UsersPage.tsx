@@ -137,8 +137,7 @@ export const UsersPage: React.FC = () => {
                 confirmPassword: "",
               });
             }}
-            // icon={<UserPlus className="h-4 w-4" />}
-            className="w-full"
+            className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
           >
             <UserPlus className="h-4 w-4" />
             Create User
@@ -236,10 +235,14 @@ export const UsersPage: React.FC = () => {
                         confirmPassword: "",
                       });
                     }}
+                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-2"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-2"
+                  >
                     {isEditing ? "Update" : "Create"}
                   </Button>
                 </div>
@@ -293,12 +296,11 @@ export const UsersPage: React.FC = () => {
                             user.accessId.slice(1)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           className="text-blue-600 hover:text-blue-900 mr-2"
-                          // icon={<Edit className="h-4 w-4" />}
                           onClick={() => handleEditClick(user)}
                           disabled={user.accessId === "admin"}
                         >
@@ -313,7 +315,6 @@ export const UsersPage: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             className="text-red-600 hover:text-red-900"
-                            // icon={<Trash2 className="h-4 w-4" />}
                             disabled={user.accessId === "admin"}
                           >
                             <Trash2 className="h-4 w-4" />
