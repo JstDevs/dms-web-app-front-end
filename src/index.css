@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+/* For WebKit browsers (Chrome, Safari, Edge) */
+.sidebar-custom-scrollbar::-webkit-scrollbar {
+  width: 8px; /* or whatever width you prefer */
+  background: transparent; /* makes the track transparent */
+}
+
+.sidebar-custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* makes the track transparent */
+}
+
+.sidebar-custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: white; /* white thumb */
+  border-radius: 4px; /* rounded corners */
+  border: 2px solid transparent; /* creates padding effect */
+  background-clip: content-box; /* ensures the border doesn't cover the thumb */
+}
+
+.sidebar-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(
+    255,
+    255,
+    255,
+    0.7
+  ); /* slightly transparent on hover */
+}
+
+/* For Firefox */
+.sidebar-custom-scrollbar {
+  scrollbar-width: thin; /* 'auto' or 'thin' */
+  scrollbar-color: white transparent; /* thumb color track color */
+}
+#sidebar {
+  transition: transform 0.3s ease-in-out, width 0.3s ease-in-out;
+}
+#sidebar:not(.mobile-open) {
+  transform: translateX(-100%);
+}
+@media (min-width: 768px) {
+  #sidebar {
+    transform: none !important;
+  }
+}
