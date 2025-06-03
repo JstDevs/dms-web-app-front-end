@@ -105,7 +105,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                 {selectedVersion?.id === version.id &&
                   compareVersion === null &&
                   version.id !== "current" && (
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 flex-1">
                       <Button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -114,10 +114,10 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                           );
                           handleCompareSelect(allVersions[currentVersionIndex]);
                         }}
-                        className="text-xs border border-gray-300 bg-gray-100 hover:bg-gray-200 text-black px-2 py-1 rounded-md flex items-center gap-1"
+                        className="text-xs border w-full sm:w-auto border-gray-300 bg-gray-100 hover:bg-gray-200 text-black px-2 py-1 rounded-md flex items-center gap-1"
                       >
-                        Compare with Current
-                        <ArrowRight size={12} />
+                        Compare
+                        <ArrowRight size={12} className="max-sm:hidden" />
                       </Button>
                     </div>
                   )}
