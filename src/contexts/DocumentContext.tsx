@@ -193,7 +193,7 @@ const mockDocuments: Document[] = [
         name: "Executive Approval",
         type: "single",
         active: true,
-        completed: false,
+        completed: true,
         completedAt: "2025-04-12T16:30:00Z",
         approvers: [
           {
