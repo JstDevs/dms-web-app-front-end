@@ -32,7 +32,9 @@ export const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-white to-blue-50 px-4 py-16">
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-blue-800">Welcome to DMS</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-blue-800">
+          Welcome to DMS
+        </h1>
         <p className="mt-3 text-lg text-gray-600">
           Select a module to begin working with your documents
         </p>
@@ -46,7 +48,7 @@ export const HomePage: React.FC = () => {
             className="cursor-pointer transition-transform transform hover:scale-[1.03] hover:shadow-xl border border-gray-200 rounded-3xl bg-white shadow-md"
           >
             <div className="h-full">
-              <div className="p-8 text-center flex flex-col items-center">
+              <div className="p-2 py-6 sm:p-8 text-center flex flex-col items-center">
                 <div
                   className={`${card.bg} p-4 rounded-full mb-5 shadow-inner`}
                 >

@@ -204,7 +204,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
             </div>
           ) : (
             <div>
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex items-center justify-between flex-wrap">
                 <h3 className="text-lg font-medium text-gray-900">
                   {selectedVersion.id === "current"
                     ? "Current Version"
@@ -214,7 +214,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                 {selectedVersion.id !== "current" && (
                   <Button
                     onClick={handleRestore}
-                    className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
+                    className=" flex-initial px-2 bg-blue-600 text-white hover:bg-blue-700"
                   >
                     <RefreshCw size={14} />
                     Restore this Version

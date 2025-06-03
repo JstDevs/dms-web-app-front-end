@@ -152,14 +152,14 @@ const DocumentView: React.FC = () => {
                 <div className="flex mt-4 gap-2">
                   <Button
                     onClick={handleSave}
-                    className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
+                    className="flex-1 sm:flex-initial px-2 bg-blue-600 text-white hover:bg-blue-700"
                   >
                     <Save size={16} />
                     Save Changes
                   </Button>
                   <Button
                     onClick={handleCancel}
-                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-2"
+                    className="flex-1 sm:flex-initial bg-gray-100 hover:bg-gray-200 px-2"
                     variant={"outline"}
                   >
                     Cancel
@@ -177,7 +177,10 @@ const DocumentView: React.FC = () => {
                       {document.title}
                     </h1>
                     <div className="text-sm text-gray-500 flex items-center gap-1">
-                      <Clock size={14} />
+                      <Clock
+                        size={14}
+                        className="text-gray-500 max-sm:hidden"
+                      />
                       Last modified:{" "}
                       {document.lastModifiedAt
                         ? new Date(document.lastModifiedAt).toLocaleString()
@@ -281,7 +284,7 @@ const DocumentView: React.FC = () => {
           >
             <ChevronLeft size={20} />
           </button>
-          <h1 className="text-2xl font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
+          <h1 className="text-2xl font-semibold text-gray-900 ">
             {document.title}
           </h1>
         </div>

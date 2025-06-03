@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 // import {
 //   Card,
 //   CardContent,
@@ -31,6 +31,9 @@ export const DocumentTypesPage: React.FC = () => {
   const [formData, setFormData] = useState({ name: "", code: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  // ------------------FORM REF TO MOVE TO TOP ---------------
+  const formRef = useRef<HTMLDivElement>(null);
+  //   -----------------FILTER DOCS-----------------
   const filteredDocumentTypes = documentTypes.filter(
     (type) =>
       type.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -60,6 +63,10 @@ export const DocumentTypesPage: React.FC = () => {
     setFormData({ name: docType.name, code: docType.code });
     setIsEditing(true);
     setIsCreating(false);
+    // Scroll to the form after rendering
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100); // slight delay ensures DOM updates
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
@@ -84,7 +91,7 @@ export const DocumentTypesPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-6">
+    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6">
       <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
         <div className="text-left flex-1">
           <h1 className="text-3xl font-bold text-blue-800">Document Types</h1>
@@ -93,17 +100,19 @@ export const DocumentTypesPage: React.FC = () => {
           </p>
         </div>
         <div className="w-full sm:w-auto">
-          <Button
-            onClick={() => {
-              setIsCreating(true);
-              setIsEditing(false);
-              setFormData({ name: "", code: "" });
-            }}
-            className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            Create Document Type
-          </Button>
+          {!isCreating && !isEditing && (
+            <Button
+              onClick={() => {
+                setIsCreating(true);
+                setIsEditing(false);
+                setFormData({ name: "", code: "" });
+              }}
+              className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Create Document Type
+            </Button>
+          )}
         </div>
       </header>
 
@@ -122,7 +131,7 @@ export const DocumentTypesPage: React.FC = () => {
         </div>
         <div>
           {(isCreating || isEditing) && (
-            <div className="mb-6 p-4 border rounded-md">
+            <div className="mb-6 p-4 border rounded-md" ref={formRef}>
               <h3 className="text-lg font-medium mb-4">
                 {isEditing ? "Edit Document Type" : "Create Document Type"}
               </h3>
@@ -156,13 +165,13 @@ export const DocumentTypesPage: React.FC = () => {
                       setCurrentDocType(null);
                       setFormData({ name: "", code: "" });
                     }}
-                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-2"
+                    className="flex-1 sm:flex-initial bg-gray-100 hover:bg-gray-200 px-2"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-2"
+                    className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white px-2"
                   >
                     {isEditing ? "Update" : "Create"}
                   </Button>

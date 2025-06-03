@@ -100,7 +100,7 @@ export default function DocumentUpload() {
   );
 
   return (
-    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-4 sm:p-6 space-y-6">
+    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6 space-y-6">
       {/* Header */}
       <header className="text-left">
         <h1 className="text-3xl font-bold text-blue-800">Upload</h1>

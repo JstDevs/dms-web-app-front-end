@@ -19,15 +19,19 @@ export const FieldSettingsPanel = ({
       {/* Department/Subdepartment Labels - Stack on mobile */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="text-sm text-gray-600 block">Department</label>
-          <div className="bg-blue-600 text-white text-center py-2 rounded-md">
+          <label className="text-xl font-semibold text-gray-600 block">
+            Department
+          </label>
+          <div className="bg-gray-100 text-black text-center py-2 rounded-md">
             Payroll
           </div>
         </div>
         <div>
-          <label className="text-sm text-gray-600 block">Sub-Department</label>
-          <div className="bg-blue-100 text-blue-700 text-center py-2 rounded-md">
-            None
+          <label className="text-xl font-semibold text-gray-600 block">
+            Sub-Department
+          </label>
+          <div className="bg-gray-100 text-black text-center py-2 rounded-md">
+            Contract
           </div>
         </div>
       </div>
@@ -40,6 +44,7 @@ export const FieldSettingsPanel = ({
         <input
           className="border px-4 py-2 rounded text-sm w-full"
           placeholder="File Description"
+          value={fields[0].description}
         />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -49,6 +54,7 @@ export const FieldSettingsPanel = ({
         <input
           className="border px-4 py-2 rounded text-sm w-full"
           placeholder="File Date"
+          value={fields[0].dataType}
         />
       </div>
 
@@ -74,7 +80,7 @@ export const FieldSettingsPanel = ({
               type="text"
               className="col-span-1 sm:col-span-2 px-2 py-1 border rounded text-sm w-full"
               value={field.description}
-              readOnly
+              // readOnly
             />
             <div className="flex items-center justify-start sm:justify-end gap-2 col-span-1 sm:col-span-1">
               <label className="text-sm flex items-center gap-1">

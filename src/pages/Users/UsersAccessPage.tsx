@@ -315,13 +315,14 @@ const UserAccessPage = () => {
         lazyMount
         open={isDialogOpen}
         onOpenChange={(e) => setIsDialogOpen(e.open)}
+        placement={"center"}
       >
         <Portal>
           <Dialog.Backdrop />
           <Dialog.Positioner>
-            <Dialog.Content>
+            <Dialog.Content className="bg-white mx-4">
               <Dialog.Header>
-                <Dialog.Title className="text-lg font-semibold ">
+                <Dialog.Title className="text-2xl font-semibold ">
                   {" "}
                   Add New Role
                 </Dialog.Title>
@@ -340,14 +341,15 @@ const UserAccessPage = () => {
                   <Button
                     variant="outline"
                     onClick={() => setIsDialogOpen(false)}
-                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-2"
+                    className="flex-1 sm:flex-initial bg-gray-100 hover:bg-gray-200 px-2"
                   >
                     Cancel
                   </Button>
                 </Dialog.ActionTrigger>
                 <Button
                   onClick={handleAddNewRole}
-                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-2"
+                  className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white px-2"
+                  disabled={!newRoleName}
                 >
                   {" "}
                   Add Role

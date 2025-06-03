@@ -321,10 +321,10 @@ export const AllocationPanel = () => {
 
       {/* Footer Buttons */}
       <div className="flex gap-2">
-        <button
+        <Button
           onClick={() => setShowAddUser(true)}
           disabled={showAddUser || mockUsers.length === users.length}
-          className={`flex items-center gap-1 px-4 py-2 rounded-md text-sm ${
+          className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm ${
             showAddUser || mockUsers.length === users.length
               ? "bg-gray-200 text-gray-500 cursor-not-allowed"
               : "bg-blue-600 text-white hover:bg-blue-700"
@@ -332,7 +332,7 @@ export const AllocationPanel = () => {
         >
           <PlusCircle className="w-4 h-4" />
           Add User
-        </button>
+        </Button>
       </div>
     </div>
   );

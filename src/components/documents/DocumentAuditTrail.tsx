@@ -229,8 +229,6 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                   }
                 />
               </div>
-              {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              </div> */}
             </div>
             <div className=" flex justify-end">
               <Button
