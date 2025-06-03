@@ -133,6 +133,7 @@ export const UsersPage: React.FC = () => {
             Manage system users and access permissions
           </p>
         </div>
+
         <div className="w-full sm:w-auto">
           {!isCreating && !isEditing && (
             <Button

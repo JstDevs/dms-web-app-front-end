@@ -50,6 +50,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               ${fullWidth ? "w-full" : ""}
                ${icon ? "pl-10" : "px-2"}  // 👈 Adjust padding if icon exists
               ${error ? "border-red-500" : "border-gray-300"}
+              ${isPassword ? "pr-10" : ""}
             `}
             {...props}
           />

@@ -25,8 +25,8 @@ export function DeleteDialog({
               </Dialog.Close>
             </div>
             <p className="text-sm text-gray-600">
-              Are you sure you want to delete this? This action cannot be
-              undone.
+              Are you sure you want to delete this?
+              <br /> This action cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
               <Dialog.Close asChild>
