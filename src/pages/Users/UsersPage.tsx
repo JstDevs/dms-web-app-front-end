@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -36,6 +36,9 @@ export const UsersPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  // ------------------FORM REF TO MOVE TO TOP ---------------
+  const formRef = useRef<HTMLDivElement>(null);
+  // -------------------FILTER USERS -----------------
   const filteredUsers = users.filter((user) =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -78,6 +81,11 @@ export const UsersPage: React.FC = () => {
     });
     setIsEditing(true);
     setIsCreating(false);
+
+    // Scroll to the form after rendering
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100); // slight delay ensures DOM updates
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
@@ -117,8 +125,8 @@ export const UsersPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col bg-white rounded-md shadow-lg">
-      <header className="flex justify-between items-center gap-4 pt-4 px-6 flex-wrap">
+    <div className="flex flex-col bg-white rounded-md shadow-lg p-2 sm:p-6">
+      <header className="flex justify-between items-center gap-4 flex-wrap">
         <div className="text-left flex-1 ">
           <h1 className="text-3xl font-bold text-blue-800">Users</h1>
           <p className="mt-2 text-gray-600">
@@ -126,26 +134,28 @@ export const UsersPage: React.FC = () => {
           </p>
         </div>
         <div className="w-full sm:w-auto">
-          <Button
-            onClick={() => {
-              setIsCreating(true);
-              setIsEditing(false);
-              setFormData({
-                username: "",
-                accessId: "user",
-                password: "",
-                confirmPassword: "",
-              });
-            }}
-            className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <UserPlus className="h-4 w-4" />
-            Create User
-          </Button>
+          {!isCreating && !isEditing && (
+            <Button
+              onClick={() => {
+                setIsCreating(true);
+                setIsEditing(false);
+                setFormData({
+                  username: "",
+                  accessId: "user",
+                  password: "",
+                  confirmPassword: "",
+                });
+              }}
+              className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <UserPlus className="h-4 w-4" />
+              Create User
+            </Button>
+          )}
         </div>
       </header>
 
-      <div className="p-6">
+      <div className="mt-6">
         <div className="flex flex-row items-center justify-between flex-wrap gap-4 py-4">
           <CardTitle>System Users</CardTitle>
           <div className="w-full sm:w-64">
@@ -160,7 +170,7 @@ export const UsersPage: React.FC = () => {
         </div>
         <section>
           {(isCreating || isEditing) && (
-            <div className="mb-6 p-4 border rounded-md">
+            <div className="mb-6 p-4 border rounded-md" ref={formRef}>
               <h3 className="text-lg font-medium mb-4">
                 {isEditing ? "Edit User" : "Create User"}
               </h3>
@@ -235,13 +245,13 @@ export const UsersPage: React.FC = () => {
                         confirmPassword: "",
                       });
                     }}
-                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-2"
+                    className="flex-1 sm:flex-initial bg-gray-100 hover:bg-gray-200 px-2"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-2"
+                    className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white px-2"
                   >
                     {isEditing ? "Update" : "Create"}
                   </Button>

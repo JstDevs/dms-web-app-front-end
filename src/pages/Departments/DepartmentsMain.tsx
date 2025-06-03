@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 // import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 // import { Button } from "@/components/ui/Button";
@@ -37,7 +37,8 @@ export const DepartmentsMain: React.FC = () => {
   const [formData, setFormData] = useState({ name: "", code: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-
+  // ------------------FORM REF TO MOVE TO TOP ---------------
+  const formRef = useRef<HTMLDivElement>(null);
   //   -----------------FILTER DEPARTMENTS-----------------
   const filteredDepartments = departments.filter(
     (dept) =>
@@ -77,6 +78,11 @@ export const DepartmentsMain: React.FC = () => {
     setFormData({ name: dept.name, code: dept.code });
     setIsEditing(true);
     setIsCreating(false);
+
+    // Scroll to the form after rendering
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100); // slight delay ensures DOM updates
   };
 
   //   ---------------------EDIT DEPARTMENTS---------------------
@@ -103,7 +109,7 @@ export const DepartmentsMain: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-6">
+    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6">
       <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
         <div className="text-left flex-1">
           <h1 className="text-3xl font-bold text-blue-800">Departments</h1>
@@ -143,7 +149,7 @@ export const DepartmentsMain: React.FC = () => {
         </div>
         <div>
           {(isCreating || isEditing) && (
-            <div className="mb-6 p-4 border rounded-md">
+            <div className="mb-6 p-4 border rounded-md" ref={formRef}>
               <h3 className="text-lg font-medium mb-4">
                 {isEditing ? "Edit Department" : "Create Department"}
               </h3>
@@ -167,7 +173,7 @@ export const DepartmentsMain: React.FC = () => {
                   }
                   required
                 />
-                <div className="flex justify-end space-x-3">
+                <div className="flex justify-end space-x-3 w-full">
                   <Button
                     type="button"
                     variant="outline"
@@ -178,13 +184,13 @@ export const DepartmentsMain: React.FC = () => {
                       setCurrentDepartment(null);
                       setFormData({ name: "", code: "" });
                     }}
-                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 px-2"
+                    className="flex-1 sm:flex-initial bg-gray-100 hover:bg-gray-200 px-2"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-2"
+                    className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white px-2"
                   >
                     {isEditing ? "Update" : "Create"}
                   </Button>
