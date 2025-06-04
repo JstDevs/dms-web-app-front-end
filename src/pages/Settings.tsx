@@ -2,9 +2,10 @@ import React from "react";
 import { useUser } from "../contexts/UserContext";
 import { UserCircle, Bell, Lock, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Settings: React.FC = () => {
-  const { user } = useUser();
+  const { user } = useAuth();
   const navitage = useNavigate();
   return (
     <div className="animate-fade-in">
@@ -18,11 +19,11 @@ const Settings: React.FC = () => {
             </div>
             <div>
               <h2 className="text-xl font-medium text-gray-900">
-                {user?.name}
+                {user?.UserName}
               </h2>
-              <p className="text-sm text-gray-500">{user?.email}</p>
+              <p className="text-sm text-gray-500">{user?.UserAccessID}</p>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-2">
-                {user?.role}
+                {user?.userAccess?.Description}
               </span>
             </div>
           </div>
@@ -36,9 +37,9 @@ const Settings: React.FC = () => {
               </h3>
               <div className="space-y-4">
                 <button
-                  // onClick={() => {
-                  //   navitage("/settings/change-password");
-                  // }}
+                  onClick={() => {
+                    navitage("/settings/change-password");
+                  }}
                   className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100"
                 >
                   <div className="flex items-center">

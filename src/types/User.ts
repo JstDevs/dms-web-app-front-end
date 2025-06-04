@@ -1,10 +1,20 @@
 export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar: string;
-  password?: string;
+  ID: number;
+  UserName: string;
+  EmployeeID: number;
+  Password?: string;
+  Active: boolean;
+  CreatedBy: string;
+  CreatedDate: string;
+  UserAccessID: number;
+  userAccess: {
+    ID: number;
+    Description: string;
+    Active: boolean;
+    Createdby: string;
+    CreatedDate: string;
+    moduleAccess: any[]; // You might want to create a specific interface for this if you know its structure
+  };
 }
 // ---------------NEW TYPES------------------
 export interface UserAccess {
@@ -23,7 +33,10 @@ export interface Department {
   name: string;
   code: string;
 }
-
+export interface DepartmentPayload {
+  name: string;
+  code: string;
+}
 export interface Location {
   id: string;
   name: string;

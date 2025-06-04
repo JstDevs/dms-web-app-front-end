@@ -33,7 +33,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { AllocationPanel } from "./pages/Digitalization/Allocation";
 import { BatchUploadPanel } from "./pages/Digitalization/BatchUpload";
 import { DepartmentsMain } from "./pages/Departments/DepartmentsMain";
-import { DepartmentsSub } from "./pages/Departments/DepartmentsSub";
+import { SubDepartments } from "./pages/Departments/SubDepartments";
 import { HandWrittenOCRUploader } from "./pages/OCR/HandWrittenDocs";
 import { TemplateOCR } from "./pages/OCR/Template";
 import UnrecordedOCR from "./pages/OCR/Unrecorded";
@@ -100,7 +100,7 @@ function App() {
                     />
                     <Route
                       path="/departments/sub"
-                      element={<DepartmentsSub />}
+                      element={<SubDepartments />}
                     />
                     {/* -----------USERS------------- */}
                     <Route path="/users/members" element={<UsersPage />} />

@@ -1,33 +1,21 @@
 import React, { useEffect, useRef, useState } from "react";
-// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-// import { Button } from "@/components/ui/Button";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
-import { Department } from "@/types/User";
 import { PaginationControls } from "@/components/ui/PaginationControls";
 import { DeleteDialog } from "@/components/ui/DeleteDialog";
 import { Button } from "@chakra-ui/react";
-// import { RootState } from "@/redux/store";
-// import { useDispatch, useSelector } from "react-redux";
+import toast from "react-hot-toast";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/redux/store";
+import {
+  fetchDepartments,
+  createDepartment,
+  editDepartment,
+  deleteDepartment,
+} from "@/redux/thunk/DepartmentThunk";
+import { Department } from "@/types/Departments";
 
 export const DepartmentsMain: React.FC = () => {
-  //   const dispatch = useDispatch();
-  //   const departments = useSelector(
-  //     (state: RootState) => state.departments.departments
-  //   );
-  //   const [departments, setDepartments] = useState<Department[]>([
-
-  //   ]);
-  const [departments, setDepartments] = useState<Department[]>([
-    { id: "1", name: "Finance", code: "FIN" },
-    { id: "2", name: "Human Resources", code: "HR" },
-    { id: "3", name: "IT Department", code: "IT" },
-    { id: "4", name: "Legal", code: "LEG" },
-    { id: "5", name: "Procurement", code: "PRC" },
-    { id: "6", name: "Marketing", code: "MKT" },
-    { id: "7", name: "Operations", code: "OPS" },
-    { id: "8", name: "Sales", code: "SLS" },
-  ]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -37,82 +25,101 @@ export const DepartmentsMain: React.FC = () => {
   const [formData, setFormData] = useState({ name: "", code: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  // ------------------FORM REF TO MOVE TO TOP ---------------
-  const formRef = useRef<HTMLDivElement>(null);
-  //   -----------------FILTER DEPARTMENTS-----------------
-  const filteredDepartments = departments.filter(
-    (dept) =>
-      dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dept.code.toLowerCase().includes(searchTerm.toLowerCase())
+
+  const dispatch = useDispatch<AppDispatch>();
+  const departments = useSelector(
+    (state: RootState) => state.departments.items
   );
 
-  //   --------------------PAGINATE DEPARTMENTS--------------------
-  const paginatedDepartments = filteredDepartments.slice(
+  const formRef = useRef<HTMLDivElement>(null);
+
+  const filteredDepartments = departments?.filter(
+    (dept) =>
+      dept?.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dept?.Code?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  console.log(filteredDepartments);
+  const paginatedDepartments = filteredDepartments?.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  //   ------------SET CURRENT PAGE TO 1 WHEN SEARCH TERM OR ITEMS PER PAGE CHANGES----------------
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, itemsPerPage]);
 
-  //   ---------------------SUBMIT CREATE DEPARTMENT---------------------
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    dispatch(fetchDepartments());
+  }, [dispatch]);
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const newDepartment: Department = {
-      id: (departments.length + 1).toString(),
-      name: formData.name,
-      code: formData.code,
-    };
-
-    setDepartments([...departments, newDepartment]);
-    setFormData({ name: "", code: "" });
-    setIsCreating(false);
+    if (!formData.name || !formData.code) {
+      toast.error("Both fields are required");
+      return;
+    }
+    try {
+      await dispatch(createDepartment(formData));
+      await dispatch(fetchDepartments());
+      toast.success("Department created successfully!");
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.message || "Failed to create department"
+      );
+    } finally {
+      setFormData({ name: "", code: "" });
+      setIsCreating(false);
+    }
   };
 
-  //   ---------------------EDIT BUTTON CLICK---------------------
   const handleEditClick = (dept: Department) => {
     setCurrentDepartment(dept);
-    setFormData({ name: dept.name, code: dept.code });
+    setFormData({ name: dept.Name, code: dept.Code });
     setIsEditing(true);
     setIsCreating(false);
-
-    // Scroll to the form after rendering
     setTimeout(() => {
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100); // slight delay ensures DOM updates
+    }, 100);
   };
 
-  //   ---------------------EDIT DEPARTMENTS---------------------
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (currentDepartment) {
-      const updatedDepartments = departments.map((dept) =>
-        dept.id === currentDepartment.id
-          ? { ...dept, name: formData.name, code: formData.code }
-          : dept
-      );
-
-      setDepartments(updatedDepartments);
+    try {
+      if (currentDepartment) {
+        await dispatch(
+          editDepartment({
+            id: currentDepartment.ID,
+            name: formData.name,
+            code: formData.code,
+          })
+        );
+        await dispatch(fetchDepartments());
+        toast.success("Department edited successfully!");
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
       setFormData({ name: "", code: "" });
       setIsEditing(false);
       setCurrentDepartment(null);
     }
   };
 
-  //   ------------------- DELETE DEPARTMENT -------------------
-  const handleDelete = (id: string) => {
-    setDepartments(departments.filter((dept) => dept.id !== id));
+  const handleDelete = async (id: number) => {
+    try {
+      await dispatch(deleteDepartment(id));
+      await dispatch(fetchDepartments());
+      toast.success("Department deleted successfully!");
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6">
-      <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
-        <div className="text-left flex-1">
-          <h1 className="text-3xl font-bold text-blue-800">Departments</h1>
+      <header className="mb-8 flex flex-wrap justify-between items-center gap-4  sm:gap-2">
+        <div className="text-left flex-1 ">
+          <h1 className="text-3xl font-bold text-blue-800">Department</h1>
           <p className="mt-2 text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
             Manage departments in the system
           </p>
@@ -136,10 +143,10 @@ export const DepartmentsMain: React.FC = () => {
 
       <div className="space-y-4">
         <div className="flex flex-row items-center justify-between flex-wrap gap-4">
-          <h2>Departments List</h2>
+          <h2>Departments</h2>
           <div className="w-full sm:w-64">
             <Input
-              placeholder="Search departments..."
+              placeholder="Search department..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full"
@@ -177,14 +184,13 @@ export const DepartmentsMain: React.FC = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    colorPalette={"gray"}
                     onClick={() => {
                       setIsCreating(false);
                       setIsEditing(false);
                       setCurrentDepartment(null);
                       setFormData({ name: "", code: "" });
                     }}
-                    className="flex-1 sm:flex-initial bg-gray-100 hover:bg-gray-200 px-2"
+                    className="flex-1 sm:flex-initial  bg-gray-100 hover:bg-gray-200 px-2"
                   >
                     Cancel
                   </Button>
@@ -215,33 +221,33 @@ export const DepartmentsMain: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedDepartments.length > 0 ? (
-                  paginatedDepartments.map((dept) => (
-                    <tr key={dept.id} className="hover:bg-gray-50">
+                {paginatedDepartments?.length > 0 ? (
+                  paginatedDepartments?.map((dept) => (
+                    <tr key={dept.ID} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {dept.name}
+                        {dept.Name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {dept.code}
+                        {dept.Code}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-blue-600 hover:text-blue-700"
+                          className="text-blue-600 hover:text-blue-900 mr-2"
                           onClick={() => handleEditClick(dept)}
                         >
                           <Edit className="h-4 w-4" />
                           Edit
                         </Button>
                         <DeleteDialog
-                          key={dept.id}
-                          onConfirm={() => handleDelete(dept.id)}
+                          key={dept.ID}
+                          onConfirm={() => handleDelete(dept.ID)}
                         >
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600 hover:text-red-900"
                           >
                             <Trash2 className="h-4 w-4" />
                             Delete
@@ -256,7 +262,7 @@ export const DepartmentsMain: React.FC = () => {
                       colSpan={3}
                       className="px-6 py-4 text-center text-sm text-gray-500"
                     >
-                      No departments found
+                      No department found
                     </td>
                   </tr>
                 )}
@@ -267,7 +273,7 @@ export const DepartmentsMain: React.FC = () => {
       </div>
       <PaginationControls
         currentPage={currentPage}
-        totalItems={filteredDepartments.length}
+        totalItems={filteredDepartments?.length}
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={setItemsPerPage}
