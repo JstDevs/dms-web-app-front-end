@@ -1,34 +1,49 @@
 import { User } from "@/types/User";
-
-const API_BASE = "https://your-api.com/api";
+import axios from "@/api/axios";
+import { removeToken, removeUserFromStorage } from "@/utils/token";
 
 interface LoginResponse {
   token: string;
   user: User;
 }
 
+interface LoginResponse {
+  token: string;
+  user: User;
+}
+// ---------------LOGIN---------------
 export async function fetchLogin(
-  email: string,
+  userName: string,
   password: string
 ): Promise<LoginResponse> {
-  const response = await fetch(`${API_BASE}/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, password }),
+  const { data } = await axios.post<LoginResponse>("/auth/login", {
+    userName,
+    password,
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || "Login failed");
-  }
-
-  const data = await response.json();
   return data;
 }
-
+// ---------------LOGOUT-------------------
 export function logoutUser() {
-  localStorage.removeItem("auth_token");
-  localStorage.removeItem("user");
+  removeToken();
+  removeUserFromStorage();
+}
+// -------------CHANGE PASSWORD----------------
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ message: string }> {
+  try {
+    const { data } = await axios.post("/auth/change-password", {
+      currentPassword,
+      newPassword,
+      confirmNewPassword: newPassword,
+    });
+    return data;
+  } catch (error: any) {
+    const message =
+      error.response?.data?.message ||
+      error.message ||
+      "Password change failed";
+    throw new Error(message);
+  }
 }

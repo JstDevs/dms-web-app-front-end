@@ -1,50 +1,68 @@
-import { PayloadAction, createSlice } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { SubDepartment } from "@/types/Departments";
+import {
+  createSubDepartment,
+  deleteSubDepartment,
+  editSubDepartment,
+  fetchSubDepartments,
+} from "../thunk/SubdepartmentThunk";
 
-export type SubDepartmentType = {
-  id: string;
-  name: string;
-  departmentId: string;
-};
-
-type SubDepartmentState = {
-  subDepartments: SubDepartmentType[];
-};
+interface SubDepartmentState {
+  items: SubDepartment[];
+  loading: boolean;
+}
 
 const initialState: SubDepartmentState = {
-  subDepartments: [],
+  items: [],
+  loading: false,
 };
 
-const subDepartmentsSlice = createSlice({
+const subDepartmentSlice = createSlice({
   name: "subDepartments",
   initialState,
   reducers: {
-    setSubDepartments: (state, action: PayloadAction<SubDepartmentType[]>) => {
-      state.subDepartments = action.payload;
+    resetSubDepartments: (state) => {
+      state.items = [];
     },
-    addSubDepartment: (state, action: PayloadAction<SubDepartmentType>) => {
-      state.subDepartments.push(action.payload);
-    },
-    removeSubDepartment: (state, action: PayloadAction<string>) => {
-      state.subDepartments = state.subDepartments.filter(
-        (subDept) => subDept.id !== action.payload
-      );
-    },
-    updateSubDepartment: (state, action: PayloadAction<SubDepartmentType>) => {
-      const index = state.subDepartments.findIndex(
-        (subDept) => subDept.id === action.payload.id
-      );
-      if (index !== -1) {
-        state.subDepartments[index] = action.payload;
-      }
-    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchSubDepartments.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(
+        fetchSubDepartments.fulfilled,
+        (state, action: PayloadAction<SubDepartment[]>) => {
+          state.items = action.payload;
+          state.loading = false;
+        }
+      )
+      .addCase(fetchSubDepartments.rejected, (state) => {
+        state.loading = false;
+      })
+      .addCase(
+        createSubDepartment.fulfilled,
+        (state, action: PayloadAction<SubDepartment>) => {
+          state.items.push(action.payload);
+        }
+      )
+      .addCase(editSubDepartment.fulfilled, (state, action) => {
+        const updated = action.payload;
+        const index = state.items.findIndex((item) => item.ID === updated.ID);
+        if (index !== -1) {
+          state.items[index] = {
+            ...state.items[index],
+            Name: updated.Name,
+            Code: updated.Code,
+          };
+        }
+      })
+      .addCase(deleteSubDepartment.fulfilled, (state, action) => {
+        const idToDelete = action.payload;
+        state.items = state.items.filter((item) => item.ID !== idToDelete);
+      });
   },
 });
 
-export const {
-  setSubDepartments,
-  addSubDepartment,
-  removeSubDepartment,
-  updateSubDepartment,
-} = subDepartmentsSlice.actions;
-
-export default subDepartmentsSlice.reducer;
+export const { resetSubDepartments } = subDepartmentSlice.actions;
+export default subDepartmentSlice.reducer;

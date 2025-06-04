@@ -15,9 +15,9 @@ export function DeleteDialog({
         <Dialog.Overlay className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <Dialog.Content className="max-w-sm w-full rounded-lg p-6 shadow-lg space-y-4 bg-white">
             <div className="flex items-start justify-between">
-              <h2 className="text-lg font-semibold text-gray-800">
+              <Dialog.DialogTitle className="text-lg font-semibold text-gray-800">
                 Confirm Delete
-              </h2>
+              </Dialog.DialogTitle>
               <Dialog.Close asChild>
                 <button className="text-gray-500 hover:text-gray-700">
                   <X className="h-5 w-5" />

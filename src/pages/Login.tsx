@@ -6,11 +6,11 @@ import { Eye, EyeOff } from "lucide-react"; // Import eye icons
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@chakra-ui/react";
 const Login: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  // const { login } = useUser();
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -18,7 +18,7 @@ const Login: React.FC = () => {
     e.preventDefault();
 
     // Basic validation
-    if (!email || !password) {
+    if (!userName || !password) {
       toast.error("Please enter both email and password");
       return;
     }
@@ -30,7 +30,7 @@ const Login: React.FC = () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Attempt login
-      const user = login(email, password);
+      const user = await login(userName, password);
 
       if (user) {
         toast.success("Login successful!");
@@ -66,19 +66,19 @@ const Login: React.FC = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-4">
             <div>
-              <label htmlFor="email-address" className="sr-only">
-                Email address
+              <label htmlFor="userName" className="sr-only">
+                User Name
               </label>
               <input
-                id="email-address"
+                id="userName"
                 name="email"
-                type="email"
-                autoComplete="email"
+                type="text"
+                autoComplete="text"
                 required
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder="User Name"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
               />
             </div>
             <div className="relative">

@@ -1,4 +1,6 @@
+import { fetchLogin } from "@/api/auth";
 import { User } from "@/types/User";
+import { setToken, setUserInStorage } from "@/utils/token";
 import {
   createContext,
   useContext,
@@ -10,9 +12,8 @@ import toast from "react-hot-toast";
 
 interface AuthContextType {
   user: User | null;
-  users: User[];
   isAuthenticated: boolean;
-  login: (email: string, password: string) => User | null;
+  login: (email: string, password: string) => Promise<User | null>;
   logout: () => void;
   error: string | null;
   isLoading: boolean;
@@ -24,45 +25,8 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Mock users data
-const mockUsers: User[] = [
-  {
-    id: "user-1",
-    name: "Test",
-    email: "test@sofueled.com",
-    role: "Admin",
-    password: "test123",
-    avatar: "",
-  },
-  {
-    id: "user-2",
-    name: "Jane Smith",
-    email: "jane@example.com",
-    role: "Manager",
-    password: "password2",
-    avatar: "",
-  },
-  {
-    id: "user-3",
-    name: "Robert Johnson",
-    email: "robert@example.com",
-    role: "Editor",
-    password: "password3",
-    avatar: "",
-  },
-  {
-    id: "user-4",
-    name: "Emily Wilson",
-    email: "emily@example.com",
-    role: "Viewer",
-    password: "password4",
-    avatar: "",
-  },
-];
-
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
-  const [users] = useState<User[]>(mockUsers);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -95,27 +59,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return () => window.removeEventListener("storage", checkAuth);
   }, []);
 
-  const login = (email: string, password: string) => {
+  const login = async (userName: string, password: string) => {
     try {
       setError(null);
 
-      // Find user in mock data
-      const foundUser = users.find(
-        (u) => u.email === email && u.password === password
-      );
-
-      if (foundUser) {
-        // Generate a simple token (in a real app, this would come from your API)
-        const token = btoa(`${email}:${Date.now()}`);
-
-        // Store both token and user data
-        localStorage.setItem("auth_token", token);
-        localStorage.setItem("user", JSON.stringify(foundUser));
-
-        setUser(foundUser);
+      const { token, user } = await fetchLogin(userName, password);
+      if (user) {
+        // Store both token and user data in localStorage
+        setToken(token);
+        setUserInStorage(user);
+        // Update state variables
+        setUser(user);
         setIsAuthenticated(true);
-        toast.success(`Welcome back, ${foundUser.name}!`);
-        return foundUser;
+        // Show success toast
+        toast.success(`Welcome back, ${user.UserName}!`);
+        // Return the user
+        return user;
       } else {
         return null;
         // throw new Error("Invalid email or password");
@@ -140,7 +99,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     <AuthContext.Provider
       value={{
         user,
-        users,
+        // users,
         isAuthenticated,
         login,
         logout,

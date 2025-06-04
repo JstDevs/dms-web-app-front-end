@@ -1,68 +1,82 @@
 import React, { useEffect, useRef, useState } from "react";
-// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-// import { Button } from "@/components/ui/Button";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
-import { Department } from "@/types/User";
 import { PaginationControls } from "@/components/ui/PaginationControls";
 import { DeleteDialog } from "@/components/ui/DeleteDialog";
 import { Button } from "@chakra-ui/react";
+import toast from "react-hot-toast";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/redux/store";
+import {
+  fetchSubDepartments,
+  createSubDepartment,
+  deleteSubDepartment,
+  editSubDepartment,
+} from "@/redux/thunk/SubdepartmentThunk";
+import { SubDepartment } from "@/types/Departments";
 
-export const DepartmentsSub: React.FC = () => {
-  const [departments, setDepartments] = useState<Department[]>([
-    { id: "1", name: "Finance", code: "FIN" },
-    { id: "2", name: "Human Resources", code: "HR" },
-    { id: "3", name: "IT Department", code: "IT" },
-    { id: "4", name: "Legal", code: "LEG" },
-    { id: "5", name: "Procurement", code: "PRC" },
-    { id: "6", name: "Marketing", code: "MKT" },
-    { id: "7", name: "Operations", code: "OPS" },
-    { id: "8", name: "Sales", code: "SLS" },
-  ]);
-
+export const SubDepartments: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentDepartment, setCurrentDepartment] = useState<Department | null>(
-    null
-  );
+  const [currentDepartment, setCurrentDepartment] =
+    useState<SubDepartment | null>(null);
   const [formData, setFormData] = useState({ name: "", code: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  // ------------------REDUX STATES----------------------
+  const dispatch = useDispatch<AppDispatch>();
+  const subDepartments = useSelector(
+    (state: RootState) => state.subDepartments.items
+  );
   // ------------------FORM REF TO MOVE TO TOP ---------------
   const formRef = useRef<HTMLDivElement>(null);
-  const filteredDepartments = departments.filter(
+  // ----------------FILTER SubDEPARTMENT----------------
+  const filteredSubDepartments = subDepartments.filter(
     (dept) =>
-      dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dept.code.toLowerCase().includes(searchTerm.toLowerCase())
+      dept?.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dept?.Code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const paginatedDepartments = filteredDepartments.slice(
+  // ---------------------PAGINATION----------------------
+  const paginatedDepartments = filteredSubDepartments.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
+  // --------------USE EFFECTS-------------------
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, itemsPerPage]);
+  // Fetch on mount
+  useEffect(() => {
+    dispatch(fetchSubDepartments());
+  }, [dispatch]);
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  // ----------------FUNCTIONS--------------------
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name || !formData.code) {
+      toast.error("Both fields are required");
+      return;
+    }
+    try {
+      //  return {statue:true}
+      await dispatch(createSubDepartment(formData));
+      await dispatch(fetchSubDepartments());
 
-    const newDepartment: Department = {
-      id: (departments.length + 1).toString(),
-      name: formData.name,
-      code: formData.code,
-    };
-
-    setDepartments([...departments, newDepartment]);
-    setFormData({ name: "", code: "" });
-    setIsCreating(false);
+      toast.success("Sub-Department created successfully!");
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.message || "Failed to create sub-department"
+      );
+    } finally {
+      setFormData({ name: "", code: "" });
+      setIsCreating(false);
+    }
   };
 
-  const handleEditClick = (dept: Department) => {
+  const handleEditClick = (dept: SubDepartment) => {
     setCurrentDepartment(dept);
-    setFormData({ name: dept.name, code: dept.code });
+    setFormData({ name: dept.Name, code: dept.Code });
     setIsEditing(true);
     setIsCreating(false);
     // Scroll to the form after rendering
@@ -71,25 +85,39 @@ export const DepartmentsSub: React.FC = () => {
     }, 100); // slight delay ensures DOM updates
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (currentDepartment) {
-      const updatedDepartments = departments.map((dept) =>
-        dept.id === currentDepartment.id
-          ? { ...dept, name: formData.name, code: formData.code }
-          : dept
-      );
-
-      setDepartments(updatedDepartments);
+    try {
+      if (currentDepartment) {
+        await dispatch(
+          editSubDepartment({
+            id: currentDepartment.ID,
+            name: formData.name,
+            code: formData.code,
+          })
+        );
+        await dispatch(fetchSubDepartments());
+        toast.success("Sub-Department edited successfully!");
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
       setFormData({ name: "", code: "" });
       setIsEditing(false);
       setCurrentDepartment(null);
     }
   };
 
-  const handleDelete = (id: string) => {
-    setDepartments(departments.filter((dept) => dept.id !== id));
+  const handleDelete = async (id: number) => {
+    console.log(id);
+    try {
+      await dispatch(deleteSubDepartment(id));
+      await dispatch(fetchSubDepartments());
+      toast.success("Sub-Department deleted successfully!");
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (
@@ -200,33 +228,31 @@ export const DepartmentsSub: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedDepartments.length > 0 ? (
                   paginatedDepartments.map((dept) => (
-                    <tr key={dept.id} className="hover:bg-gray-50">
+                    <tr key={dept.ID} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {dept.name}
+                        {dept.Name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {dept.code}
+                        {dept.Code}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           className="text-blue-600 hover:text-blue-900 mr-2"
-                          // icon={<Edit className="h-4 w-4" />}
                           onClick={() => handleEditClick(dept)}
                         >
                           <Edit className="h-4 w-4" />
                           Edit
                         </Button>
                         <DeleteDialog
-                          key={dept.id}
-                          onConfirm={() => handleDelete(dept.id)}
+                          key={dept.ID}
+                          onConfirm={() => handleDelete(dept.ID)}
                         >
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-red-600 hover:text-red-900"
-                            // icon={<Trash2 className="h-4 w-4" />}
                           >
                             <Trash2 className="h-4 w-4" />
                             Delete
@@ -252,7 +278,7 @@ export const DepartmentsSub: React.FC = () => {
       </div>
       <PaginationControls
         currentPage={currentPage}
-        totalItems={filteredDepartments.length}
+        totalItems={filteredSubDepartments.length}
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={setItemsPerPage}
