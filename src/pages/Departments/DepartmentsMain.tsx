@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/Input";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Save, X } from "lucide-react";
 import { PaginationControls } from "@/components/ui/PaginationControls";
 import { DeleteDialog } from "@/components/ui/DeleteDialog";
 import { Button } from "@chakra-ui/react";
@@ -31,14 +31,12 @@ export const DepartmentsMain: React.FC = () => {
     (state: RootState) => state.departments.items
   );
 
-  const formRef = useRef<HTMLDivElement>(null);
-
   const filteredDepartments = departments?.filter(
     (dept) =>
       dept?.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       dept?.Code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  console.log(filteredDepartments);
+  // console.log(filteredDepartments);
   const paginatedDepartments = filteredDepartments?.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -72,39 +70,6 @@ export const DepartmentsMain: React.FC = () => {
     }
   };
 
-  const handleEditClick = (dept: Department) => {
-    setCurrentDepartment(dept);
-    setFormData({ name: dept.Name, code: dept.Code });
-    setIsEditing(true);
-    setIsCreating(false);
-    setTimeout(() => {
-      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (currentDepartment) {
-        await dispatch(
-          editDepartment({
-            id: currentDepartment.ID,
-            name: formData.name,
-            code: formData.code,
-          })
-        );
-        await dispatch(fetchDepartments());
-        toast.success("Department edited successfully!");
-      }
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setFormData({ name: "", code: "" });
-      setIsEditing(false);
-      setCurrentDepartment(null);
-    }
-  };
-
   const handleDelete = async (id: number) => {
     try {
       await dispatch(deleteDepartment(id));
@@ -114,7 +79,31 @@ export const DepartmentsMain: React.FC = () => {
       console.log(error);
     }
   };
+  const handleEditSubmitInline = async (id: number) => {
+    if (!formData.name || !formData.code) {
+      toast.error("Both fields are required");
+      return;
+    }
 
+    try {
+      await dispatch(
+        editDepartment({ id, name: formData.name, code: formData.code })
+      );
+      await dispatch(fetchDepartments());
+      toast.success("Department updated!");
+    } catch (error) {
+      console.log(error);
+      toast.error("Update failed.");
+    } finally {
+      setCurrentDepartment(null);
+      setFormData({ name: "", code: "" });
+    }
+  };
+
+  const cancelEdit = () => {
+    setCurrentDepartment(null);
+    setFormData({ name: "", code: "" });
+  };
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6">
       <header className="mb-8 flex flex-wrap justify-between items-center gap-4  sm:gap-2">
@@ -155,15 +144,10 @@ export const DepartmentsMain: React.FC = () => {
           </div>
         </div>
         <div>
-          {(isCreating || isEditing) && (
-            <div className="mb-6 p-4 border rounded-md" ref={formRef}>
-              <h3 className="text-lg font-medium mb-4">
-                {isEditing ? "Edit Department" : "Create Department"}
-              </h3>
-              <form
-                onSubmit={isEditing ? handleEditSubmit : handleCreateSubmit}
-                className="space-y-4"
-              >
+          {isCreating && (
+            <div className="mb-6 p-4 border rounded-md">
+              <h3 className="text-lg font-medium mb-4">Create Department</h3>
+              <form onSubmit={handleCreateSubmit} className="space-y-4">
                 <Input
                   label="Name"
                   value={formData.name}
@@ -198,7 +182,7 @@ export const DepartmentsMain: React.FC = () => {
                     type="submit"
                     className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white px-2"
                   >
-                    {isEditing ? "Update" : "Create"}
+                    Create
                   </Button>
                 </div>
               </form>
@@ -222,40 +206,97 @@ export const DepartmentsMain: React.FC = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedDepartments?.length > 0 ? (
-                  paginatedDepartments?.map((dept) => (
-                    <tr key={dept.ID} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {dept.Name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {dept.Code}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-blue-600 hover:text-blue-900 mr-2"
-                          onClick={() => handleEditClick(dept)}
-                        >
-                          <Edit className="h-4 w-4" />
-                          Edit
-                        </Button>
-                        <DeleteDialog
-                          key={dept.ID}
-                          onConfirm={() => handleDelete(dept.ID)}
-                        >
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </Button>
-                        </DeleteDialog>
-                      </td>
-                    </tr>
-                  ))
+                  paginatedDepartments?.map((dept) => {
+                    const isEditingRow = currentDepartment?.ID === dept.ID;
+                    return (
+                      <tr key={dept.ID} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {isEditingRow ? (
+                            <Input
+                              value={formData.name}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  name: e.target.value,
+                                })
+                              }
+                            />
+                          ) : (
+                            dept.Name
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {isEditingRow ? (
+                            <Input
+                              value={formData.code}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  code: e.target.value,
+                                })
+                              }
+                            />
+                          ) : (
+                            dept.Code
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                          {isEditingRow ? (
+                            <>
+                              <Button
+                                size="sm"
+                                className="text-green-600 hover:text-green-900"
+                                onClick={() => handleEditSubmitInline(dept.ID)}
+                              >
+                                <Save className="h-4 w-4" /> Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-gray-600 hover:text-gray-900"
+                                onClick={cancelEdit}
+                              >
+                                <X className="h-4 w-4" />
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:text-blue-900"
+                                onClick={() => {
+                                  setCurrentDepartment(dept);
+                                  setIsCreating(false);
+                                  setFormData({
+                                    name: dept.Name,
+                                    code: dept.Code,
+                                  });
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                                Edit
+                              </Button>
+                              <DeleteDialog
+                                key={dept.ID}
+                                onConfirm={() => handleDelete(dept.ID)}
+                              >
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </Button>
+                              </DeleteDialog>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td

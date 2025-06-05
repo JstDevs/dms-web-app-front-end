@@ -46,9 +46,9 @@ const ModuleForm = ({ module, onSubmit, onCancel }: ModuleFormProps) => {
         >
           Description *
         </label>
-        <textarea
+        <input
           id="description"
-          rows={3}
+          type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -57,10 +57,20 @@ const ModuleForm = ({ module, onSubmit, onCancel }: ModuleFormProps) => {
       </div>
 
       <div className="flex justify-end space-x-3 pt-4">
-        <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+        <Button
+          variant="outline"
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="px-4 bg-gray-100 hover:bg-gray-200 "
+        >
           Cancel
         </Button>
-        <Button type="submit" colorScheme="blue" loading={isSubmitting}>
+        <Button
+          type="submit"
+          colorScheme="blue"
+          loading={isSubmitting}
+          className="px-4 bg-blue-600 hover:bg-blue-700 text-white"
+        >
           {module ? "Update Module" : "Add Module"}
         </Button>
       </div>
