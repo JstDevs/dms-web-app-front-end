@@ -158,19 +158,24 @@ const ModulesManagement = () => {
                   Confirm Delete
                 </Dialog.Title>
               </Dialog.Header>
-              <Dialog.Body>
+              <Dialog.Body className="space-y-4 p-4">
                 <p className="mb-4">
-                  Are you sure you want to delete this module? This action
-                  cannot be undone.
+                  Are you sure you want to delete this module? <br /> This
+                  action cannot be undone.
                 </p>
-                <div className="flex justify-end space-x-3">
+                <div className="flex justify-end space-x-3 border-t">
                   <Button
                     variant="outline"
                     onClick={() => setIsDeleteConfirmOpen(false)}
+                    className="px-4 bg-gray-100 hover:bg-gray-200 "
                   >
                     Cancel
                   </Button>
-                  <Button colorScheme="red" onClick={handleDeleteConfirm}>
+                  <Button
+                    colorScheme="red"
+                    onClick={handleDeleteConfirm}
+                    className="px-4 bg-red-600 hover:bg-red-700 text-white"
+                  >
                     Delete
                   </Button>
                 </div>
