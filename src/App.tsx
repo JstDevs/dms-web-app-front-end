@@ -39,6 +39,7 @@ import { TemplateOCR } from "./pages/OCR/Template";
 import UnrecordedOCR from "./pages/OCR/Unrecorded";
 import ChangePassword from "./pages/Settings/ChangePassword";
 import DocumentUpload from "./pages/Document/Upload";
+import ModulesManagement from "./pages/Users/ModulesManagement";
 
 function App() {
   return (
@@ -105,6 +106,10 @@ function App() {
                     {/* -----------USERS------------- */}
                     <Route path="/users/members" element={<UsersPage />} />
                     <Route path="/users/access" element={<UserAccessPage />} />
+                    <Route
+                      path="/users/modules"
+                      element={<ModulesManagement />}
+                    />
                     {/* ---------------LOCATIONS--------------- */}
                     <Route
                       path="/locations/regions"

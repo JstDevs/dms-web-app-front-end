@@ -1,0 +1,186 @@
+// src/components/ModulesManagement.tsx
+import { useState } from "react";
+import { FiEdit2, FiTrash2, FiPlus } from "react-icons/fi";
+import { Button, Dialog, Portal } from "@chakra-ui/react";
+// import toast from 'react-hot-toast';
+// import { useModules } from '../hooks/useModules';
+import ModuleForm from "./ModuleForm";
+import { useModules } from "./useModules";
+import { Module } from "./moduleService";
+
+const ModulesManagement = () => {
+  const { modules, loading, error, addModule, editModule, removeModule } =
+    useModules();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [currentModule, setCurrentModule] = useState<Module | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [moduleToDelete, setModuleToDelete] = useState<number | null>(null);
+
+  const handleAddModule = () => {
+    setCurrentModule(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditModule = (module: Module) => {
+    setCurrentModule(module);
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteClick = (id: number) => {
+    setModuleToDelete(id);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (moduleToDelete !== null) {
+      await removeModule(moduleToDelete);
+      setIsDeleteConfirmOpen(false);
+      setModuleToDelete(null);
+    }
+  };
+
+  const handleSubmit = async (moduleData: { Description: string }) => {
+    const success = currentModule
+      ? await editModule(currentModule.ID, moduleData)
+      : await addModule(moduleData);
+
+    if (success) {
+      setIsDialogOpen(false);
+    }
+  };
+
+  if (loading)
+    return <div className="text-center py-8">Loading modules...</div>;
+  if (error)
+    return <div className="text-center py-8 text-red-500">{error}</div>;
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Manage Modules</h2>
+        <Button
+          colorScheme="blue"
+          onClick={handleAddModule}
+          className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+        >
+          <FiPlus />
+          Add Module
+        </Button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                ID
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Description
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {modules.map((module) => (
+              <tr key={module.ID} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {module.ID}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {module.Description}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={() => handleEditModule(module)}
+                      className="text-blue-600 hover:text-blue-900"
+                      title="Edit"
+                    >
+                      <FiEdit2 />
+                    </Button>
+                    <Button
+                      onClick={() => handleDeleteClick(module.ID)}
+                      className="text-red-600 hover:text-red-900"
+                      title="Delete"
+                    >
+                      <FiTrash2 />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Add/Edit Dialog */}
+      <Dialog.Root
+        open={isDialogOpen}
+        onOpenChange={(e) => setIsDialogOpen(e.open)}
+        placement="center"
+      >
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content className="bg-white mx-4 max-w-md w-full">
+              <Dialog.Header>
+                <Dialog.Title className="text-xl font-semibold">
+                  {currentModule ? "Edit Module" : "Add New Module"}
+                </Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <ModuleForm
+                  module={currentModule}
+                  onSubmit={handleSubmit}
+                  onCancel={() => setIsDialogOpen(false)}
+                />
+              </Dialog.Body>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog.Root
+        open={isDeleteConfirmOpen}
+        onOpenChange={(e) => setIsDeleteConfirmOpen(e.open)}
+        placement="center"
+      >
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content className="bg-white mx-4 max-w-md w-full">
+              <Dialog.Header>
+                <Dialog.Title className="text-xl font-semibold">
+                  Confirm Delete
+                </Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <p className="mb-4">
+                  Are you sure you want to delete this module? This action
+                  cannot be undone.
+                </p>
+                <div className="flex justify-end space-x-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDeleteConfirmOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button colorScheme="red" onClick={handleDeleteConfirm}>
+                    Delete
+                  </Button>
+                </div>
+              </Dialog.Body>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+    </div>
+  );
+};
+
+export default ModulesManagement;

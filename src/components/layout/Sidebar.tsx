@@ -57,6 +57,7 @@ const Sidebar: React.FC = () => {
       submenu: [
         { name: "Users", path: "/users/members" },
         { name: "User Access", path: "/users/access" },
+        { name: "Modules", path: "/users/modules" },
       ],
     },
     {

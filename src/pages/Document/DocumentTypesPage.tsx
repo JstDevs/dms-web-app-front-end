@@ -14,14 +14,7 @@ import { PaginationControls } from "@/components/ui/PaginationControls";
 import { Button } from "@chakra-ui/react";
 
 export const DocumentTypesPage: React.FC = () => {
-  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([
-    { id: "1", name: "Invoice", code: "INV" },
-    { id: "2", name: "Receipt", code: "RCP" },
-    { id: "3", name: "Contract", code: "CON" },
-    { id: "4", name: "Agreement", code: "AGR" },
-    { id: "5", name: "Report", code: "RPT" },
-    { id: "6", name: "Report 3", code: "RPT3" },
-  ]);
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
