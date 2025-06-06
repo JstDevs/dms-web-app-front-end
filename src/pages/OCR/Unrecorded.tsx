@@ -20,12 +20,12 @@ export interface Rect {
 }
 export const documents = [
   "BC-187_document-0000000349.pdf",
-  "BC-187_document-0000000348.pdf",
-  "BC-187_document-0000000347.pdf",
-  "BC-187_document-0000000346.pdf",
-  "BC-187_document-0000000345.pdf",
-  "BC-187_document-0000000344.pdf",
-  "BC-187_document-0000000343.pdf",
+  // "BC-187_document-0000000348.pdf",
+  // "BC-187_document-0000000347.pdf",
+  // "BC-187_document-0000000346.pdf",
+  // "BC-187_document-0000000345.pdf",
+  // "BC-187_document-0000000344.pdf",
+  // "BC-187_document-0000000343.pdf",
 ];
 const OCRUnrecordedUI = () => {
   const [formData, setFormData] = useState<FormData>({

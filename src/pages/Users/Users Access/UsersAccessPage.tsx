@@ -7,29 +7,28 @@ import usePermissions from "./usePermission";
 import useRoles from "./useRoles";
 import RoleDropdown from "./RoleDrop";
 import PermissionsTable from "./PermissionTable";
-
-// import usePermissions from '../hooks/usePermissions';
-// import useRoles from '../hooks/useRoles';
-// import RoleDropdown from '../components/RoleDropdown';
-// import PermissionsTable from '../components/PermissionsTable';
+import { addUserAccess, AddUserAccessPayload } from "./userAccessService";
 
 const UserAccessPage = () => {
-  const { permissions, isLoading } = usePermissions();
+  const { permissions, isLoading: isPermissionsLoading } = usePermissions();
   const {
     roles,
+    originalRoles,
     addRole,
     updatePermission,
     toggleAllPermissions,
+    removeRole,
     resetToOriginal,
     saveChanges,
     hasChanges,
+    isInitialized,
   } = useRoles(permissions);
-
-  const [selectedRole, setSelectedRole] = useState("Administrator");
+  // console.log(roles);
+  const [selectedRole, setSelectedRole] = useState("Administration");
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
-
+  // console.log(roles);
   const currentRole = roles.find((r) => r.role === selectedRole);
 
   const handleAddNewRole = () => {
@@ -42,12 +41,54 @@ const UserAccessPage = () => {
     }
   };
 
-  const handleSave = () => {
-    saveChanges();
-    toast.success("Changes saved successfully!");
-  };
+  const handleAddNewRoleBackend = async () => {
+    if (!currentRole) {
+      toast.error("No role selected");
+      return;
+    }
 
-  if (isLoading) {
+    const payload: AddUserAccessPayload = {
+      description: currentRole?.role || "",
+      modulePermissions: currentRole?.permissions?.map((perm) => ({
+        id: perm.id,
+        view: perm.view,
+        add: perm.add,
+        edit: perm.edit,
+        delete: perm.delete,
+        print: perm.print,
+      })),
+    };
+    try {
+      await addUserAccess(payload);
+      saveChanges();
+      toast.success("Changes saved successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save changes");
+    }
+  };
+  const handleSaveChanges = async () => {
+    try {
+      await saveChanges();
+      toast.success("Changes saved successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save changes");
+    }
+  };
+  // Check if current role is new (not in original roles)
+  const isNewRole = !originalRoles.some((r) => r.role === selectedRole);
+  const handleCancel = () => {
+    if (isNewRole) {
+      removeRole(selectedRole);
+      setSelectedRole("Administrator");
+      toast.success(`New role "${selectedRole}" removed`);
+    } else {
+      resetToOriginal();
+      toast.success("Changes reverted");
+    }
+  };
+  if (isPermissionsLoading || !isInitialized) {
     return (
       <div className="flex justify-center items-center h-64">
         Loading permissions...
@@ -99,7 +140,7 @@ const UserAccessPage = () => {
         <div className="mt-6 flex justify-end space-x-3">
           <Button
             className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onClick={resetToOriginal}
+            onClick={handleCancel}
           >
             Cancel
           </Button>
@@ -109,10 +150,10 @@ const UserAccessPage = () => {
                 ? "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
                 : "bg-gray-300 cursor-not-allowed"
             }`}
-            onClick={handleSave}
+            onClick={isNewRole ? handleAddNewRoleBackend : handleSaveChanges}
             disabled={!hasChanges}
           >
-            Save Changes
+            {isNewRole ? "Add Role and Save" : "Save Changes"}
           </Button>
         </div>
       </div>

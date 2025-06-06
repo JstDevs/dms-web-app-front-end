@@ -18,7 +18,7 @@ const PermissionsTable = ({
   const filteredPermissions = permissions.filter((permission) =>
     permission.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
+  // console.log(filteredPermissions, "filteredPermissions", permissions);
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">

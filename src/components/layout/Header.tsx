@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const Header: React.FC = () => {
   // const { user } = useUser();
   const { logout, user } = useAuth();
-  const { notifications } = useNotification();
+  const { notifications, markAsRead, markAllAsRead } = useNotification();
   const navigate = useNavigate();
   // const [searchQuery, setSearchQuery] = useState("");
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -109,6 +109,7 @@ const Header: React.FC = () => {
                           className={`px-4 py-3 hover:bg-gray-50 transition-colors ${
                             !notification.read ? "bg-blue-50" : ""
                           }`}
+                          onClick={() => markAsRead(notification.id)}
                         >
                           <p className="text-sm font-medium text-gray-900">
                             {notification.title}
@@ -129,7 +130,10 @@ const Header: React.FC = () => {
                   )}
 
                   <div className="border-t border-gray-200 px-4 py-2">
-                    <button className="text-xs text-blue-600 hover:text-blue-800">
+                    <button
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                      onClick={markAllAsRead}
+                    >
                       Mark all as read
                     </button>
                   </div>

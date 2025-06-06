@@ -48,7 +48,7 @@ const Sidebar: React.FC = () => {
     },
     // { name: "Documents", icon: FileText, path: "/my-documents" },
     // { name: "Pending Approvals", icon: FileCheck, path: "/pending-approvals" },
-    { name: "Recent Activity", icon: Clock, path: "/activity" },
+    // { name: "Recent Activity", icon: Clock, path: "/activity" },
     // { name: "Department Files", icon: FolderClosed, path: "/department" },
     // { name: "Team", icon: Users, path: "/team" },
     {

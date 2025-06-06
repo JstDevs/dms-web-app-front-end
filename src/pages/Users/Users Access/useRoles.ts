@@ -1,6 +1,7 @@
 // hooks/useRoles.ts
 import { useEffect, useState } from "react";
 import { Permission } from "./usePermission";
+import { getAllUserAccess } from "./userAccessService";
 
 type UserAccess = {
   role: string;
@@ -8,43 +9,49 @@ type UserAccess = {
 };
 
 const useRoles = (initialPermissions: Permission[]) => {
-  const [roles, setRoles] = useState<UserAccess[]>(() => {
-    const defaultRoles = [
-      {
-        role: "Administrator",
-        permissions: initialPermissions.map((p) => ({
-          ...p,
-          view: true,
-          add: true,
-          edit: true,
-          delete: true,
-          print: true,
-        })),
-      },
-      {
-        role: "Manager",
-        permissions: initialPermissions.map((p) => ({
-          ...p,
-          view: true,
-          add: true,
-        })),
-      },
-      {
-        role: "User",
-        permissions: initialPermissions.map((p) => ({
-          ...p,
-          view: true,
-        })),
-      },
-    ];
-    return defaultRoles;
-  });
-
+  const [roles, setRoles] = useState<UserAccess[]>([]);
   const [originalRoles, setOriginalRoles] = useState<UserAccess[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    setOriginalRoles([...roles]);
-  }, [initialPermissions]);
+    const loadRoles = async () => {
+      try {
+        const result = await getAllUserAccess();
+
+        const userAccess = result?.data?.userAccess || [];
+
+        const transformed: UserAccess[] = userAccess.map((roleItem: any) => ({
+          role: roleItem.Description,
+          permissions: initialPermissions.map((perm) => {
+            const match = roleItem.moduleAccess.find(
+              (m: any) => m.ModuleID === perm.id
+            );
+            const isAdmin =
+              roleItem.Description.toLowerCase() === "administrator" ||
+              roleItem.ID === 1;
+            return {
+              ...perm,
+              view: isAdmin ? true : match?.View ?? false,
+              add: isAdmin ? true : match?.Add ?? false,
+              edit: isAdmin ? true : match?.Edit ?? false,
+              delete: isAdmin ? true : match?.Delete ?? false,
+              print: isAdmin ? true : match?.Print ?? false,
+            };
+          }),
+        }));
+
+        setRoles(transformed);
+        setOriginalRoles(JSON.parse(JSON.stringify(transformed)));
+        setIsInitialized(true);
+      } catch (err) {
+        console.error("Failed to load user access roles", err);
+      }
+    };
+
+    if (initialPermissions.length > 0 && !isInitialized) {
+      loadRoles();
+    }
+  }, [initialPermissions, isInitialized]);
 
   const addRole = (roleName: string) => {
     if (
@@ -114,8 +121,11 @@ const useRoles = (initialPermissions: Permission[]) => {
 
   const resetToOriginal = () => {
     setRoles([...originalRoles]);
+    return [...originalRoles]; // Return the original roles array
   };
-
+  const removeRole = (roleName: string) => {
+    setRoles((prev) => prev.filter((role) => role.role !== roleName));
+  };
   const saveChanges = () => {
     setOriginalRoles([...roles]);
   };
@@ -124,12 +134,15 @@ const useRoles = (initialPermissions: Permission[]) => {
 
   return {
     roles,
+    originalRoles,
     addRole,
     updatePermission,
     toggleAllPermissions,
+    removeRole,
     resetToOriginal,
     saveChanges,
     hasChanges,
+    isInitialized,
   };
 };
 

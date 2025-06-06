@@ -233,8 +233,8 @@ export const BatchUploadPanel = () => {
         >
           <UploadCloud className="w-4 h-4" />
           Upload{" "}
-          {files.filter((f) => f.status === "Pending").length > 0 &&
-            `(${files.filter((f) => f.status === "Pending").length})`}
+          {/* {files.filter((f) => f.status === "Pending").length > 0 &&
+            `(${files.filter((f) => f.status === "Pending").length})`} */}
         </button>
 
         {files.length > 0 && (
