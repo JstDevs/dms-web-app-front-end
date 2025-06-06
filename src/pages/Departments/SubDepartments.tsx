@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Plus, Search, Edit, Trash2, Save, X } from "lucide-react";
 import toast from "react-hot-toast";
@@ -17,7 +17,6 @@ import {
 
 import { AppDispatch, RootState } from "@/redux/store";
 import { SubDepartment } from "@/types/Departments";
-import { set } from "date-fns";
 
 export const SubDepartments: React.FC = () => {
   // Redux

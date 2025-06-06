@@ -163,7 +163,7 @@ const ModulesManagement = () => {
                   Are you sure you want to delete this module? <br /> This
                   action cannot be undone.
                 </p>
-                <div className="flex justify-end space-x-3 border-t">
+                <div className="flex justify-end space-x-3 mt-4">
                   <Button
                     variant="outline"
                     onClick={() => setIsDeleteConfirmOpen(false)}

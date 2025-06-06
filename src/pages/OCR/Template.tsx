@@ -2,6 +2,8 @@ import { Select } from "@/components/ui/Select";
 import { Button, Text } from "@chakra-ui/react";
 import { useRef, useState } from "react";
 import { documents, Rect } from "./Unrecorded";
+import toast from "react-hot-toast";
+import { set } from "date-fns";
 
 export const TemplateOCR = () => {
   const [templateName, setTemplateName] = useState("");
@@ -10,6 +12,7 @@ export const TemplateOCR = () => {
   const [selectedPDF, setSelectedPDF] = useState<string | null>();
   const [selectionArea, setSelectionArea] = useState<Rect | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [showImagePanel, setShowImagePanel] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(
     null
   );
@@ -93,7 +96,7 @@ export const TemplateOCR = () => {
           </div>
 
           <div>
-            <Select
+            {/* <Select
               label="OCR Template"
               value={formData.template}
               onChange={(e) =>
@@ -104,21 +107,32 @@ export const TemplateOCR = () => {
                 { value: "birth", label: "Birth Certificate" },
                 { value: "passport", label: "Passport" },
               ]}
-            />
+            /> */}
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {" "}
+              Template Name
+            </label>
             <input
               type="text"
-              className="mt-3 border w-full px-2 py-1 rounded"
+              className="mt-1 border w-full px-2 py-1 rounded"
               placeholder="Template Name"
               value={formData.template}
-              onChange={(e) => setTemplateName(e.target.value)}
+              onChange={(e) =>
+                setFormData((pre) => ({ ...pre, template: e.target.value }))
+              }
             />
             <div className="flex gap-2 my-3">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm flex-1">
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm flex-1"
+                onClick={() => {
+                  toast.success("Template Added successfully!");
+                }}
+              >
                 Add Template
               </Button>
-              <Button className="bg-red-600 hover:bg-red-700 text-white p-2 rounded text-sm flex-1">
+              {/* <Button className="bg-red-600 hover:bg-red-700 text-white p-2 rounded text-sm flex-1">
                 Delete Template
-              </Button>
+              </Button> */}
             </div>
           </div>
 
@@ -133,7 +147,12 @@ export const TemplateOCR = () => {
               value={headerName}
               onChange={(e) => setHeaderName(e.target.value)}
             />
-            <button className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm mt-1 w-full">
+            <button
+              className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm mt-1 w-full"
+              onClick={() => {
+                toast.success("Header Tag Added successfully!");
+              }}
+            >
               Save Header Tag
             </button>
           </div>
@@ -165,7 +184,10 @@ export const TemplateOCR = () => {
               <label className="block text-sm font-medium text-gray-700">
                 Select PDF
               </label>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white p-2 px-4 rounded text-sm">
+              <button
+                className="bg-blue-600 hover:bg-blue-700 text-white p-2 px-4 rounded text-sm"
+                onClick={() => setShowImagePanel(true)}
+              >
                 Upload
               </button>
             </div>
@@ -186,70 +208,76 @@ export const TemplateOCR = () => {
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="w-full lg:w-1/2 p-2 sm:p-4 bg-white space-y-6">
-          {/* Coordinates Table */}
-          <div className="overflow-auto max-h-40 border rounded">
-            <table className="text-sm w-full table-auto border-collapse">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="border px-2 py-1 text-left">Field Name</th>
-                  <th className="border px-2 py-1">X</th>
-                  <th className="border px-2 py-1">Y</th>
-                  <th className="border px-2 py-1">Width</th>
-                  <th className="border px-2 py-1">Height</th>
-                </tr>
-              </thead>
-              <tbody>
-                {fields.map((field, idx) => (
-                  <tr key={idx}>
-                    <td className="border px-2 py-1">{field.name}</td>
-                    <td className="border px-2 py-1 text-center">{field.x}</td>
-                    <td className="border px-2 py-1 text-center">{field.y}</td>
-                    <td className="border px-2 py-1 text-center">
-                      {field.width}
-                    </td>
-                    <td className="border px-2 py-1 text-center">
-                      {field.height}
-                    </td>
+        {showImagePanel && (
+          <div className="w-full lg:w-1/2 p-2 sm:p-4 bg-white space-y-6">
+            {/* Coordinates Table */}
+            <div className="overflow-auto max-h-40 border rounded">
+              <table className="text-sm w-full table-auto border-collapse">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border px-2 py-1 text-left">Field Name</th>
+                    <th className="border px-2 py-1">X</th>
+                    <th className="border px-2 py-1">Y</th>
+                    <th className="border px-2 py-1">Width</th>
+                    <th className="border px-2 py-1">Height</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Image Display */}
-
-          {/* <div className="h-[500px] border rounded overflow-hidden"> */}
-          <div
-            className="relative w-full h-[600px] border rounded-md overflow-hidden"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-          >
-            <img
-              ref={imgRef}
-              src="/sample.png"
-              alt="OCR Template"
-              className="object-contain w-full h-full select-none"
-              draggable={false}
-            />
-            {selectionArea && (
-              <div
-                className="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-20"
-                style={{
-                  left: selectionArea.x,
-                  top: selectionArea.y,
-                  width: selectionArea.width,
-                  height: selectionArea.height,
-                }}
-              />
-            )}
-            <div className="max-sm:hidden absolute bottom-2 left-2 bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-              Drag to select OCR area
+                </thead>
+                <tbody>
+                  {fields.map((field, idx) => (
+                    <tr key={idx}>
+                      <td className="border px-2 py-1">{field.name}</td>
+                      <td className="border px-2 py-1 text-center">
+                        {field.x}
+                      </td>
+                      <td className="border px-2 py-1 text-center">
+                        {field.y}
+                      </td>
+                      <td className="border px-2 py-1 text-center">
+                        {field.width}
+                      </td>
+                      <td className="border px-2 py-1 text-center">
+                        {field.height}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+
+            {/* Image Display */}
+
+            {/* <div className="h-[500px] border rounded overflow-hidden"> */}
+            <div
+              className="relative w-full h-[600px] border rounded-md overflow-hidden"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+            >
+              <img
+                ref={imgRef}
+                src="/sample.png"
+                alt="OCR Template"
+                className="object-contain w-full h-full select-none"
+                draggable={false}
+              />
+              {selectionArea && (
+                <div
+                  className="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-20"
+                  style={{
+                    left: selectionArea.x,
+                    top: selectionArea.y,
+                    width: selectionArea.width,
+                    height: selectionArea.height,
+                  }}
+                />
+              )}
+              <div className="max-sm:hidden absolute bottom-2 left-2 bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                Drag to select OCR area
+              </div>
+            </div>
+            {/* </div> */}
           </div>
-          {/* </div> */}
-        </div>
+        )}
       </div>
     </div>
   );

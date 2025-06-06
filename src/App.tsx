@@ -26,7 +26,7 @@ import { LGUMaintenancePage } from "./pages/LGUMaintenancePage";
 import { AccountingPage } from "./pages/AccountingPage";
 import { RPTPage } from "./pages/RPTPage";
 import { UsersPage } from "./pages/Users/UsersPage";
-import UserAccessPage from "./pages/Users/UsersAccessPage";
+// import UserAccessPage from "./pages/Users/Users Access/UsersAccessPage";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 // import RedirectHandler from "./components/layout/RedirectHandler";
@@ -40,6 +40,7 @@ import UnrecordedOCR from "./pages/OCR/Unrecorded";
 import ChangePassword from "./pages/Settings/ChangePassword";
 import DocumentUpload from "./pages/Document/Upload";
 import ModulesManagement from "./pages/Users/ModulesManagement";
+import UserAccessPage from "./pages/Users/Users Access/UsersAccessPage";
 
 function App() {
   return (

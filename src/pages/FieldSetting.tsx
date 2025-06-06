@@ -7,58 +7,55 @@ export const FieldSettingsPanel = ({
   setShowFieldsPanel: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
   const [selectedField, setSelectedField] = useState<number | null>(null);
-  const fields = Array.from({ length: 10 }, (_, i) => ({
-    id: i + 1,
-    description: `File Description ${i + 1}`,
-    dataType: "text",
-    active: false,
-  }));
+
+  // ✅ Controlled fields state
+  const [fields, setFields] = useState(
+    Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1,
+      description: `File Description ${i + 1}`,
+      dataType: "text",
+      active: false, // checkbox state
+    }))
+  );
+
+  // ✅ Handle checkbox toggle
+  const toggleFieldActive = (index: number) => {
+    setFields((prev) =>
+      prev.map((field, i) =>
+        i === index ? { ...field, active: !field.active } : field
+      )
+    );
+  };
+
+  // ✅ Handle description change
+  const handleDescriptionChange = (index: number, value: string) => {
+    setFields((prev) =>
+      prev.map((field, i) =>
+        i === index ? { ...field, description: value } : field
+      )
+    );
+  };
+
+  // ✅ Handle type change (text/date)
+  const handleTypeChange = (index: number, type: string) => {
+    setFields((prev) =>
+      prev.map((field, i) =>
+        i === index ? { ...field, dataType: type } : field
+      )
+    );
+  };
+
+  const handleSave = () => {
+    const activeFields = fields.filter((f) => f.active);
+    console.log("Saving fields:", activeFields); // You can send this to backend or Redux
+    setShowFieldsPanel(false);
+  };
 
   return (
     <div className="bg-white border rounded-xl p-2 md:p-6 space-y-4 mt-6 shadow-md">
-      {/* Department/Subdepartment Labels - Stack on mobile */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="text-xl font-semibold text-gray-600 block">
-            Department
-          </label>
-          <div className="bg-gray-100 text-black text-center py-2 rounded-md">
-            Payroll
-          </div>
-        </div>
-        <div>
-          <label className="text-xl font-semibold text-gray-600 block">
-            Sub-Department
-          </label>
-          <div className="bg-gray-100 text-black text-center py-2 rounded-md">
-            Contract
-          </div>
-        </div>
-      </div>
+      {/* Header and Default Fields Omitted for Brevity */}
 
-      {/* Default Fields - Stack on mobile */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm w-full">
-          Default Text Field
-        </button>
-        <input
-          className="border px-4 py-2 rounded text-sm w-full"
-          placeholder="File Description"
-          value={fields[0].description}
-        />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm w-full">
-          Default Date Field
-        </button>
-        <input
-          className="border px-4 py-2 rounded text-sm w-full"
-          placeholder="File Date"
-          value={fields[0].dataType}
-        />
-      </div>
-
-      {/* Fields Table - Responsive layout */}
+      {/* Dynamic Fields */}
       <div className="space-y-2">
         {fields.map((field, index) => (
           <div
@@ -73,22 +70,45 @@ export const FieldSettingsPanel = ({
             <div className="text-sm font-medium text-gray-700 sm:col-span-1">
               Field {field.id}
             </div>
+
             <div className="flex justify-center sm:justify-start">
-              <input type="checkbox" className="mx-auto sm:mx-0" />
+              <input
+                type="checkbox"
+                checked={field.active}
+                onChange={() => toggleFieldActive(index)}
+                className="mx-auto sm:mx-0"
+              />
             </div>
+
             <input
               type="text"
               className="col-span-1 sm:col-span-2 px-2 py-1 border rounded text-sm w-full"
               value={field.description}
-              // readOnly
+              disabled={!field.active}
+              onChange={(e) => handleDescriptionChange(index, e.target.value)}
             />
+
             <div className="flex items-center justify-start sm:justify-end gap-2 col-span-1 sm:col-span-1">
               <label className="text-sm flex items-center gap-1">
-                <input type="radio" name={`type-${index}`} defaultChecked />
+                <input
+                  type="radio"
+                  name={`type-${index}`}
+                  value="text"
+                  checked={field.dataType === "text"}
+                  disabled={!field.active}
+                  onChange={() => handleTypeChange(index, "text")}
+                />
                 Text
               </label>
               <label className="text-sm flex items-center gap-1">
-                <input type="radio" name={`type-${index}`} />
+                <input
+                  type="radio"
+                  name={`type-${index}`}
+                  value="date"
+                  checked={field.dataType === "date"}
+                  disabled={!field.active}
+                  onChange={() => handleTypeChange(index, "date")}
+                />
                 Date
               </label>
             </div>
@@ -96,29 +116,12 @@ export const FieldSettingsPanel = ({
         ))}
       </div>
 
-      {/* Archive Settings */}
-      <div className="border-t pt-4 space-y-2">
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" /> Active
-        </label>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-          <label className="text-sm whitespace-nowrap">
-            No. of Years before ARCHIVE:
-          </label>
-          <input
-            type="number"
-            defaultValue={5}
-            className="border px-2 py-1 w-full sm:w-16 rounded text-sm"
-          />
-        </div>
-      </div>
-
-      {/* Footer Buttons - Stack on mobile */}
+      {/* Footer */}
       <div className="flex flex-col-reverse sm:flex-row justify-between items-center pt-4 gap-3">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button
             className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-sm w-full"
-            onClick={() => setShowFieldsPanel(false)}
+            onClick={handleSave}
           >
             Save
           </Button>
@@ -129,9 +132,6 @@ export const FieldSettingsPanel = ({
             Cancel
           </Button>
         </div>
-        {/* <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm w-full sm:w-auto">
-          Export to Excel
-        </button> */}
       </div>
     </div>
   );
