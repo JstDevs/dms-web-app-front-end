@@ -7,7 +7,12 @@ import usePermissions from "./usePermission";
 import useRoles from "./useRoles";
 import RoleDropdown from "./RoleDrop";
 import PermissionsTable from "./PermissionTable";
-import { addUserAccess, AddUserAccessPayload } from "./userAccessService";
+import {
+  addUserAccess,
+  AddUserAccessPayload,
+  editUserAccess,
+  EditUserAccessPayload,
+} from "./userAccessService";
 
 const UserAccessPage = () => {
   const { permissions, isLoading: isPermissionsLoading } = usePermissions();
@@ -23,14 +28,13 @@ const UserAccessPage = () => {
     hasChanges,
     isInitialized,
   } = useRoles(permissions);
-  // console.log(roles);
   const [selectedRole, setSelectedRole] = useState("Administration");
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
-  // console.log(roles);
-  const currentRole = roles.find((r) => r.role === selectedRole);
 
+  const currentRole = roles.find((r) => r.role === selectedRole);
+  console.log({ selectedRole, currentRole, originalRoles });
   const handleAddNewRole = () => {
     if (addRole(newRoleName)) {
       setSelectedRole(newRoleName);
@@ -67,9 +71,27 @@ const UserAccessPage = () => {
       toast.error("Failed to save changes");
     }
   };
+  // console.log(roles);
   const handleSaveChanges = async () => {
+    if (!currentRole) {
+      toast.error("No role selected");
+      return;
+    }
+
+    const payload: EditUserAccessPayload = {
+      currentDescription: currentRole?.role || "",
+      description: currentRole?.role || "",
+      modulePermissions: currentRole?.permissions?.map((perm) => ({
+        id: perm.id,
+        view: perm.view,
+        add: perm.add,
+        edit: perm.edit,
+        delete: perm.delete,
+        print: perm.print,
+      })),
+    };
     try {
-      await saveChanges();
+      await editUserAccess(payload, currentRole.userAccessID || 0);
       toast.success("Changes saved successfully!");
     } catch (error) {
       console.error(error);

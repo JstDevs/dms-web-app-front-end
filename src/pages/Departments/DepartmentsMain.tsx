@@ -52,8 +52,19 @@ export const DepartmentsMain: React.FC = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Both fields are required
     if (!formData.name || !formData.code) {
       toast.error("Both fields are required");
+      return;
+    }
+    // Check if department already exists
+    const isDepartmentExists = departments.some(
+      (department) =>
+        department?.Name?.toLowerCase() === formData.name?.toLowerCase() ||
+        department?.Code?.toLowerCase() === formData.code?.toLowerCase()
+    );
+    if (isDepartmentExists) {
+      toast.error("Department already exists");
       return;
     }
     try {
@@ -85,6 +96,18 @@ export const DepartmentsMain: React.FC = () => {
       return;
     }
 
+    // Check if department already exists (excluding current department)
+    const isDepartmentExists = departments.some(
+      (department) =>
+        department.ID !== id && // Skip the current department
+        (department?.Name?.toLowerCase() === formData.name?.toLowerCase() ||
+          department?.Code?.toLowerCase() === formData.code?.toLowerCase())
+    );
+
+    if (isDepartmentExists) {
+      toast.error("Department name or code already exists");
+      return;
+    }
     try {
       await dispatch(
         editDepartment({ id, name: formData.name, code: formData.code })

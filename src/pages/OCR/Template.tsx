@@ -125,8 +125,13 @@ export const TemplateOCR = () => {
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm flex-1"
                 onClick={() => {
+                  if (!formData.template) {
+                    toast.error("Please enter template name");
+                    return;
+                  }
                   toast.success("Template Added successfully!");
                 }}
+                disabled={!formData.template}
               >
                 Add Template
               </Button>
@@ -147,17 +152,22 @@ export const TemplateOCR = () => {
               value={headerName}
               onChange={(e) => setHeaderName(e.target.value)}
             />
-            <button
+            <Button
               className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm mt-1 w-full"
               onClick={() => {
+                if (!headerName) {
+                  toast.error("Please enter header name");
+                  return;
+                }
                 toast.success("Header Tag Added successfully!");
               }}
+              disabled={!headerName}
             >
               Save Header Tag
-            </button>
+            </Button>
           </div>
 
-          <div className="flex gap-2 w-full items-end ">
+          <div className="flex gap-2 w-full items-end max-sm:flex-col">
             <Select
               label="Fields"
               value={formData.department}
@@ -171,12 +181,20 @@ export const TemplateOCR = () => {
                 { value: "header", label: "Header" },
               ]}
             />
-            <button className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm w-full ">
-              Save Field
-            </button>
-            <button className="bg-red-600 hover:bg-red-700 text-white p-2 rounded text-sm w-full">
-              Delete Field
-            </button>
+            <div className="flex-1  flex gap-2">
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm flex-initial px-4"
+                disabled={!showImagePanel}
+              >
+                Save Field
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white p-2 rounded text-sm flex-initial px-4"
+                disabled={!showImagePanel}
+              >
+                Delete Field
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-3 mt-6">

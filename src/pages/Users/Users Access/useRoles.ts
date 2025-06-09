@@ -5,6 +5,7 @@ import { getAllUserAccess } from "./userAccessService";
 
 type UserAccess = {
   role: string;
+  userAccessID: number;
   permissions: Permission[];
 };
 
@@ -22,6 +23,7 @@ const useRoles = (initialPermissions: Permission[]) => {
 
         const transformed: UserAccess[] = userAccess.map((roleItem: any) => ({
           role: roleItem.Description,
+          userAccessID: roleItem.ID,
           permissions: initialPermissions.map((perm) => {
             const match = roleItem.moduleAccess.find(
               (m: any) => m.ModuleID === perm.id
@@ -63,6 +65,7 @@ const useRoles = (initialPermissions: Permission[]) => {
 
     const newRole: UserAccess = {
       role: roleName,
+      userAccessID: 0, //
       permissions: initialPermissions.map((p) => ({
         ...p,
         view: false,

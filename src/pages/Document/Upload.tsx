@@ -4,8 +4,10 @@ import { DeleteDialog } from "@/components/ui/DeleteDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@chakra-ui/react";
-import { Search } from "lucide-react";
+import { set } from "date-fns";
+import { DeleteIcon, Search } from "lucide-react";
 import React, { useState } from "react";
+import toast from "react-hot-toast";
 
 interface Document {
   id: string;
@@ -55,7 +57,18 @@ export default function DocumentUpload() {
   };
 
   const handleAddOrUpdate = () => {
-    if (!newDoc.name || !newDoc.fileDescription) return;
+    if (!newDoc.name || !newDoc.fileDescription) {
+      toast.error("Enter All Required Fields ");
+      return;
+    }
+    // Check if document name already exists (excluding current document if editing)
+    const isDocumentNameExists = documents.some(
+      (doc) => doc.name === newDoc.name && (!editId || doc.id !== editId)
+    );
+    if (isDocumentNameExists) {
+      toast.error("Document Name Already Exists");
+      return;
+    }
     if (editId) {
       setDocuments((prev) =>
         prev.map((doc) =>
@@ -86,6 +99,7 @@ export default function DocumentUpload() {
     if (doc) {
       setNewDoc(doc);
       setEditId(id);
+      setSelectedFile(null);
     }
   };
 
@@ -93,11 +107,22 @@ export default function DocumentUpload() {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
   };
 
-  const filteredDocs = documents.filter(
+  const filteredDocs = documents?.filter(
     (doc) =>
-      doc.name.toLowerCase().includes(search.toLowerCase()) ||
-      doc.description.toLowerCase().includes(search.toLowerCase())
+      doc?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      doc?.description?.toLowerCase().includes(search.toLowerCase())
   );
+  // Add this function to check if all required fields are filled
+  const isFormValid = () => {
+    const baseValidation =
+      newDoc.department &&
+      newDoc.subdepartment &&
+      newDoc.fileDescription &&
+      newDoc.fileDate &&
+      newDoc.name;
+    // Require file only when adding new document, not when editing
+    return editId ? baseValidation : baseValidation && selectedFile;
+  };
 
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6 space-y-6">
@@ -114,8 +139,9 @@ export default function DocumentUpload() {
         <div className="grid sm:grid-cols-2 gap-4 text-black">
           {/* Department */}
           <div className="col-span-1">
+            <label className="text-sm sm:text-base">Department *</label>
             <Select
-              label="Department"
+              // label="Department"
               value={newDoc.department}
               onChange={(e) =>
                 setNewDoc({ ...newDoc, department: e.target.value })
@@ -126,8 +152,9 @@ export default function DocumentUpload() {
 
           {/* Sub-Department */}
           <div className="col-span-1">
+            <label className="text-sm sm:text-base">Sub-Department *</label>
             <Select
-              label="Sub-Department"
+              // label="Sub-Department"
               value={newDoc.subdepartment}
               onChange={(e) =>
                 setNewDoc({ ...newDoc, subdepartment: e.target.value })
@@ -138,36 +165,39 @@ export default function DocumentUpload() {
 
           {/* File Description */}
           <div className="col-span-1">
-            <label className="text-sm sm:text-base">File Description</label>
+            <label className="text-sm sm:text-base">File Description *</label>
             <Input
               className="w-full"
               value={newDoc.fileDescription || ""}
               onChange={(e) =>
                 setNewDoc({ ...newDoc, fileDescription: e.target.value })
               }
+              required
             />
           </div>
 
           {/* File Date */}
           <div className="col-span-1">
-            <label className="text-sm sm:text-base">File Date</label>
+            <label className="text-sm sm:text-base">File Date *</label>
             <Input
               type="date"
               className="w-full"
-              value={newDoc.fileDate}
+              value={newDoc.fileDate || ""}
               onChange={(e) =>
                 setNewDoc({ ...newDoc, fileDate: e.target.value })
               }
+              required
             />
           </div>
 
           {/* Name */}
           <div className="col-span-1">
-            <label className="text-sm sm:text-base">Name</label>
+            <label className="text-sm sm:text-base">Name *</label>
             <Input
               className="w-full"
               value={newDoc.name || ""}
               onChange={(e) => setNewDoc({ ...newDoc, name: e.target.value })}
+              required
             />
           </div>
 
@@ -180,6 +210,7 @@ export default function DocumentUpload() {
               onChange={(e) =>
                 setNewDoc({ ...newDoc, description: e.target.value })
               }
+              required
             />
           </div>
 
@@ -189,10 +220,11 @@ export default function DocumentUpload() {
             <Input
               type="date"
               className="w-full"
-              value={newDoc.expirationDate}
+              value={newDoc.expirationDate || ""}
               onChange={(e) =>
                 setNewDoc({ ...newDoc, expirationDate: e.target.value })
               }
+              required
             />
           </div>
 
@@ -223,19 +255,65 @@ export default function DocumentUpload() {
           </div>
 
           {/* Attachment */}
-          <div className="col-span-1 sm:col-span-2">
-            <label className="text-sm sm:text-base">Attachment</label>
-            <Input
-              type="file"
-              onChange={handleAttach}
-              className="w-full text-sm"
-            />
-            {selectedFile && (
-              <p className="text-xs sm:text-sm mt-1 text-blue-700 truncate">
-                Attached: {selectedFile.name}
-              </p>
-            )}
-          </div>
+          {editId ? null : (
+            <div className="col-span-1 sm:col-span-2">
+              <label className="text-sm sm:text-base">Attachment *</label>
+              <div className="mt-1">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <svg
+                      className="w-8 h-8 mb-4 text-gray-500"
+                      aria-hidden="true"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 20 16"
+                    >
+                      <path
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
+                      />
+                    </svg>
+                    <p className="mb-2 text-sm text-gray-500">
+                      <span className="font-semibold">Click to upload</span> or
+                      drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {selectedFile
+                        ? selectedFile.name
+                        : "PDF, DOCX, XLSX up to 10MB"}
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleAttach}
+                    required
+                  />
+                </label>
+              </div>
+              {selectedFile && (
+                <div className="flex items-center mt-2">
+                  <span className="text-sm text-blue-600">
+                    {selectedFile.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      // If you're using the key approach to reset:
+                      // setFileInputKey(Date.now());
+                    }}
+                    className="ml-2 text-red-500 hover:text-red-700"
+                  >
+                    <DeleteIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Submit Button */}
@@ -243,6 +321,7 @@ export default function DocumentUpload() {
           <Button
             onClick={handleAddOrUpdate}
             className="w-full sm:w-2/3 md:w-1/3 px-2 bg-blue-600 text-white hover:bg-blue-700"
+            disabled={!isFormValid()} // disable button if form is not valid
           >
             {editId ? "Update" : "Add"} Document
           </Button>

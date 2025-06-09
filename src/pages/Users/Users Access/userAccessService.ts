@@ -35,17 +35,17 @@ export const editUserAccess = async (
   payload: EditUserAccessPayload,
   id: number
 ) => {
-  try {
-    const response = await axios.put(`/useraccess/edit/${id}`, payload);
+  // try {
+  const response = await axios.put(`/useraccess/edit/${id}`, payload);
 
-    const data = response.data;
-    console.log(data, "editUserAccess");
-    toast.success("User access edited successfully!");
-    return data;
-  } catch (error) {
-    toast.error("Failed to create user access");
-    throw error;
-  }
+  const data = response.data;
+  console.log(data, "editUserAccess");
+  // toast.success("User access edited successfully!");
+  return data;
+  // } catch (error) {
+  //   toast.error("Failed to create user access");
+  //   throw error;
+  // }
 };
 export const getAllUserAccess = async () => {
   try {
