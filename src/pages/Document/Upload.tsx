@@ -360,7 +360,7 @@ export default function DocumentUpload() {
                   <th className="border p-2 text-left hidden md:table-cell">
                     Description
                   </th>
-                  <th className="border p-2 text-left">Expiration</th>
+                  <th className="border p-2 text-left">File Date</th>
                   <th className="border p-2 text-left hidden sm:table-cell">
                     Attachment
                   </th>
@@ -377,7 +377,7 @@ export default function DocumentUpload() {
                     <td className="border p-2 hidden md:table-cell">
                       {doc.description}
                     </td>
-                    <td className="border p-2">{doc.expirationDate || "-"}</td>
+                    <td className="border p-2">{doc.fileDate || "-"}</td>
                     <td className="border p-2 hidden sm:table-cell">
                       {doc.fileName || "-"}
                     </td>
