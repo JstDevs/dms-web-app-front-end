@@ -61,7 +61,16 @@ export const SubDepartments: React.FC = () => {
       toast.error("Both fields are required");
       return;
     }
-
+    // Check if sub-department already exists
+    const isDepartmentExists = subDepartments.some(
+      (department) =>
+        department?.Name?.toLowerCase() === formData.name?.toLowerCase() ||
+        department?.Code?.toLowerCase() === formData.code?.toLowerCase()
+    );
+    if (isDepartmentExists) {
+      toast.error("Sub-Department already exists");
+      return;
+    }
     try {
       await dispatch(createSubDepartment(formData));
       await dispatch(fetchSubDepartments());
@@ -98,7 +107,18 @@ export const SubDepartments: React.FC = () => {
       toast.error("Both fields are required");
       return;
     }
+    // Check if sub-department already exists (excluding current department)
+    const isDepartmentExists = subDepartments.some(
+      (department) =>
+        department.ID !== id && // Skip the current department
+        (department?.Name?.toLowerCase() === formData.name?.toLowerCase() ||
+          department?.Code?.toLowerCase() === formData.code?.toLowerCase())
+    );
 
+    if (isDepartmentExists) {
+      toast.error("Sub-Department name or code already exists");
+      return;
+    }
     try {
       await dispatch(
         editSubDepartment({ id, name: formData.name, code: formData.code })

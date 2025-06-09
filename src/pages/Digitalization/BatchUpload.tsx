@@ -282,12 +282,13 @@ export const BatchUploadPanel = () => {
                   </td>
                   <td className="px-4 py-2 text-center">
                     <div className="flex justify-center gap-2">
-                      <button
+                      {/* TODO: Preview button for PDF files */}
+                      {/* <button
                         className="text-blue-600 hover:text-blue-800"
                         title="Preview"
                       >
                         <Eye className="w-4 h-4" />
-                      </button>
+                      </button> */}
                       <button
                         className="text-red-600 hover:text-red-800"
                         onClick={() => deleteFile(file.id)}
