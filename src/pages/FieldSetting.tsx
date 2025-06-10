@@ -52,83 +52,83 @@ export const FieldSettingsPanel = ({
   };
 
   return (
-    <div className="bg-white border rounded-xl p-2 md:p-6 space-y-4 mt-6 shadow-md">
-      {/* Header and Default Fields Omitted for Brevity */}
-
+    <div className="bg-white border rounded-xl p-3 sm:p-6 space-y-4 mt-6 shadow-md">
       {/* Dynamic Fields */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {fields.map((field, index) => (
           <div
             key={field.id}
             onClick={() => setSelectedField(index)}
-            className={`grid grid-cols-1 sm:grid-cols-5 items-center gap-2 px-3 py-2 rounded-lg cursor-pointer ${
+            className={`grid grid-cols-1 sm:grid-cols-5 gap-3 px-3 py-3 rounded-lg cursor-pointer transition-all ${
               selectedField === index
                 ? "bg-blue-100 border border-blue-600"
                 : "bg-gray-50"
             }`}
           >
-            <div className="flex items-center gap-2 col-span-1 sm:col-span-1">
-              <div className="text-sm font-medium text-gray-700 sm:col-span-1">
+            {/* Field Label + Toggle */}
+            <div className="flex justify-between items-center sm:col-span-1">
+              <span className="text-sm font-medium text-gray-700">
                 Field {field.id}
-              </div>
-
-              <div className="flex justify-center sm:justify-start">
-                <input
-                  type="checkbox"
-                  checked={field.active}
-                  onChange={() => toggleFieldActive(index)}
-                  className="mx-auto sm:mx-0"
-                />
-              </div>
+              </span>
+              <input
+                type="checkbox"
+                checked={field.active}
+                onChange={() => toggleFieldActive(index)}
+                className="h-4 w-4"
+              />
             </div>
 
-            <input
-              type="text"
-              className="col-span-1 sm:col-span-2 px-2 py-1 border rounded text-sm flex-1"
-              value={field.description}
-              disabled={!field.active}
-              onChange={(e) => handleDescriptionChange(index, e.target.value)}
-            />
+            {/* Description Input */}
+            <div className="sm:col-span-2">
+              <input
+                type="text"
+                className="w-full px-3 py-2 border rounded text-sm"
+                value={field.description}
+                disabled={!field.active}
+                onChange={(e) => handleDescriptionChange(index, e.target.value)}
+              />
+            </div>
 
-            {/* <div className="flex items-center justify-start sm:justify-end gap-2 col-span-1 sm:col-span-2"> */}
-            <label className="text-sm flex items-center justify-center  gap-1 col-span-1">
-              <input
-                type="radio"
-                name={`type-${index}`}
-                value="text"
-                checked={field.dataType === "text"}
-                disabled={!field.active}
-                onChange={() => handleTypeChange(index, "text")}
-              />
-              Text
-            </label>
-            <label className="text-sm flex items-center justify-center gap-1 col-span-1">
-              <input
-                type="radio"
-                name={`type-${index}`}
-                value="date"
-                checked={field.dataType === "date"}
-                disabled={!field.active}
-                onChange={() => handleTypeChange(index, "date")}
-              />
-              Date
-            </label>
+            {/* Radio Buttons */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 sm:col-span-2">
+              <label className="text-sm flex items-center gap-1">
+                <input
+                  type="radio"
+                  name={`type-${index}`}
+                  value="text"
+                  checked={field.dataType === "text"}
+                  disabled={!field.active}
+                  onChange={() => handleTypeChange(index, "text")}
+                />
+                Text
+              </label>
+              <label className="text-sm flex items-center gap-1">
+                <input
+                  type="radio"
+                  name={`type-${index}`}
+                  value="date"
+                  checked={field.dataType === "date"}
+                  disabled={!field.active}
+                  onChange={() => handleTypeChange(index, "date")}
+                />
+                Date
+              </label>
+            </div>
           </div>
-          // </div>
         ))}
       </div>
 
       {/* Footer */}
-      <div className="flex flex-col-reverse sm:flex-row justify-between items-center pt-4 gap-3">
+      <div className="flex flex-col sm:flex-row justify-between items-center pt-4 gap-3">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-sm w-full"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
             onClick={handleSave}
           >
             Save
           </Button>
           <Button
-            className="bg-gray-100 hover:bg-gray-200 text-black px-2 py-1 rounded text-sm w-full"
+            className="bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded text-sm w-full"
             onClick={() => setShowFieldsPanel(false)}
           >
             Cancel
