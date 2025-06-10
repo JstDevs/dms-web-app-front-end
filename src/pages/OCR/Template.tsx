@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { documents, Rect } from "./Unrecorded";
 import toast from "react-hot-toast";
 import { set } from "date-fns";
+import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
 
 export const TemplateOCR = () => {
   const [templateName, setTemplateName] = useState("");
@@ -28,6 +29,8 @@ export const TemplateOCR = () => {
     { name: "Sex", x: 72, y: 177, width: 136, height: 13 },
     { name: "Header", x: 173, y: 68, width: 286, height: 22 },
   ];
+
+  const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!imgRef.current) return;
 
@@ -72,11 +75,8 @@ export const TemplateOCR = () => {
               onChange={(e) =>
                 setFormData({ ...formData, department: e.target.value })
               }
-              options={[
-                { value: "finance", label: "Finance" },
-                { value: "payroll", label: "Payroll" },
-                { value: "hr", label: "HR" },
-              ]}
+              placeholder="Select a Department"
+              options={departmentOptions}
             />
           </div>
 
@@ -87,11 +87,8 @@ export const TemplateOCR = () => {
               onChange={(e) =>
                 setFormData({ ...formData, subdepartment: e.target.value })
               }
-              options={[
-                { value: "payroll", label: "Payroll" },
-                { value: "documents", label: "Documents" },
-                { value: "records", label: "Records" },
-              ]}
+              placeholder="Select a Sub-Department"
+              options={subDepartmentOptions}
             />
           </div>
 

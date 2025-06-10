@@ -88,6 +88,11 @@ function App() {
                       path="/documents/upload"
                       element={<DocumentUpload />}
                     />
+                    <Route
+                      path="/documents/documents"
+                      element={<MyDocuments />}
+                    />
+
                     {/* ----------------------OCR check-------------------- */}
                     <Route path="/ocr/unrecorded" element={<UnrecordedOCR />} />
                     <Route

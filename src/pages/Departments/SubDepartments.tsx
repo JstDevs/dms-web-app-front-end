@@ -180,9 +180,7 @@ export const SubDepartments: React.FC = () => {
       {/* Form */}
       {isCreating && (
         <div className="mb-6 p-4 border rounded-md">
-          <h3 className="text-lg font-medium mb-4">
-            Create Sub-Department Form
-          </h3>
+          <h3 className="text-lg font-semibold">Create Sub-Department Form</h3>
           <form onSubmit={handleCreateSubmit} className="space-y-4">
             <Input
               label="Name"
@@ -228,13 +226,13 @@ export const SubDepartments: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                 Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                 Code
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-right text-base font-semibold text-gray-700 uppercase tracking-wider">
                 Actions
               </th>
             </tr>

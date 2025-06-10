@@ -47,13 +47,21 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
     }
   };
 
+  // Generate random age in days (between 1 and 365 days)
+  const getDocumentAge = () => {
+    const randomDays = Math.floor(Math.random() * 365) + 1;
+    return randomDays;
+  };
+
+  const documentAge = getDocumentAge();
+
   return (
     <div
       className="card transition-transform hover:shadow-md hover:scale-[1.02] cursor-pointer overflow-hidden h-full flex flex-col rounded-3xl border border-gray-200 shadow-lg"
       onClick={onClick}
     >
-      <div className="p-4 flex-grow splace-y-4">
-        <div className="flex items-center justify-between ">
+      <div className="p-4 flex-grow space-y-4">
+        <div className="flex items-center justify-between">
           <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
             <FileText className="h-5 w-5 text-blue-600" />
           </div>
@@ -73,20 +81,23 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
           {document.description}
         </p>
       </div>
-
-      <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <Clock className="h-3 w-3" />
-          <span>
-            {" "}
-            {document.lastModifiedAt
-              ? new Date(document.lastModifiedAt).toLocaleString()
-              : "—"}
-          </span>
+      <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            <span>
+              {document.lastModifiedAt
+                ? new Date(document.lastModifiedAt).toLocaleString()
+                : "—"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            {getStatusIcon()}
+            <span>v{document.versions.length}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          {getStatusIcon()}
-          <span>v{document.versions.length}</span>
+        <div className="flex items-center justify-between">
+          <span>Age since first upload: {documentAge} days</span>
         </div>
       </div>
     </div>

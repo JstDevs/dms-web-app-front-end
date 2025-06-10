@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CardTitle } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
-import { Select } from "../../components/ui/Select";
 import { Search, Edit, Trash2, UserPlus } from "lucide-react";
 import { DeleteDialog } from "../../components/ui/DeleteDialog";
 import { User } from "@/types/User";
@@ -9,7 +7,15 @@ import { PaginationControls } from "@/components/ui/PaginationControls";
 import { Button } from "@chakra-ui/react";
 import { useUsers } from "./useUser";
 import toast from "react-hot-toast";
+import { Portal, Select, createListCollection } from "@chakra-ui/react";
 
+const AccessLevelOptions = createListCollection({
+  items: [
+    { value: "user", label: "User" },
+    { value: "manager", label: "Manager" },
+    { value: "admin", label: "Administrator" },
+  ],
+});
 export const UsersPage: React.FC = () => {
   const { users, loading, error, refetch } = useUsers();
   const [localUsers, setLocalUsers] = useState<User[]>([]);
@@ -204,7 +210,7 @@ export const UsersPage: React.FC = () => {
       ) : (
         <div className="mt-6">
           <div className="flex flex-row items-center justify-between flex-wrap gap-4 py-4">
-            <CardTitle>System Users</CardTitle>
+            <h2 className="text-lg font-semibold">System Users</h2>
             <div className="w-full sm:w-64">
               <Input
                 placeholder="Search users..."
@@ -233,18 +239,40 @@ export const UsersPage: React.FC = () => {
                   }
                   required
                 />
-                <Select
-                  label="Access Level"
-                  value={formData.accessId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, accessId: e.target.value })
-                  }
-                  options={[
-                    { value: "user", label: "User" },
-                    { value: "manager", label: "Manager" },
-                    { value: "admin", label: "Administrator" },
-                  ]}
-                />
+
+                <Select.Root
+                  multiple
+                  collection={AccessLevelOptions}
+                  size="sm"
+                  // width="320px"
+                  className="w-full"
+                >
+                  <Select.HiddenSelect />
+                  <Select.Label>Access Level</Select.Label>
+                  <Select.Control className="border px-4 rounded-md border-gray-300">
+                    <Select.Trigger>
+                      <Select.ValueText placeholder="Access Level" />
+                    </Select.Trigger>
+                    <Select.IndicatorGroup>
+                      <Select.Indicator />
+                    </Select.IndicatorGroup>
+                  </Select.Control>
+                  <Portal>
+                    <Select.Positioner>
+                      <Select.Content
+                        border={"medium"}
+                        borderBlockColor={"red"}
+                      >
+                        {AccessLevelOptions.items.map((framework) => (
+                          <Select.Item item={framework} key={framework.value}>
+                            {framework.label}
+                            <Select.ItemIndicator />
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Positioner>
+                  </Portal>
+                </Select.Root>
                 <Input
                   label={isEditing ? "New Password (optional)" : "Password"}
                   type="password"
@@ -302,13 +330,13 @@ export const UsersPage: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                     Username
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                     Access Level
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-right text-base font-semibold text-gray-700 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>

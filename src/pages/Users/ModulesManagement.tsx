@@ -7,6 +7,7 @@ import { Button, Dialog, Portal } from "@chakra-ui/react";
 import ModuleForm from "./ModuleForm";
 import { useModules } from "./useModules";
 import { Module } from "./moduleService";
+import { Edit, Trash2 } from "lucide-react";
 
 const ModulesManagement = () => {
   const { modules, loading, error, addModule, editModule, removeModule } =
@@ -57,7 +58,12 @@ const ModulesManagement = () => {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Manage Modules</h2>
+        <div className="text-left flex-1 ">
+          <h1 className="text-3xl font-bold text-blue-800">Manage Modules</h1>
+          <p className="mt-2 text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+            Manage the modules available in the system
+          </p>
+        </div>
         <Button
           colorScheme="blue"
           onClick={handleAddModule}
@@ -72,13 +78,13 @@ const ModulesManagement = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                 ID
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                 Description
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-right text-base font-semibold text-gray-700 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -92,21 +98,24 @@ const ModulesManagement = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {module.Description}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div className="flex space-x-2">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex justify-end">
+                  <div className="flex space-x-3">
                     <Button
                       onClick={() => handleEditModule(module)}
                       className="text-blue-600 hover:text-blue-900"
                       title="Edit"
+                      size="sm"
                     >
-                      <FiEdit2 />
+                      <Edit className="h-4 w-4" />
+                      Edit
                     </Button>
                     <Button
                       onClick={() => handleDeleteClick(module.ID)}
                       className="text-red-600 hover:text-red-900"
                       title="Delete"
+                      size="sm"
                     >
-                      <FiTrash2 />
+                      <Trash2 className="h-4 w-4" /> Delete
                     </Button>
                   </div>
                 </td>

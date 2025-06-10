@@ -163,7 +163,9 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                   value={selectedUser || ""}
                   onChange={(e) => setSelectedUser(e.target.value || null)}
                 >
-                  <option value="">All Users</option>
+                  <option value="" hidden>
+                    All Users
+                  </option>
                   {uniqueUsers.map((userId, index) => (
                     <option key={userId} value={userId}>
                       {uniqueUserNames[index]}
@@ -177,7 +179,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                   htmlFor="action-filter"
                   className="block text-xs font-medium text-gray-700 mb-1"
                 >
-                  Action Type
+                  Document Type
                 </label>
                 <select
                   id="action-filter"
@@ -185,7 +187,9 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                   value={selectedAction || ""}
                   onChange={(e) => setSelectedAction(e.target.value || null)}
                 >
-                  <option value="">All Actions</option>
+                  <option value="" hidden>
+                    All Actions
+                  </option>
                   {uniqueActions.map((action) => (
                     <option key={action} value={action}>
                       {action.charAt(0).toUpperCase() + action.slice(1)}
@@ -199,7 +203,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                   htmlFor="date-from"
                   className="block text-xs font-medium text-gray-700 mb-1"
                 >
-                  From Date
+                  Created Date
                 </label>
                 <input
                   type="date"
@@ -217,7 +221,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                   htmlFor="date-to"
                   className="block text-xs font-medium text-gray-700 mb-1"
                 >
-                  To Date
+                  Modified Date
                 </label>
                 <input
                   type="date"

@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/Input";
 import { Plus, Search, Edit, Trash2, Save, X } from "lucide-react";
 import { PaginationControls } from "@/components/ui/PaginationControls";
 import { DeleteDialog } from "@/components/ui/DeleteDialog";
-import { Button } from "@chakra-ui/react";
+import { Button, Select, Portal, createListCollection } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
@@ -14,6 +14,7 @@ import {
   deleteDepartment,
 } from "@/redux/thunk/DepartmentThunk";
 import { Department } from "@/types/Departments";
+import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
 
 export const DepartmentsMain: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -22,7 +23,11 @@ export const DepartmentsMain: React.FC = () => {
   const [currentDepartment, setCurrentDepartment] = useState<Department | null>(
     null
   );
-  const [formData, setFormData] = useState({ name: "", code: "" });
+  const [formData, setFormData] = useState({
+    name: "",
+    code: "",
+    selectedSubDepartments: [] as string[],
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -31,12 +36,19 @@ export const DepartmentsMain: React.FC = () => {
     (state: RootState) => state.departments.items
   );
 
+  const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
+
+  // Create collection for multiselect
+  const subDepartmentCollection = {
+    items: subDepartmentOptions,
+  };
+
   const filteredDepartments = departments?.filter(
     (dept) =>
       dept?.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       dept?.Code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  // console.log(filteredDepartments);
+
   const paginatedDepartments = filteredDepartments?.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -68,7 +80,10 @@ export const DepartmentsMain: React.FC = () => {
       return;
     }
     try {
-      await dispatch(createDepartment(formData));
+      // Only send name and code - subdepartments are UI only for now
+      await dispatch(
+        createDepartment({ name: formData.name, code: formData.code })
+      );
       await dispatch(fetchDepartments());
       toast.success("Department created successfully!");
     } catch (error: any) {
@@ -76,7 +91,7 @@ export const DepartmentsMain: React.FC = () => {
         error.response?.data?.message || "Failed to create department"
       );
     } finally {
-      setFormData({ name: "", code: "" });
+      setFormData({ name: "", code: "", selectedSubDepartments: [] });
       setIsCreating(false);
     }
   };
@@ -90,6 +105,7 @@ export const DepartmentsMain: React.FC = () => {
       console.log(error);
     }
   };
+
   const handleEditSubmitInline = async (id: number) => {
     if (!formData.name || !formData.code) {
       toast.error("Both fields are required");
@@ -109,8 +125,13 @@ export const DepartmentsMain: React.FC = () => {
       return;
     }
     try {
+      // Only send name and code - subdepartments are UI only for now
       await dispatch(
-        editDepartment({ id, name: formData.name, code: formData.code })
+        editDepartment({
+          id,
+          name: formData.name,
+          code: formData.code,
+        })
       );
       await dispatch(fetchDepartments());
       toast.success("Department updated!");
@@ -119,21 +140,46 @@ export const DepartmentsMain: React.FC = () => {
       toast.error("Update failed.");
     } finally {
       setCurrentDepartment(null);
-      setFormData({ name: "", code: "" });
+      setFormData({ name: "", code: "", selectedSubDepartments: [] });
     }
   };
 
   const cancelEdit = () => {
     setCurrentDepartment(null);
-    setFormData({ name: "", code: "" });
+    setFormData({ name: "", code: "", selectedSubDepartments: [] });
   };
+
+  const getSubDepartmentNames = (subDeptIds: string[] | undefined) => {
+    // For now, just show random subdepartments for UI demo
+    const sampleSubDepts = [
+      "HR Operations",
+      "Payroll",
+      "Recruitment",
+      "Training",
+      "IT Support",
+      "Network Admin",
+    ];
+    const randomCount = Math.floor(Math.random() * 3) + 1; // 1-3 random subdepartments
+    const randomSubDepts: any = [];
+
+    for (let i = 0; i < randomCount; i++) {
+      const randomIndex = Math.floor(Math.random() * sampleSubDepts.length);
+      const subDept = sampleSubDepts[randomIndex];
+      if (!randomSubDepts.includes(subDept)) {
+        randomSubDepts.push(subDept);
+      }
+    }
+
+    return randomSubDepts.length > 0 ? randomSubDepts.join(", ") : "None";
+  };
+
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6">
-      <header className="mb-8 flex flex-wrap justify-between items-center gap-4  sm:gap-2">
-        <div className="text-left flex-1 ">
+      <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
+        <div className="text-left flex-1">
           <h1 className="text-3xl font-bold text-blue-800">Department</h1>
           <p className="mt-2 text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
-            Manage departments in the system
+            Manage departments and their subdepartments in the system
           </p>
         </div>
         <div className="w-full sm:w-auto">
@@ -142,7 +188,7 @@ export const DepartmentsMain: React.FC = () => {
               onClick={() => {
                 setIsCreating(true);
                 setIsEditing(false);
-                setFormData({ name: "", code: "" });
+                setFormData({ name: "", code: "", selectedSubDepartments: [] });
               }}
               className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
             >
@@ -155,7 +201,7 @@ export const DepartmentsMain: React.FC = () => {
 
       <div className="space-y-4">
         <div className="flex flex-row items-center justify-between flex-wrap gap-4">
-          <h2>Departments</h2>
+          <h2 className="text-lg font-semibold">Departments</h2>
           <div className="w-full sm:w-64">
             <Input
               placeholder="Search department..."
@@ -187,6 +233,44 @@ export const DepartmentsMain: React.FC = () => {
                   }
                   required
                 />
+                <div className="space-y-2">
+                  <Select.Root
+                    multiple
+                    collection={createListCollection(subDepartmentCollection)}
+                    size="sm"
+                    className="w-full"
+                    value={formData.selectedSubDepartments}
+                    onValueChange={(details) =>
+                      setFormData({
+                        ...formData,
+                        selectedSubDepartments: details.value,
+                      })
+                    }
+                  >
+                    <Select.HiddenSelect />
+                    <Select.Label>Sub Departments</Select.Label>
+                    <Select.Control className="border px-4 rounded-md border-gray-300">
+                      <Select.Trigger>
+                        <Select.ValueText placeholder="Select Sub Departments" />
+                      </Select.Trigger>
+                      <Select.IndicatorGroup>
+                        <Select.Indicator />
+                      </Select.IndicatorGroup>
+                    </Select.Control>
+                    <Portal>
+                      <Select.Positioner>
+                        <Select.Content border={"medium"}>
+                          {subDepartmentOptions.map((subDept) => (
+                            <Select.Item item={subDept} key={subDept.value}>
+                              {subDept.label}
+                              <Select.ItemIndicator />
+                            </Select.Item>
+                          ))}
+                        </Select.Content>
+                      </Select.Positioner>
+                    </Portal>
+                  </Select.Root>
+                </div>
                 <div className="flex justify-end space-x-3 w-full">
                   <Button
                     type="button"
@@ -195,9 +279,13 @@ export const DepartmentsMain: React.FC = () => {
                       setIsCreating(false);
                       setIsEditing(false);
                       setCurrentDepartment(null);
-                      setFormData({ name: "", code: "" });
+                      setFormData({
+                        name: "",
+                        code: "",
+                        selectedSubDepartments: [],
+                      });
                     }}
-                    className="flex-1 sm:flex-initial  bg-gray-100 hover:bg-gray-200 px-2"
+                    className="flex-1 sm:flex-initial bg-gray-100 hover:bg-gray-200 px-2"
                   >
                     Cancel
                   </Button>
@@ -216,13 +304,16 @@ export const DepartmentsMain: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                     Code
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                    Sub Departments
+                  </th>
+                  <th className="px-6 py-3 text-right text-base font-semibold text-gray-700 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -263,6 +354,57 @@ export const DepartmentsMain: React.FC = () => {
                             dept.Code
                           )}
                         </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {isEditingRow ? (
+                            <Select.Root
+                              multiple
+                              collection={createListCollection(
+                                subDepartmentCollection
+                              )}
+                              size="sm"
+                              className="w-full"
+                              value={formData.selectedSubDepartments}
+                              onValueChange={(details) =>
+                                setFormData({
+                                  ...formData,
+                                  selectedSubDepartments: details.value,
+                                })
+                              }
+                            >
+                              <Select.HiddenSelect />
+                              <Select.Control className="border px-2 py-1 rounded-md border-gray-300">
+                                <Select.Trigger>
+                                  <Select.ValueText placeholder="Select Sub Departments" />
+                                </Select.Trigger>
+                                <Select.IndicatorGroup>
+                                  <Select.Indicator />
+                                </Select.IndicatorGroup>
+                              </Select.Control>
+                              <Portal>
+                                <Select.Positioner>
+                                  <Select.Content border={"medium"}>
+                                    {subDepartmentOptions.map((subDept) => (
+                                      <Select.Item
+                                        item={subDept}
+                                        key={subDept.value}
+                                      >
+                                        {subDept.label}
+                                        <Select.ItemIndicator />
+                                      </Select.Item>
+                                    ))}
+                                  </Select.Content>
+                                </Select.Positioner>
+                              </Portal>
+                            </Select.Root>
+                          ) : (
+                            <div className="max-w-xs">
+                              <span className="text-xs text-gray-600 block truncate">
+                                {getSubDepartmentNames([])}{" "}
+                                {/* UI demo - shows random subdepartments */}
+                              </span>
+                            </div>
+                          )}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                           {isEditingRow ? (
                             <>
@@ -295,6 +437,7 @@ export const DepartmentsMain: React.FC = () => {
                                   setFormData({
                                     name: dept.Name,
                                     code: dept.Code,
+                                    selectedSubDepartments: [], // Start with empty selection for UI demo
                                   });
                                 }}
                               >
@@ -323,7 +466,7 @@ export const DepartmentsMain: React.FC = () => {
                 ) : (
                   <tr>
                     <td
-                      colSpan={3}
+                      colSpan={4}
                       className="px-6 py-4 text-center text-sm text-gray-500"
                     >
                       No department found

@@ -43,7 +43,7 @@ const Sidebar: React.FC = () => {
       icon: FileText,
       submenu: [
         { name: "Upload", path: "/documents/upload" },
-        { name: "Types", path: "/documents/document-types" },
+        { name: "Library", path: "/documents/documents" },
       ],
     },
     // { name: "Documents", icon: FileText, path: "/my-documents" },
