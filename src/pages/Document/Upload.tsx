@@ -1,13 +1,19 @@
-// import { Button } from "@/components/ui/Button";
-// import { Card, CardContent } from "@/components/ui/Card";
 import { DeleteDialog } from "@/components/ui/DeleteDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
 import { Button } from "@chakra-ui/react";
-import { set } from "date-fns";
-import { DeleteIcon, Search } from "lucide-react";
+import {
+  BookCheck,
+  DeleteIcon,
+  Edit,
+  Scissors,
+  Search,
+  Trash2,
+} from "lucide-react";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
+// import { useDispatch, useSelector } from "react-redux";
 
 interface Document {
   id: string;
@@ -23,31 +29,21 @@ interface Document {
   fileName?: string;
 }
 
-const dummyDepartments = [
-  { value: "finance", label: "Finance" },
-  { value: "payroll", label: "Payroll" },
-  { value: "hr", label: "HR" },
-];
-
-const dummySubdepartments = [
-  { value: "teamA", label: "Team A" },
-  { value: "teamB", label: "Team B" },
-  { value: "teamC", label: "Team C" },
-];
-
 export default function DocumentUpload() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [search, setSearch] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [newDoc, setNewDoc] = useState<Partial<Document>>({
-    department: "Main Office",
-    subdepartment: "Sub Office",
+    department: "",
+    subdepartment: "",
     fileDate: new Date().toISOString().split("T")[0],
     expirationDate: new Date().toISOString().split("T")[0],
     confidential: false,
   });
-
+  // ----------REDUX STATE---------------
+  // const dispatch = useDispatch<AppDispatch>();
+  const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
       const file = e.target.files[0];
@@ -86,8 +82,8 @@ export default function DocumentUpload() {
       ]);
     }
     setNewDoc({
-      department: "Main Office",
-      subdepartment: "Sub Office",
+      department: "",
+      subdepartment: "",
       confidential: false,
     });
     setSelectedFile(null);
@@ -123,7 +119,7 @@ export default function DocumentUpload() {
     // Require file only when adding new document, not when editing
     return editId ? baseValidation : baseValidation && selectedFile;
   };
-
+  console.log(newDoc);
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6 space-y-6">
       {/* Header */}
@@ -141,12 +137,12 @@ export default function DocumentUpload() {
           <div className="col-span-1">
             <label className="text-sm sm:text-base">Department *</label>
             <Select
-              // label="Department"
+              placeholder="Select a department"
               value={newDoc.department}
               onChange={(e) =>
                 setNewDoc({ ...newDoc, department: e.target.value })
               }
-              options={dummyDepartments}
+              options={departmentOptions}
             />
           </div>
 
@@ -154,12 +150,12 @@ export default function DocumentUpload() {
           <div className="col-span-1">
             <label className="text-sm sm:text-base">Sub-Department *</label>
             <Select
-              // label="Sub-Department"
+              placeholder="Select a sub-department"
               value={newDoc.subdepartment}
               onChange={(e) =>
                 setNewDoc({ ...newDoc, subdepartment: e.target.value })
               }
-              options={dummySubdepartments}
+              options={subDepartmentOptions}
             />
           </div>
 
@@ -351,44 +347,52 @@ export default function DocumentUpload() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px] text-sm border mt-4">
-              <thead className="bg-blue-100">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="border p-2 text-left">File</th>
-                  <th className="border p-2 text-left hidden sm:table-cell">
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                    File
+                  </th>
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider table-cell">
                     Name
                   </th>
-                  <th className="border p-2 text-left hidden md:table-cell">
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider table-cell">
                     Description
                   </th>
-                  <th className="border p-2 text-left">File Date</th>
-                  <th className="border p-2 text-left hidden sm:table-cell">
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                    File Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider table-cell">
                     Attachment
                   </th>
-                  <th className="border p-2 text-left">Actions</th>
+                  <th className="px-6 py-3  text-base font-semibold text-gray-700 uppercase tracking-wider text-left">
+                    Actions
+                  </th>
+                  <th className="px-6 py-3  text-base font-semibold text-gray-700 uppercase tracking-wider text-right">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="odd:bg-gray-50 even:bg-white">
-                    <td className="border p-2">{doc.id}</td>
-                    <td className="border p-2 hidden sm:table-cell">
-                      {doc.name}
-                    </td>
-                    <td className="border p-2 hidden md:table-cell">
+                  <tr key={doc.id}>
+                    <td className="border px-6 py-3">{doc.id}</td>
+                    <td className="border px-6 py-3 table-cell">{doc.name}</td>
+                    <td className="border px-6 py-3 table-cell">
                       {doc.description}
                     </td>
-                    <td className="border p-2">{doc.fileDate || "-"}</td>
-                    <td className="border p-2 hidden sm:table-cell">
+                    <td className="border px-6 py-3">{doc.fileDate || "-"}</td>
+                    <td className="border px-6 py-3 table-cell">
                       {doc.fileName || "-"}
                     </td>
-                    <td className="border p-2 ">
+                    <td className="border px-6 py-3 ">
                       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleEdit(doc.id)}
-                          className="w-full sm:flex-1 bg-gray-100 hover:bg-gray-200"
+                          className="w-full sm:flex-1 text-blue-600 hover:text-blue-900"
                         >
+                          <Edit className="h-4 w-4" />
                           Edit
                         </Button>
                         <DeleteDialog
@@ -398,11 +402,33 @@ export default function DocumentUpload() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="w-full sm:flex-1 bg-red-600 text-white hover:bg-red-700"
+                            className="w-full sm:flex-1 text-red-600 hover:text-red-700"
                           >
+                            <Trash2 className="h-4 w-4" />
                             Delete
                           </Button>
                         </DeleteDialog>
+                      </div>
+                    </td>
+                    <td className="border px-6 py-3 ">
+                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:flex-1 text-gray-600 hover:text-gray-900"
+                        >
+                          <Scissors className="h-4 w-4" />
+                          Draft
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full sm:flex-1 text-green-600 hover:text-green-700"
+                        >
+                          <BookCheck className="h-4 w-4" />
+                          Pushlish
+                        </Button>
                       </div>
                     </td>
                   </tr>

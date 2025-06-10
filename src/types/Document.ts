@@ -1,6 +1,10 @@
-import { User } from './User';
+import { User } from "./User";
 
-export type DocumentStatus = 'draft' | 'pending_approval' | 'approved' | 'needs_attention';
+export type DocumentStatus =
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "needs_attention";
 
 export interface Version {
   id: string;
@@ -31,7 +35,7 @@ export interface Approver {
 
 export interface ApprovalStep {
   name: string;
-  type: 'single' | 'all' | 'any';
+  type: "single" | "all" | "any";
   active: boolean;
   completed: boolean;
   completedAt: string;
@@ -67,6 +71,7 @@ export interface Document {
   type: string;
   content: string;
   description: string;
+  subDepartment: string;
   status: DocumentStatus;
   department: string;
   createdBy: string;

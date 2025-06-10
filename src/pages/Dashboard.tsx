@@ -2,7 +2,16 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useDocument } from "../contexts/DocumentContext";
 import DocumentCard from "../components/documents/DocumentCard";
-import { Clock, FileCheck, AlertTriangle, Folder } from "lucide-react";
+import {
+  Clock,
+  FileCheck,
+  AlertTriangle,
+  Folder,
+  FileText,
+  Users,
+  FileType,
+} from "lucide-react";
+import { Button } from "@chakra-ui/react";
 
 const Dashboard: React.FC = () => {
   const { documents } = useDocument();
@@ -23,28 +32,28 @@ const Dashboard: React.FC = () => {
 
   const statCards = [
     {
-      title: "Pending Approvals",
-      count: pendingApproval.length,
-      icon: <FileCheck className="h-8 w-8 text-yellow-500" />,
-      color: "bg-yellow-50 border-yellow-100",
-    },
-    {
-      title: "Needs Attention",
-      count: needsAttention.length,
-      icon: <AlertTriangle className="h-8 w-8 text-red-500" />,
-      color: "bg-red-50 border-red-100",
-    },
-    {
-      title: "Recent Activity",
-      count: recentDocuments.length,
-      icon: <Clock className="h-8 w-8 text-blue-500" />,
-      color: "bg-blue-50 border-blue-100",
-    },
-    {
       title: "Total Documents",
       count: documents.length,
       icon: <Folder className="h-8 w-8 text-green-500" />,
-      color: "bg-green-50 border-green-100",
+      color: "border-green-100",
+    },
+    {
+      title: "Departments",
+      count: pendingApproval.length,
+      icon: <FileCheck className="h-8 w-8 text-yellow-500" />,
+      color: "border-yellow-100",
+    },
+    {
+      title: "Sub-Departments",
+      count: needsAttention.length,
+      icon: <FileType className="h-8 w-8 text-red-500" />,
+      color: "border-red-100",
+    },
+    {
+      title: "Users",
+      count: recentDocuments.length,
+      icon: <Users className="h-8 w-8 text-blue-500" />,
+      color: "border-blue-100",
     },
   ];
 
@@ -70,7 +79,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Recent Documents */}
-      <div className="mb-8">
+      {/* <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-semibold text-blue-700">
             Recent Documents
@@ -92,7 +101,7 @@ const Dashboard: React.FC = () => {
             />
           ))}
         </div>
-      </div>
+      </div> */}
 
       {/* Pending Approvals */}
       {/* <div className="mb-8">
@@ -126,43 +135,79 @@ const Dashboard: React.FC = () => {
       </div> */}
 
       {/* Activity Feed */}
-      {/* <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-medium text-gray-900">Recent Activity</h2>
-          <button
-            onClick={() => navigate("/activity")}
-            className="text-sm text-blue-600 hover:text-blue-800"
+      <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold text-slate-800">
+            Recent Activity
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-sm font-semibold border border-slate-200 hover:bg-slate-100 px-4 py-2 flex items-center"
           >
-            View all
-          </button>
+            View All
+          </Button>
         </div>
-
-        <div className="bg-white rounded-lg border border-gray-100 overflow-hidden">
-          {documents.slice(0, 5).map((doc, index) => (
+        <div className="space-y-4">
+          {[
+            {
+              action: "Document uploaded",
+              file: "Q4_Report.pdf",
+              time: "2 minutes ago",
+              user: "John Doe",
+            },
+            {
+              action: "File shared",
+              file: "Project_Proposal.docx",
+              time: "15 minutes ago",
+              user: "Sarah Wilson",
+            },
+            {
+              action: "Archive created",
+              file: "2023_Documents.zip",
+              time: "1 hour ago",
+              user: "System",
+            },
+            {
+              action: "Document accessed",
+              file: "Company_Policy.pdf",
+              time: "2 hours ago",
+              user: "Mike Johnson",
+            },
+            {
+              action: "Document updated",
+              file: "Employee_Handbook.pdf",
+              time: "3 hours ago",
+              user: "HR Team",
+            },
+            {
+              action: "Bulk upload completed",
+              file: "Marketing_Assets.zip",
+              time: "4 hours ago",
+              user: "Marketing Team",
+            },
+          ].map((activity, index) => (
             <div
-              key={doc.id}
-              className={`p-4 flex items-start hover:bg-gray-50 cursor-pointer ${
-                index !== documents.length - 1 ? "border-b border-gray-100" : ""
-              }`}
-              onClick={() => handleCardClick(doc.id)}
+              key={index}
+              className="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0"
             >
-              <div className="flex-shrink-0 mr-4">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-blue-600" />
+              <div className="flex items-center space-x-4">
+                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-800">
+                    <span className="text-blue-600">{activity.user}</span>{" "}
+                    {activity.action}
+                  </p>
+                  <p className="text-sm text-slate-600">{activity.file}</p>
                 </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  {doc.lastModifiedBy} {doc.lastAction} "{doc.title}"
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {doc.lastModifiedAt}
-                </p>
-              </div>
+              <div className="text-xs text-slate-500">{activity.time}</div>
             </div>
           ))}
         </div>
-      </div> */}
+      </div>
     </div>
   );
 };

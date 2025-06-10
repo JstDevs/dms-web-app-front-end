@@ -1,3 +1,4 @@
+import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
 import { UploadCloud, Trash2, Eye, ChevronDown } from "lucide-react";
 import { useState, useRef, ChangeEvent, DragEvent } from "react";
 
@@ -26,17 +27,17 @@ type UploadedFile = {
 };
 export const BatchUploadPanel = () => {
   // Dummy data for dropdowns
-  const departments: Department[] = [
-    { value: "finance", label: "Finance" },
-    { value: "payroll", label: "Payroll" },
-    { value: "hr", label: "HR" },
-  ];
+  // const departments: Department[] = [
+  //   { value: "finance", label: "Finance" },
+  //   { value: "payroll", label: "Payroll" },
+  //   { value: "hr", label: "HR" },
+  // ];
 
-  const subDepartments: SubDepartment[] = [
-    { value: "payroll", label: "Payroll" },
-    { value: "documents", label: "Documents" },
-    { value: "records", label: "Records" },
-  ];
+  // const subDepartments: SubDepartment[] = [
+  //   { value: "payroll", label: "Payroll" },
+  //   { value: "documents", label: "Documents" },
+  //   { value: "records", label: "Records" },
+  // ];
 
   const templates: Template[] = [
     { value: "id", label: "ID Card" },
@@ -69,7 +70,7 @@ export const BatchUploadPanel = () => {
       department: "HR",
     },
   ]);
-
+  const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
@@ -84,8 +85,8 @@ export const BatchUploadPanel = () => {
         size: `${(file.size / 1024).toFixed(2)} KB`,
         status: "Pending",
         department: selectedDepartment
-          ? departments.find((d) => d.value === selectedDepartment)?.label ||
-            "Not specified"
+          ? departmentOptions.find((d) => d.value === selectedDepartment)
+              ?.label || "Not specified"
           : "Not specified",
       })
     );
@@ -139,8 +140,10 @@ export const BatchUploadPanel = () => {
               onChange={(e) => setSelectedDepartment(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Select Department</option>
-              {departments.map((dept) => (
+              <option value="" hidden>
+                Select Department
+              </option>
+              {departmentOptions.map((dept) => (
                 <option key={dept.value} value={dept.value}>
                   {dept.label}
                 </option>
@@ -161,8 +164,10 @@ export const BatchUploadPanel = () => {
               className="w-full border border-gray-300 rounded-md px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={!selectedDepartment}
             >
-              <option value="">Select Sub-Department</option>
-              {subDepartments.map((subDept) => (
+              <option value="" hidden>
+                Select Sub-Department
+              </option>
+              {subDepartmentOptions.map((subDept) => (
                 <option key={subDept.value} value={subDept.value}>
                   {subDept.label}
                 </option>
@@ -252,14 +257,26 @@ export const BatchUploadPanel = () => {
       {files.length > 0 && (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm text-left">
-            <thead className="bg-blue-600 text-white">
+            <thead className="bg-gray-50 text-black">
               <tr>
-                <th className="px-4 py-2">File Name</th>
-                <th className="px-4 py-2">Type</th>
-                <th className="px-4 py-2">Size</th>
-                <th className="px-4 py-2">Department</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2 text-center">Actions</th>
+                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                  File Name
+                </th>
+                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                  Size
+                </th>
+                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                  Department
+                </th>
+                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-base font-semibold text-gray-700 uppercase tracking-wider text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -281,7 +298,7 @@ export const BatchUploadPanel = () => {
                     </span>
                   </td>
                   <td className="px-4 py-2 text-center">
-                    <div className="flex justify-center gap-2">
+                    <div className="flex justify-end gap-2">
                       {/* TODO: Preview button for PDF files */}
                       {/* <button
                         className="text-blue-600 hover:text-blue-800"
