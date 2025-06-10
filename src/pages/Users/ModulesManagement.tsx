@@ -57,10 +57,10 @@ const ModulesManagement = () => {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between mb-6 max-sm:flex-col flex-wrap gap-4">
         <div className="text-left flex-1 ">
           <h1 className="text-3xl font-bold text-blue-800">Manage Modules</h1>
-          <p className="mt-2 text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+          <p className="mt-2 text-gray-600 sm:whitespace-nowrap sm:overflow-hidden sm:text-ellipsis">
             Manage the modules available in the system
           </p>
         </div>
