@@ -89,7 +89,7 @@ function App() {
                       element={<DocumentUpload />}
                     />
                     <Route
-                      path="/documents/documents"
+                      path="/documents/library"
                       element={<MyDocuments />}
                     />
 

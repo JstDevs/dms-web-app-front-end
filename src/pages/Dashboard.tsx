@@ -36,24 +36,26 @@ const Dashboard: React.FC = () => {
       count: documents.length,
       icon: <Folder className="h-8 w-8 text-green-500" />,
       color: "border-green-100",
+      path: "/documents/library",
     },
-    {
-      title: "Departments",
-      count: pendingApproval.length,
-      icon: <FileCheck className="h-8 w-8 text-yellow-500" />,
-      color: "border-yellow-100",
-    },
-    {
-      title: "Sub-Departments",
-      count: needsAttention.length,
-      icon: <FileType className="h-8 w-8 text-red-500" />,
-      color: "border-red-100",
-    },
+    // {
+    //   title: "Departments",
+    //   count: pendingApproval.length,
+    //   icon: <FileCheck className="h-8 w-8 text-yellow-500" />,
+    //   color: "border-yellow-100",
+    // },
+    // {
+    //   title: "Sub-Departments",
+    //   count: needsAttention.length,
+    //   icon: <FileType className="h-8 w-8 text-red-500" />,
+    //   color: "border-red-100",
+    // },
     {
       title: "Users",
       count: recentDocuments.length,
       icon: <Users className="h-8 w-8 text-blue-500" />,
       color: "border-blue-100",
+      path: "/users/members",
     },
   ];
 
@@ -66,8 +68,8 @@ const Dashboard: React.FC = () => {
         {statCards.map((stat, index) => (
           <div
             key={index}
-            className={`${stat.color} bg-slate-50 rounded-xl border border-gray-200 shadow-lg p-4 flex items-center transition-transform`}
-            // onClick={() => navigate("/documents")}
+            className={`${stat.color} bg-slate-50 rounded-xl border border-gray-200 shadow-lg p-4 flex items-center transition-transform cursor-pointer hover:scale-105`}
+            onClick={() => navigate(stat.path)}
           >
             <div className="mr-4">{stat.icon}</div>
             <div>

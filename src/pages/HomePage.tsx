@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -13,6 +13,8 @@ import {
   Download,
   Share2,
   FolderOpen,
+  X,
+  Menu,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button, CardDescription } from "@chakra-ui/react";
@@ -78,6 +80,7 @@ const modules = [
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const handleModuleClick = (path: string) => {
     navigate(path);
   };
@@ -85,41 +88,86 @@ export const HomePage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Header */}
       <header className="shadow bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
+            {/* Logo Section */}
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                <FileText className="w-6 h-6 text-white" />
+              <div className="w-9 sm:w-10 h-9 sm:h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                <FileText className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-800">DMS</h1>
-                <p className="text-sm text-slate-500">
+                <h1 className="text-lg sm:text-xl font-bold text-slate-800">
+                  DMS
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-500">
                   Document Management System
                 </p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-4">
               <Link to="/settings">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border border-slate-200 rounded-md hover:bg-slate-100 px-4 py-2 flex items-center font-semibold text-slate-700"
+                  className="border border-slate-200 rounded-md hover:bg-slate-100 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center font-semibold text-slate-700"
                 >
                   <Settings className="w-4 h-4" />
-                  Settings
+                  <span className="ml-2">Settings</span>
                 </Button>
               </Link>
               <Link to="/dashboard">
                 <Button
                   size="sm"
-                  className="bg-blue-600 rounded-md px-4 py-2 flex items-center font-semibold text-white"
+                  className="bg-blue-600 rounded-md px-3 sm:px-4 py-1.5 sm:py-2 flex items-center font-semibold text-white"
                 >
                   <BarChart3 className="w-4 h-4" />
-                  Dashboard
+                  <span className="ml-2">Dashboard</span>
                 </Button>
               </Link>
             </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-md text-slate-700 hover:bg-slate-100 focus:outline-none"
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-6 h-6" />
+                ) : (
+                  <Menu className="w-6 h-6" />
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden mt-4 pb-4 space-y-3">
+              <Link
+                to="/settings"
+                className="block w-full px-4 py-2 text-left rounded-md hover:bg-slate-100 text-slate-700 font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <div className="flex items-center">
+                  <Settings className="w-5 h-5 mr-3" />
+                  Settings
+                </div>
+              </Link>
+              <Link
+                to="/dashboard"
+                className="block w-full px-4 py-2 text-left rounded-md bg-blue-600 text-white font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <div className="flex items-center">
+                  <BarChart3 className="w-5 h-5 mr-3" />
+                  Dashboard
+                </div>
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 

@@ -178,8 +178,8 @@ export const DepartmentsMain: React.FC = () => {
       <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
         <div className="text-left flex-1">
           <h1 className="text-3xl font-bold text-blue-800">Department</h1>
-          <p className="mt-2 text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
-            Manage departments and their subdepartments in the system
+          <p className="mt-2 text-gray-600 sm:whitespace-nowrap sm:overflow-hidden sm:text-ellipsis">
+            Manage departments and their sub-department in the system
           </p>
         </div>
         <div className="w-full sm:w-auto">
@@ -201,7 +201,7 @@ export const DepartmentsMain: React.FC = () => {
 
       <div className="space-y-4">
         <div className="flex flex-row items-center justify-between flex-wrap gap-4">
-          <h2 className="text-lg font-semibold">Departments</h2>
+          <h2 className="text-lg font-semibold">Department</h2>
           <div className="w-full sm:w-64">
             <Input
               placeholder="Search department..."
@@ -248,10 +248,10 @@ export const DepartmentsMain: React.FC = () => {
                     }
                   >
                     <Select.HiddenSelect />
-                    <Select.Label>Sub Departments</Select.Label>
+                    <Select.Label>Sub-Department</Select.Label>
                     <Select.Control className="border px-4 rounded-md border-gray-300">
                       <Select.Trigger>
-                        <Select.ValueText placeholder="Select Sub Departments" />
+                        <Select.ValueText placeholder="Select Sub-Department" />
                       </Select.Trigger>
                       <Select.IndicatorGroup>
                         <Select.Indicator />
@@ -311,7 +311,7 @@ export const DepartmentsMain: React.FC = () => {
                     Code
                   </th>
                   <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Sub Departments
+                    Sub-Department
                   </th>
                   <th className="px-6 py-3 text-right text-base font-semibold text-gray-700 uppercase tracking-wider">
                     Actions
