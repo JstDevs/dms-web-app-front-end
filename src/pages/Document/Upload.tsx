@@ -427,7 +427,7 @@ export default function DocumentUpload() {
                           className="w-full sm:flex-1 text-green-600 hover:text-green-700"
                         >
                           <BookCheck className="h-4 w-4" />
-                          Pushlish
+                          Publish
                         </Button>
                       </div>
                     </td>
