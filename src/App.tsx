@@ -41,6 +41,7 @@ import ChangePassword from "./pages/Settings/ChangePassword";
 import DocumentUpload from "./pages/Document/Upload";
 import ModulesManagement from "./pages/Users/ModulesManagement";
 import UserAccessPage from "./pages/Users/Users Access/UsersAccessPage";
+import OCRFieldsManagement from "./pages/OCR/Fields/OCRFieldsManagement";
 
 function App() {
   return (
@@ -96,8 +97,8 @@ function App() {
                     {/* ----------------------OCR check-------------------- */}
                     <Route path="/ocr/unrecorded" element={<UnrecordedOCR />} />
                     <Route
-                      path="/ocr/handwritten"
-                      element={<HandWrittenOCRUploader />}
+                      path="/ocr/fields"
+                      element={<OCRFieldsManagement />}
                     />
                     <Route path="/ocr/template" element={<TemplateOCR />} />
                     {/* //------------------ departments------------------ */}

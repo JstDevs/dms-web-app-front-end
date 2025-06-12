@@ -30,6 +30,13 @@ const usePermissions = () => {
         const response = await axios("/useraccess/modules");
         const data: ApiPermission[] = response.data;
         console.log(data);
+        // Check if data is empty or not an array
+        if (!Array.isArray(data) || data.length === 0) {
+          console.warn("No permissions data received from API");
+          setPermissions([]); // Set empty array as fallback
+          return;
+        }
+
         const transformed = data.map((item) => ({
           id: item.ID,
           name: item.Description,

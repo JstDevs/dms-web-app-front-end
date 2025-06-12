@@ -84,7 +84,7 @@ const Sidebar: React.FC = () => {
       submenu: [
         { name: "Unrecorded", path: "/ocr/unrecorded" },
         { name: "Template", path: "/ocr/template" },
-        // { name: "Handwritten", path: "/ocr/handwritten" },
+        { name: "Fields", path: "/ocr/fields" },
       ],
     },
     // {

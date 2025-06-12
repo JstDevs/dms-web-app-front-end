@@ -10,9 +10,12 @@ import PermissionsTable from "./PermissionTable";
 import {
   addUserAccess,
   AddUserAccessPayload,
+  deleteUserAccessRole,
   editUserAccess,
   EditUserAccessPayload,
 } from "./userAccessService";
+import { Trash2 } from "lucide-react";
+import { DeleteDialog } from "@/components/ui/DeleteDialog";
 
 const UserAccessPage = () => {
   const { permissions, isLoading: isPermissionsLoading } = usePermissions();
@@ -28,7 +31,7 @@ const UserAccessPage = () => {
     hasChanges,
     isInitialized,
   } = useRoles(permissions);
-  const [selectedRole, setSelectedRole] = useState("Administration");
+  const [selectedRole, setSelectedRole] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
@@ -54,7 +57,8 @@ const UserAccessPage = () => {
     const payload: AddUserAccessPayload = {
       description: currentRole?.role || "",
       modulePermissions: currentRole?.permissions?.map((perm) => ({
-        id: perm.id,
+        ID: String(perm.id),
+        Description: perm.name,
         view: perm.view,
         add: perm.add,
         edit: perm.edit,
@@ -82,7 +86,8 @@ const UserAccessPage = () => {
       currentDescription: currentRole?.role || "",
       description: currentRole?.role || "",
       modulePermissions: currentRole?.permissions?.map((perm) => ({
-        id: perm.id,
+        ID: String(perm.id),
+        Description: perm.name,
         view: perm.view,
         add: perm.add,
         edit: perm.edit,
@@ -90,6 +95,7 @@ const UserAccessPage = () => {
         print: perm.print,
       })),
     };
+
     try {
       await editUserAccess(payload, currentRole.userAccessID || 0);
       toast.success("Changes saved successfully!");
@@ -98,18 +104,33 @@ const UserAccessPage = () => {
       toast.error("Failed to save changes");
     }
   };
+
   // Check if current role is new (not in original roles)
   const isNewRole = !originalRoles.some((r) => r.role === selectedRole);
   const handleCancel = () => {
     if (isNewRole) {
       removeRole(selectedRole);
-      setSelectedRole("Administrator");
+      setSelectedRole("");
       toast.success(`New role "${selectedRole}" removed`);
     } else {
       resetToOriginal();
       toast.success("Changes reverted");
     }
   };
+  // console.log({ selectedRole });
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteUserAccessRole(id);
+      removeRole(selectedRole);
+      setSelectedRole("");
+
+      toast.success(`Role "${selectedRole}" deleted successfully!`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete role");
+    }
+  };
+  // console.log(isPermissionsLoading, !isInitialized);
   if (isPermissionsLoading || !isInitialized) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -117,7 +138,6 @@ const UserAccessPage = () => {
       </div>
     );
   }
-
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg">
       <header className="text-left flex-1 py-4 px-6">
@@ -159,25 +179,39 @@ const UserAccessPage = () => {
           />
         )}
 
-        <div className="mt-6 flex justify-end space-x-3">
-          <Button
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onClick={handleCancel}
-          >
-            Cancel
-          </Button>
-          <Button
-            className={`px-4 py-2 rounded-md text-sm font-medium text-white focus:outline-none focus:ring-2 ${
-              hasChanges
-                ? "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
-                : "bg-gray-300 cursor-not-allowed"
-            }`}
-            onClick={isNewRole ? handleAddNewRoleBackend : handleSaveChanges}
-            disabled={!hasChanges}
-          >
-            {isNewRole ? "Add Role and Save" : "Save Changes"}
-          </Button>
-        </div>
+        {selectedRole && (
+          <div className="mt-6 flex justify-end space-x-3">
+            <Button
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onClick={handleCancel}
+            >
+              Cancel
+            </Button>
+            <DeleteDialog
+              key={selectedRole}
+              onConfirm={() => handleDelete(currentRole?.userAccessID || 0)}
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-red-700 bg-red-600 p-5 "
+              >
+                Delete Role
+              </Button>
+            </DeleteDialog>
+            <Button
+              className={`px-4 py-2 rounded-md text-sm font-medium text-white focus:outline-none focus:ring-2 ${
+                hasChanges
+                  ? "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+                  : "bg-gray-300 cursor-not-allowed"
+              }`}
+              onClick={isNewRole ? handleAddNewRoleBackend : handleSaveChanges}
+              disabled={!hasChanges}
+            >
+              {isNewRole ? "Add Role and Save" : "Save Changes"}
+            </Button>
+          </div>
+        )}
       </div>
 
       <Dialog.Root

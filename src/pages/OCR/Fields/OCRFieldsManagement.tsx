@@ -1,46 +1,45 @@
 import { useState } from "react";
 import { FiPlus } from "react-icons/fi";
 import { Button, Dialog, Portal } from "@chakra-ui/react";
-import ModuleForm from "./ModuleForm";
-import { useModules } from "./useModules";
-import { Module } from "./moduleService";
+import OCRFieldForm from "./OCRFieldForm";
+import { OCRField } from "./ocrFieldService.ts";
 import { Edit, Trash2 } from "lucide-react";
-
-const ModulesManagement = () => {
-  const { modules, loading, error, addModule, editModule, removeModule } =
-    useModules();
+import { useOCRFields } from "./useOCRFields.ts";
+const OCRFieldsManagement = () => {
+  const { fields, loading, error, addField, editField, removeField } =
+    useOCRFields();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [currentModule, setCurrentModule] = useState<Module | null>(null);
+  const [currentField, setCurrentField] = useState<OCRField | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [moduleToDelete, setModuleToDelete] = useState<number | null>(null);
+  const [fieldToDelete, setFieldToDelete] = useState<number | null>(null);
 
-  const handleAddModule = () => {
-    setCurrentModule(null);
+  const handleAddField = () => {
+    setCurrentField(null);
     setIsDialogOpen(true);
   };
 
-  const handleEditModule = (module: Module) => {
-    setCurrentModule(module);
+  const handleEditField = (field: OCRField) => {
+    setCurrentField(field);
     setIsDialogOpen(true);
   };
 
   const handleDeleteClick = (id: number) => {
-    setModuleToDelete(id);
+    setFieldToDelete(id);
     setIsDeleteConfirmOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (moduleToDelete !== null) {
-      await removeModule(moduleToDelete);
+    if (fieldToDelete !== null) {
+      await removeField(fieldToDelete);
       setIsDeleteConfirmOpen(false);
-      setModuleToDelete(null);
+      setFieldToDelete(null);
     }
   };
 
-  const handleSubmit = async (moduleData: { Description: string }) => {
-    const success = currentModule
-      ? await editModule(currentModule.ID, moduleData)
-      : await addModule(moduleData);
+  const handleSubmit = async (fieldData: { Field: string }) => {
+    const success = currentField
+      ? await editField(currentField.ID, fieldData)
+      : await addField(fieldData);
 
     if (success) {
       setIsDialogOpen(false);
@@ -48,38 +47,46 @@ const ModulesManagement = () => {
   };
 
   if (loading)
-    return <div className="text-center py-8">Loading modules...</div>;
+    return <div className="text-center py-8">Loading OCR fields...</div>;
   if (error)
     return <div className="text-center py-8 text-red-500">{error}</div>;
-
+  console.log(fields);
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex justify-between mb-6 max-sm:flex-col flex-wrap gap-4">
         <div className="text-left flex-1 ">
-          <h1 className="text-3xl font-bold text-blue-800">Manage Modules</h1>
+          <h1 className="text-3xl font-bold text-blue-800">
+            Manage OCR Fields
+          </h1>
           <p className="mt-2 text-gray-600 sm:whitespace-nowrap sm:overflow-hidden sm:text-ellipsis">
-            Manage the modules available in the system
+            Manage the fields available for OCR processing
           </p>
         </div>
         <Button
           colorScheme="blue"
-          onClick={handleAddModule}
+          onClick={handleAddField}
           className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
         >
           <FiPlus />
-          Add Module
+          Add Field
         </Button>
       </div>
 
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
+          <thead className="bg-gray-50  ">
+            <tr className="overflow-hidden">
               <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                 ID
               </th>
               <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                Description
+                Field
+              </th>
+              <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                Created At
+              </th>
+              <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                Updated At
               </th>
               <th className="px-6 py-3 text-right text-base font-semibold text-gray-700 uppercase tracking-wider">
                 Actions
@@ -87,37 +94,45 @@ const ModulesManagement = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {modules.map((module) => (
-              <tr key={module.ID} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {module.ID}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {module.Description}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex justify-end">
-                  <div className="flex space-x-3">
-                    <Button
-                      onClick={() => handleEditModule(module)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Edit"
-                      size="sm"
-                    >
-                      <Edit className="h-4 w-4" />
-                      Edit
-                    </Button>
-                    <Button
-                      onClick={() => handleDeleteClick(module.ID)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete"
-                      size="sm"
-                    >
-                      <Trash2 className="h-4 w-4" /> Delete
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {fields?.length > 0
+              ? fields?.map((field) => (
+                  <tr key={field.ID} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {field.ID}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {field.Field}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(field.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(field.updatedAt).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex justify-end">
+                      <div className="flex space-x-3">
+                        <Button
+                          onClick={() => handleEditField(field)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Edit"
+                          size="sm"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          onClick={() => handleDeleteClick(field.ID)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete"
+                          size="sm"
+                        >
+                          <Trash2 className="h-4 w-4" /> Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              : null}
           </tbody>
         </table>
       </div>
@@ -134,12 +149,12 @@ const ModulesManagement = () => {
             <Dialog.Content className="bg-white mx-4 max-w-md w-full">
               <Dialog.Header>
                 <Dialog.Title className="text-xl font-semibold">
-                  {currentModule ? "Edit Module" : "Add New Module"}
+                  {currentField ? "Edit OCR Field" : "Add New OCR Field"}
                 </Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>
-                <ModuleForm
-                  module={currentModule}
+                <OCRFieldForm
+                  field={currentField}
                   onSubmit={handleSubmit}
                   onCancel={() => setIsDialogOpen(false)}
                 />
@@ -166,7 +181,7 @@ const ModulesManagement = () => {
               </Dialog.Header>
               <Dialog.Body className="space-y-4 p-4">
                 <p className="mb-4">
-                  Are you sure you want to delete this module? <br /> This
+                  Are you sure you want to delete this OCR field? <br /> This
                   action cannot be undone.
                 </p>
                 <div className="flex justify-end space-x-3 mt-4">
@@ -194,4 +209,4 @@ const ModulesManagement = () => {
   );
 };
 
-export default ModulesManagement;
+export default OCRFieldsManagement;

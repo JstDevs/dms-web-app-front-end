@@ -180,7 +180,7 @@ export const SubDepartments: React.FC = () => {
       {/* Form */}
       {isCreating && (
         <div className="mb-6 p-4 border rounded-md">
-          <h3 className="text-lg font-semibold">Create Sub-Department Form</h3>
+          {/* <h3 className="text-lg font-semibold">Create Sub-Department Form</h3> */}
           <form onSubmit={handleCreateSubmit} className="space-y-4">
             <Input
               label="Name"
@@ -189,6 +189,7 @@ export const SubDepartments: React.FC = () => {
                 setFormData({ ...formData, name: e.target.value })
               }
               required
+              placeholder="Enter sub-department name"
             />
             <Input
               label="Code"
@@ -197,6 +198,7 @@ export const SubDepartments: React.FC = () => {
                 setFormData({ ...formData, code: e.target.value })
               }
               required
+              placeholder="Enter sub-department code"
             />
             <div className="flex justify-end gap-3">
               <Button

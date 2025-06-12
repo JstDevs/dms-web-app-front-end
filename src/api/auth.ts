@@ -11,6 +11,13 @@ interface LoginResponse {
   token: string;
   user: User;
 }
+
+export interface RegisterUserPayload {
+  userName: string;
+  password: string;
+  confirmPassword: string;
+  userAccessArray: string[];
+}
 // ---------------LOGIN---------------
 export async function fetchLogin(
   userName: string,
@@ -46,4 +53,26 @@ export async function changePassword(
       "Password change failed";
     throw new Error(message);
   }
+}
+// -------------REGISTER USER---------------
+
+export async function registerUser(
+  user: RegisterUserPayload
+): Promise<{ message: string }> {
+  try {
+    const { data } = await axios.post("/auth/register", user);
+    return data;
+  } catch (error: any) {
+    const message =
+      error.response?.data?.message ||
+      error.message ||
+      "User registration failed";
+    throw new Error(message);
+  }
+}
+
+// -----------------DELETE USER (SOFT)-----------------
+
+export async function deleteUserSoft(id: number) {
+  await axios.get(`/users/delete/${id}`);
 }

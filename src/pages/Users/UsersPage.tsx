@@ -7,25 +7,22 @@ import { PaginationControls } from "@/components/ui/PaginationControls";
 import { Button } from "@chakra-ui/react";
 import { useUsers } from "./useUser";
 import toast from "react-hot-toast";
-import { Portal, Select, createListCollection } from "@chakra-ui/react";
+import { Portal, Select } from "@chakra-ui/react";
+import useAccessLevelRole from "./Users Access/useAccessLevelRole";
+import { deleteUserSoft, registerUser } from "@/api/auth";
+import { set } from "date-fns";
 
-const AccessLevelOptions = createListCollection({
-  items: [
-    { value: "user", label: "User" },
-    { value: "manager", label: "Manager" },
-    { value: "admin", label: "Administrator" },
-  ],
-});
 export const UsersPage: React.FC = () => {
   const { users, loading, error, refetch } = useUsers();
+  const { accessOptions } = useAccessLevelRole();
   const [localUsers, setLocalUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [accessLevelValue, setAccessLevelValue] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     username: "",
-    accessId: "user",
     password: "",
     confirmPassword: "",
   });
@@ -45,12 +42,38 @@ export const UsersPage: React.FC = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  // Functions
+  // ---------- Create USERS-------------
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       toast.error("Passwords do not match");
       return;
+    }
+    if (
+      !formData.password ||
+      !formData.confirmPassword ||
+      !formData.username ||
+      accessLevelValue.length === 0
+    ) {
+      toast.error("Please fill out all fields");
+      return;
+    }
+
+    const payload = {
+      userName: formData.username,
+      password: formData.password,
+      confirmPassword: formData.confirmPassword,
+      employeeID: Math.floor(Math.random() * 10000),
+      userAccessArray: accessLevelValue,
+    };
+
+    try {
+      await registerUser(payload);
+      toast.success("User created successfully!");
+    } catch (error: any) {
+      toast.error(error.message);
+      console.error(error);
     }
 
     const newUser: User = {
@@ -61,25 +84,11 @@ export const UsersPage: React.FC = () => {
       Active: true,
       CreatedBy: "frontend",
       CreatedDate: new Date().toISOString(),
-      UserAccessID:
-        formData.accessId === "admin"
-          ? 1
-          : formData.accessId === "manager"
-          ? 2
-          : 3,
+      UserAccessID: 1,
+
       userAccess: {
-        ID:
-          formData.accessId === "admin"
-            ? 1
-            : formData.accessId === "manager"
-            ? 2
-            : 3,
-        Description:
-          formData.accessId === "admin"
-            ? "Administration"
-            : formData.accessId === "manager"
-            ? "Manager"
-            : "User",
+        ID: 1,
+        Description: "Administration",
         Active: true,
         Createdby: "frontend",
         CreatedDate: new Date().toISOString(),
@@ -91,7 +100,6 @@ export const UsersPage: React.FC = () => {
     toast.success("User created successfully");
     setFormData({
       username: "",
-      accessId: "user",
       password: "",
       confirmPassword: "",
     });
@@ -102,15 +110,14 @@ export const UsersPage: React.FC = () => {
     setCurrentUser(user);
     setFormData({
       username: user.UserName,
-      accessId:
-        user.userAccess.Description === "Administration"
-          ? "admin"
-          : user.userAccess.Description === "Manager"
-          ? "manager"
-          : "user",
       password: "",
       confirmPassword: "",
     });
+    // TODO : FIX THIS
+    // const selectedAccessLevel = user.userAccess.map((accessLevel) =>
+    //   accessLevel.ID.toString()
+    // );
+    // setAccessLevelValue(user.userAccess.ID);
     setIsEditing(true);
     setIsCreating(false);
     setTimeout(() => {
@@ -132,26 +139,10 @@ export const UsersPage: React.FC = () => {
             ? {
                 ...user,
                 UserName: formData.username,
-                UserAccessID:
-                  formData.accessId === "admin"
-                    ? 1
-                    : formData.accessId === "manager"
-                    ? 2
-                    : 3,
                 userAccess: {
                   ...user.userAccess,
-                  ID:
-                    formData.accessId === "admin"
-                      ? 1
-                      : formData.accessId === "manager"
-                      ? 2
-                      : 3,
-                  Description:
-                    formData.accessId === "admin"
-                      ? "Administration"
-                      : formData.accessId === "manager"
-                      ? "Manager"
-                      : "User",
+                  ID: 1,
+                  Description: "Administration",
                 },
               }
             : user
@@ -160,7 +151,6 @@ export const UsersPage: React.FC = () => {
       toast.success("User updated successfully");
       setFormData({
         username: "",
-        accessId: "user",
         password: "",
         confirmPassword: "",
       });
@@ -169,9 +159,15 @@ export const UsersPage: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: number) => {
-    setLocalUsers((prev) => prev.filter((user) => user.ID !== id));
-    toast.success("User deleted");
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteUserSoft(id);
+      toast.success("User deleted");
+      setLocalUsers((prev) => prev.filter((user) => user.ID !== id));
+    } catch (error) {
+      console.log(error);
+      toast.error("Failed to delete user");
+    }
   };
 
   return (
@@ -191,7 +187,7 @@ export const UsersPage: React.FC = () => {
                 setIsEditing(false);
                 setFormData({
                   username: "",
-                  accessId: "user",
+                  // accessId: "user",
                   password: "",
                   confirmPassword: "",
                 });
@@ -240,39 +236,41 @@ export const UsersPage: React.FC = () => {
                   required
                 />
 
-                <Select.Root
-                  multiple
-                  collection={AccessLevelOptions}
-                  size="sm"
-                  // width="320px"
-                  className="w-full"
-                >
-                  <Select.HiddenSelect />
-                  <Select.Label>Access Level</Select.Label>
-                  <Select.Control className="border px-4 rounded-md border-gray-300">
-                    <Select.Trigger>
-                      <Select.ValueText placeholder="Access Level" />
-                    </Select.Trigger>
-                    <Select.IndicatorGroup>
-                      <Select.Indicator />
-                    </Select.IndicatorGroup>
-                  </Select.Control>
-                  <Portal>
-                    <Select.Positioner>
-                      <Select.Content
-                        border={"medium"}
-                        borderBlockColor={"red"}
-                      >
-                        {AccessLevelOptions.items.map((framework) => (
-                          <Select.Item item={framework} key={framework.value}>
-                            {framework.label}
-                            <Select.ItemIndicator />
-                          </Select.Item>
-                        ))}
-                      </Select.Content>
-                    </Select.Positioner>
-                  </Portal>
-                </Select.Root>
+                {accessOptions && (
+                  <Select.Root
+                    multiple
+                    collection={accessOptions}
+                    size="sm"
+                    className="w-full"
+                    value={accessLevelValue}
+                    onValueChange={(e) => {
+                      setAccessLevelValue(e.value);
+                    }}
+                  >
+                    <Select.HiddenSelect />
+                    <Select.Label>Access Level</Select.Label>
+                    <Select.Control className="border px-2 rounded-md border-gray-300">
+                      <Select.Trigger>
+                        <Select.ValueText placeholder="Access Level" />
+                      </Select.Trigger>
+                      <Select.IndicatorGroup>
+                        <Select.Indicator />
+                      </Select.IndicatorGroup>
+                    </Select.Control>
+                    <Portal>
+                      <Select.Positioner>
+                        <Select.Content border={"medium"}>
+                          {accessOptions?.items?.map((framework: any) => (
+                            <Select.Item item={framework} key={framework.value}>
+                              {framework.label}
+                              <Select.ItemIndicator />
+                            </Select.Item>
+                          ))}
+                        </Select.Content>
+                      </Select.Positioner>
+                    </Portal>
+                  </Select.Root>
+                )}
                 <Input
                   label={isEditing ? "New Password (optional)" : "Password"}
                   type="password"
@@ -306,7 +304,7 @@ export const UsersPage: React.FC = () => {
                       setCurrentUser(null);
                       setFormData({
                         username: "",
-                        accessId: "user",
+                        // accessId: "user",
                         password: "",
                         confirmPassword: "",
                       });
@@ -368,7 +366,7 @@ export const UsersPage: React.FC = () => {
                           size="sm"
                           className="text-blue-600 hover:text-blue-900"
                           onClick={() => handleEditClick(user)}
-                          disabled={user.CreatedBy !== "frontend"}
+                          // disabled={user.CreatedBy !== "frontend"}
                         >
                           <Edit className="h-4 w-4" />
                           Edit
@@ -381,7 +379,7 @@ export const UsersPage: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             className="text-red-600 hover:text-red-900"
-                            disabled={user.CreatedBy !== "frontend"}
+                            // disabled={user.CreatedBy !== "frontend"}
                           >
                             <Trash2 className="h-4 w-4" />
                             Delete
