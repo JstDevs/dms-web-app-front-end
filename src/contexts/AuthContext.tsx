@@ -9,9 +9,12 @@ import {
   ReactNode,
 } from "react";
 import toast from "react-hot-toast";
+import { Role } from "./ContextTypes";
 
 interface AuthContextType {
   user: User | null;
+  selectedRole: Role | null;
+  setSelectedRole: (role: Role) => void;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<User | null>;
   logout: () => void;
@@ -30,31 +33,51 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  // Check if user is already logged in
+  const [selectedRole, setSelectedRoleState] = useState<Role | null>(null);
+
+  const setSelectedRole = (role: Role) => {
+    localStorage.setItem("selected_role", JSON.stringify(role) || "");
+    setSelectedRoleState(role);
+  };
+
+  // ✅ Combined: Auth check + Role restoration + Role defaulting
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem("auth_token");
       const storedUser = localStorage.getItem("user");
+      const storedRole = localStorage.getItem("selected_role");
 
       if (token && storedUser) {
         try {
           const userData = JSON.parse(storedUser) as User;
           setUser(userData);
           setIsAuthenticated(true);
+
+          // Restore role from storage if valid
+          if (userData.accessList?.length > 0) {
+            if (storedRole && userData.accessList.includes(storedRole)) {
+              setSelectedRoleState(JSON.parse(storedRole));
+            } else {
+              // Default to second role if multiple, else first
+              const fallbackRole =
+                userData.accessList.length >= 2
+                  ? userData.accessList[1]
+                  : userData.accessList[0];
+              setSelectedRole(fallbackRole);
+            }
+          }
         } catch (err) {
-          // If there's an error parsing the stored user data, clear the storage
           localStorage.removeItem("auth_token");
           localStorage.removeItem("user");
+          localStorage.removeItem("selected_role");
           setUser(null);
           setIsAuthenticated(false);
         }
       }
-
       setLoading(false);
     };
 
     checkAuth();
-    // Add event listener for storage changes
     window.addEventListener("storage", checkAuth);
     return () => window.removeEventListener("storage", checkAuth);
   }, []);
@@ -65,19 +88,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       const { token, user } = await fetchLogin(userName, password);
       if (user) {
-        // Store both token and user data in localStorage
         setToken(token);
         setUserInStorage(user);
-        // Update state variables
         setUser(user);
         setIsAuthenticated(true);
-        // Show success toast
+
+        // Set initial selected role
+        if (user.accessList?.length > 0) {
+          const defaultRole =
+            user.accessList.length >= 2
+              ? user.accessList[1]
+              : user.accessList[0];
+          setSelectedRole(defaultRole.ID);
+        }
+
         toast.success(`Welcome back, ${user.UserName}!`);
-        // Return the user
         return user;
       } else {
         return null;
-        // throw new Error("Invalid email or password");
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login failed";
@@ -90,7 +118,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const logout = () => {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user");
+    localStorage.removeItem("selected_role");
     setUser(null);
+    setSelectedRoleState(null);
     setIsAuthenticated(false);
     toast.success("Logged out successfully");
   };
@@ -99,7 +129,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     <AuthContext.Provider
       value={{
         user,
-        // users,
+        selectedRole,
+        setSelectedRole,
         isAuthenticated,
         login,
         logout,

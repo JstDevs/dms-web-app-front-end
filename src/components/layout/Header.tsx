@@ -1,42 +1,36 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-// import { useUser } from "../../contexts/UserContext";
-import { useNotification } from "../../contexts/NotificationContext";
-import { Bell, Search, UserCircle } from "lucide-react";
+import { Bell, UserCircle } from "lucide-react";
+import { useNotification } from "@/contexts/NotificationContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Header: React.FC = () => {
-  // const { user } = useUser();
-  const { logout, user } = useAuth();
+  const { logout, user, selectedRole, setSelectedRole } = useAuth();
   const { notifications, markAsRead, markAllAsRead } = useNotification();
   const navigate = useNavigate();
-  // const [searchQuery, setSearchQuery] = useState("");
+
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  // Create refs for the dropdown elements
+  // const [selectedRole, setSelectedRole] = useState<any>(null);
+  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+
   const unreadNotifications = notifications.filter((n) => !n.read).length;
 
-  // const handleSearch = (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   // Implement search functionality
-  //   console.log("Searching for:", searchQuery);
-  // };
-
   const handleLogout = () => {
-    // Handle logout logic
     logout();
     navigate("/login");
   };
-  // Close dropdowns when clicking outside
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
       if (
         profileRef.current &&
-        !profileRef.current.contains(event.target as Node) &&
+        !profileRef.current.contains(target) &&
         notificationRef.current &&
-        !notificationRef.current.contains(event.target as Node)
+        !notificationRef.current.contains(target)
       ) {
         setIsProfileMenuOpen(false);
         setIsNotificationOpen(false);
@@ -48,37 +42,51 @@ const Header: React.FC = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = parseInt(e.target.value);
+    setSelectedRoleId(selectedId);
+
+    const fullRole = user?.accessList.find((role) => role.ID === selectedId);
+    if (fullRole) {
+      setSelectedRole(fullRole);
+    }
+  };
+  // console.log({ selectedRole });
+
   return (
     <header className="bg-white border-b border-gray-200 z-10">
       <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center flex-1">
-          {/* <form onSubmit={handleSearch} className="max-w-lg w-full lg:max-w-xs">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </form> */}
-        </div>
+        {/* Placeholder Left Section */}
+        <div className="flex-1" />
 
-        <div className="ml-4 flex items-center md:ml-6 gap-2">
-          {/* Notification dropdown */}
+        <div className="ml-4 flex items-center gap-3 md:ml-6">
+          {/* ✅ Role Selector */}
+          {user && user?.accessList?.length > 1 && (
+            <select
+              value={selectedRole?.ID || ""}
+              onChange={handleRoleChange}
+              className="text-sm border border-gray-300 rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="" disabled>
+                Select Role
+              </option>
+              {user.accessList.map((role) => (
+                <option key={role.ID} value={role.ID}>
+                  {role.Description}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Notification Dropdown */}
           <div className="relative" ref={notificationRef}>
             <button
               onClick={() => {
                 setIsNotificationOpen(!isNotificationOpen);
-                setIsProfileMenuOpen(false); // Close profile menu when opening notifications
+                setIsProfileMenuOpen(false);
               }}
-              className="p-1 rounded-full text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="p-1 rounded-full text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 relative"
             >
-              <span className="sr-only">View notifications</span>
               <Bell className="h-6 w-6" />
               {unreadNotifications > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 flex items-center justify-center text-xs text-white">
@@ -88,13 +96,8 @@ const Header: React.FC = () => {
             </button>
 
             {isNotificationOpen && (
-              <div className="origin-top-right absolute right-0 mt-2 w-72 sm:w-80 max-w-[90vw] rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 animate-fade-in z-50">
-                <div
-                  className="py-1"
-                  role="menu"
-                  aria-orientation="vertical"
-                  aria-labelledby="options-menu"
-                >
+              <div className="origin-top-right absolute right-0 mt-2 w-72 sm:w-80 max-w-[90vw] rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 animate-fade-in">
+                <div className="py-1">
                   <div className="px-4 py-2 border-b border-gray-200">
                     <h3 className="text-sm font-medium text-gray-700">
                       Notifications
@@ -103,23 +106,19 @@ const Header: React.FC = () => {
 
                   {notifications.length > 0 ? (
                     <div className="max-h-80 overflow-y-auto">
-                      {notifications.map((notification) => (
+                      {notifications.map((n) => (
                         <div
-                          key={notification.id}
-                          className={`px-4 py-3 hover:bg-gray-50 transition-colors ${
-                            !notification.read ? "bg-blue-50" : ""
+                          key={n.id}
+                          onClick={() => markAsRead(n.id)}
+                          className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition ${
+                            !n.read ? "bg-blue-50" : ""
                           }`}
-                          onClick={() => markAsRead(notification.id)}
                         >
                           <p className="text-sm font-medium text-gray-900">
-                            {notification.title}
+                            {n.title}
                           </p>
-                          <p className="text-xs text-gray-500">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {notification.time}
-                          </p>
+                          <p className="text-xs text-gray-500">{n.message}</p>
+                          <p className="text-xs text-gray-400 mt-1">{n.time}</p>
                         </div>
                       ))}
                     </div>
@@ -142,38 +141,23 @@ const Header: React.FC = () => {
             )}
           </div>
 
-          {/* Profile dropdown */}
-          <div className="ml-3 relative" ref={profileRef}>
-            <div>
-              <button
-                onClick={() => {
-                  setIsProfileMenuOpen(!isProfileMenuOpen);
-                  setIsNotificationOpen(false); // Close notifications when opening profile menu
-                }}
-                className="max-w-xs flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                id="user-menu"
-                aria-haspopup="true"
-              >
-                <span className="sr-only">Open user menu</span>
-                <div className="flex items-center gap-2">
-                  <UserCircle className="h-8 w-8 text-gray-400" />
-                  <span className="hidden md:block text-sm font-medium text-gray-700">
-                    {user?.UserName}
-                  </span>
-                </div>
-              </button>
-            </div>
+          {/* Profile Dropdown */}
+          <div className="relative" ref={profileRef}>
+            <button
+              onClick={() => {
+                setIsProfileMenuOpen(!isProfileMenuOpen);
+                setIsNotificationOpen(false);
+              }}
+              className="max-w-xs flex items-center gap-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <UserCircle className="h-8 w-8 text-gray-400" />
+              <span className="hidden md:block text-sm font-medium text-gray-700">
+                {user?.UserName}
+              </span>
+            </button>
 
             {isProfileMenuOpen && (
-              <div
-                className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 animate-fade-in"
-                role="menu"
-                aria-orientation="vertical"
-                aria-labelledby="user-menu"
-              >
-                {/* <a href="#profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
-                  Your Profile
-                </a> */}
+              <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 animate-fade-in">
                 <Link
                   to="/settings"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

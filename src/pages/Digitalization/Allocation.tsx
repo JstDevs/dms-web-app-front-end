@@ -1,16 +1,12 @@
-import {
-  PlusCircle,
-  Trash2,
-  Pencil,
-  Save,
-  X,
-  SlidersHorizontal,
-} from "lucide-react";
-import { useState } from "react";
+import { PlusCircle, Trash2, Pencil, Save, X } from "lucide-react";
+import { useRef, useState } from "react";
 import { FieldSettingsPanel } from "../FieldSetting";
 import { Button } from "@chakra-ui/react";
 import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
-
+import useAccessLevelRole from "../Users/Users Access/useAccessLevelRole";
+import { useOCRFields } from "../OCR/Fields/useOCRFields";
+import toast from "react-hot-toast";
+import { allocateFieldsToUsers } from "./utils/allocationServices";
 type PermissionKey =
   | "view"
   | "add"
@@ -23,34 +19,24 @@ type UserPermission = {
   username: string;
   isEditing?: boolean;
 } & Record<PermissionKey, boolean>;
-
-const mockUsers = ["admin", "manager", "users", "hr"];
-
-const defaultPermissions = {
-  view: true,
-  add: true,
-  edit: true,
-  delete: true,
-  print: true,
-  confidential: true,
-};
-
+type updatedFields = {
+  ID: number;
+  Field: string;
+  Type: string;
+  Description: string;
+}[];
 export const AllocationPanel = () => {
-  const [selectedDept, setSelectedDept] = useState("Payroll");
-  const [selectedSubDept, setSelectedSubDept] = useState("SAMPLE DOCUMENTS");
-  const [showFieldsPanel, setShowFieldsPanel] = useState(false);
-  const [users, setUsers] = useState<UserPermission[]>([
-    {
-      username: "admin",
-      ...defaultPermissions,
-    },
-  ]);
+  const [selectedDept, setSelectedDept] = useState("");
+  const [selectedSubDept, setSelectedSubDept] = useState("");
+  const [users, setUsers] = useState<UserPermission[]>([]);
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUsername, setNewUsername] = useState("");
+  const [savedFieldsData, setSavedFieldsData] = useState<updatedFields>([]);
 
-  // const departments = ["Payroll", "HR", "Finance"];
-  // const subDepartments = ["SAMPLE DOCUMENTS", "CONTRACTS", "REPORTS"];
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
+  const { accessOptions } = useAccessLevelRole();
+  const { fields, loading, error } = useOCRFields();
+  const fieldPanelRef = useRef<any>(null);
   const togglePermission = (username: string, field: PermissionKey) => {
     setUsers((prev) =>
       prev.map((user) =>
@@ -75,26 +61,38 @@ export const AllocationPanel = () => {
         user.username === username ? { ...user, isEditing: false } : user
       )
     );
+    console.log("Saved user:", username, users);
   };
 
   const addUser = () => {
-    if (newUsername && !users.some((u) => u.username === newUsername)) {
-      setUsers([
-        ...users,
-        {
-          username: newUsername,
-          view: true,
-          add: false,
-          edit: false,
-          delete: false,
-          print: false,
-          confidential: false,
-          isEditing: false,
-        },
-      ]);
-      setNewUsername("");
-      setShowAddUser(false);
+    // FINDING THE SELECTED ACCESS LEVEL
+    const newUserLabel = accessOptions?.items?.find(
+      (item: any) => item.value === newUsername
+    ) as { value: string; label: string };
+
+    // CHECKING IF THE USER ALREADY EXISTS
+    if (users.some((u) => u.username === newUserLabel?.label)) {
+      toast.error("User already exists");
+      return;
     }
+
+    // ADDING THE NEW USER
+    setUsers([
+      ...users,
+      {
+        username: newUserLabel?.label,
+        view: true,
+        add: false,
+        edit: false,
+        delete: false,
+        print: false,
+        confidential: false,
+        isEditing: false,
+      },
+    ]);
+
+    setNewUsername("");
+    setShowAddUser(false);
   };
 
   const removeUser = (username: string) => {
@@ -103,17 +101,68 @@ export const AllocationPanel = () => {
     }
   };
 
-  const handleSubDeptAdd = () => {
-    // const name = prompt("Enter Sub-Department name:");
-    // if (name) alert(`Sub-Department "${name}" added.`);
-  };
+  const handleAllocation = async () => {
+    const user = users[0];
 
-  const handleSubDeptDelete = () => {
-    // const confirmDelete = confirm(
-    //   `Are you sure you want to delete "${selectedSubDept}"?`
-    // );
-    // if (confirmDelete) alert(`Sub-Department "${selectedSubDept}" deleted.`);
+    const userID = (
+      accessOptions?.items as { label: string; value: string }[]
+    )?.find((item) => item.label === user.username)?.value;
+
+    const departmentId = departmentOptions?.find(
+      (item: { label: string }) => item.label === selectedDept
+    )?.value;
+
+    const subDepartmentId = subDepartmentOptions?.find(
+      (item: { label: string }) => item.label === selectedSubDept
+    )?.value;
+
+    if (!userID || !departmentId || !subDepartmentId) {
+      toast.error("Invalid user or department selection.");
+      return;
+    }
+
+    const payload = {
+      depid: Number(departmentId),
+      subdepid: Number(subDepartmentId),
+      userid: Number(userID),
+      View: user.view,
+      Add: user.add,
+      Edit: user.edit,
+      Delete: user.delete,
+      Print: user.print,
+      Confidential: user.confidential,
+      fields: savedFieldsData.map((field) => ({
+        ID: Number(field.ID),
+        Field: field.Field,
+        Type: field.Type,
+        Description: field.Description || "",
+      })),
+    };
+
+    try {
+      await allocateFieldsToUsers(payload);
+      toast.success("Allocation successful");
+    } catch (error) {
+      console.error("Allocation failed:", error);
+      toast.error("Failed to allocate");
+    } finally {
+      setSavedFieldsData([]);
+      setUsers([]);
+      setSelectedDept("");
+      setSelectedSubDept("");
+      setShowAddUser(false);
+      setNewUsername("");
+      // 🔁 Trigger reset in child component
+      fieldPanelRef.current?.cancelFields?.();
+    }
   };
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
   return (
     <div className="bg-white shadow-md rounded-xl p-3 md:p-6 space-y-6">
@@ -136,7 +185,19 @@ export const AllocationPanel = () => {
             </h2>
             {/* <SlidersHorizontal className="w-5 h-5 text-blue-600" /> */}
           </div>
-          <FieldSettingsPanel setShowFieldsPanel={setShowFieldsPanel} />
+          <FieldSettingsPanel
+            ref={fieldPanelRef}
+            fieldsInfo={fields}
+            onSave={(updatedFields) => {
+              setSavedFieldsData(updatedFields);
+              // 🔁 Handle save to backend or store here
+              console.log("Received from child:", updatedFields);
+              toast.success("Fields saved successfully");
+            }}
+            onCancel={(resetFields) => {
+              setSavedFieldsData(resetFields);
+            }}
+          />
         </div>
 
         {/* Right Panel - User Permissions */}
@@ -146,7 +207,7 @@ export const AllocationPanel = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">
-                  Department
+                  Department *
                 </label>
                 <select
                   value={selectedDept}
@@ -164,7 +225,7 @@ export const AllocationPanel = () => {
 
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">
-                  Sub-Department
+                  Sub-Department *
                 </label>
                 <select
                   value={selectedSubDept}
@@ -183,21 +244,21 @@ export const AllocationPanel = () => {
           </div>
 
           {/* Add User Form */}
-          {showAddUser && (
+          {showAddUser ? (
             <div className="flex items-center gap-2 p-4 bg-gray-50 rounded-md sm:flex-nowrap flex-wrap">
               <select
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
                 className="flex-1 px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
               >
-                <option value="">Select user to add</option>
-                {mockUsers
-                  .filter((user) => !users.some((u) => u.username === user))
-                  .map((user) => (
-                    <option key={user} value={user}>
-                      {user}
-                    </option>
-                  ))}
+                <option value="" hidden>
+                  Select user to add
+                </option>
+                {accessOptions?.items.map((user: any) => (
+                  <option key={user.value} value={user.value}>
+                    {user.label}
+                  </option>
+                ))}
               </select>
 
               <Button
@@ -213,79 +274,94 @@ export const AllocationPanel = () => {
                 Cancel
               </Button>
             </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowAddUser(true)}
+                disabled={showAddUser || users.length === 1}
+                className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm ${
+                  showAddUser || users.length === 1
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                <PlusCircle className="w-4 h-4" />
+                Add User
+              </Button>
+            </div>
           )}
 
           {/* Permissions Table */}
-          <div className="overflow-x-auto">
-            <table className="min-w-full border rounded-md text-sm">
-              <thead className="bg-gray-50 text-black">
-                <tr>
-                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Username
-                  </th>
-                  <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    View
-                  </th>
-                  <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Add
-                  </th>
-                  <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Edit
-                  </th>
-                  <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Delete
-                  </th>
-                  <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Print
-                  </th>
-                  <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Confidential
-                  </th>
-                  <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr
-                    key={user.username}
-                    className={`bg-white text-gray-700 ${
-                      user.isEditing ? "bg-blue-50" : ""
-                    }`}
-                  >
-                    <td className="px-4 py-2 font-medium">{user.username}</td>
-                    {(
-                      [
-                        "view",
-                        "add",
-                        "edit",
-                        "delete",
-                        "print",
-                        "confidential",
-                      ] as PermissionKey[]
-                    ).map((field) => (
-                      <td key={field} className="text-center">
-                        <input
-                          type="checkbox"
-                          checked={user[field]}
-                          onChange={() =>
-                            togglePermission(user.username, field)
-                          }
-                          disabled={
-                            (!user.isEditing && user.username !== "admin") ||
-                            user.username === "admin"
-                          }
-                          className={`h-4 w-4 ${
-                            user.username === "admin"
-                              ? "cursor-not-allowed"
-                              : ""
-                          }`}
-                        />
-                      </td>
-                    ))}
-                    <td className="px-4 py-2 text-center">
-                      {user.username !== "admin" && (
+          {users.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full border rounded-md text-sm">
+                <thead className="bg-gray-50 text-black">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Username
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      View
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Add
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Edit
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Delete
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Print
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Confidential
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr
+                      key={user.username}
+                      className={`bg-white text-gray-700 ${
+                        user.isEditing ? "bg-blue-50" : ""
+                      }`}
+                    >
+                      <td className="px-4 py-2 font-medium">{user.username}</td>
+                      {(
+                        [
+                          "view",
+                          "add",
+                          "edit",
+                          "delete",
+                          "print",
+                          "confidential",
+                        ] as PermissionKey[]
+                      ).map((field) => (
+                        <td key={field} className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={user[field]}
+                            onChange={() =>
+                              togglePermission(user.username, field)
+                            }
+                            disabled={
+                              (!user.isEditing && user.username !== "admin") ||
+                              user.username === "admin"
+                            }
+                            className={`h-4 w-4 ${
+                              user.username === "admin"
+                                ? "cursor-not-allowed"
+                                : ""
+                            }`}
+                          />
+                        </td>
+                      ))}
+                      <td className="px-4 py-2 text-center">
                         <div className="flex justify-center gap-2">
                           {user.isEditing ? (
                             <div className="flex gap-2">
@@ -323,27 +399,31 @@ export const AllocationPanel = () => {
                             </div>
                           )}
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Footer Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-4 border-t border-gray-200 pt-4">
             <Button
-              onClick={() => setShowAddUser(true)}
-              disabled={showAddUser || mockUsers.length === users.length}
-              className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm ${
-                showAddUser || mockUsers.length === users.length
-                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
-              }`}
+              onClick={handleAllocation}
+              disabled={
+                !Boolean(selectedSubDept) ||
+                !Boolean(selectedDept) ||
+                users.length === 0 ||
+                savedFieldsData.length === 0
+              }
+              className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm font-medium
+                 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed
+                 bg-blue-600 text-white hover:bg-blue-700
+              `}
             >
               <PlusCircle className="w-4 h-4" />
-              Add User
+              Allocate
             </Button>
           </div>
         </div>

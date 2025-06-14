@@ -11,8 +11,10 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { editDocument, fetchDocuments, uploadFile } from "./utils/uploadAPIs";
+import { useAuth } from "@/contexts/AuthContext";
 // import { useDispatch, useSelector } from "react-redux";
 
 interface Document {
@@ -30,20 +32,42 @@ interface Document {
 }
 
 export default function DocumentUpload() {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [search, setSearch] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
+
   const [newDoc, setNewDoc] = useState<Partial<Document>>({
+    name: "",
+    fileDescription: "",
     department: "",
     subdepartment: "",
-    fileDate: new Date().toISOString().split("T")[0],
-    expirationDate: new Date().toISOString().split("T")[0],
+    fileDate: "",
+    expirationDate: "",
     confidential: false,
   });
   // ----------REDUX STATE---------------
   // const dispatch = useDispatch<AppDispatch>();
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
+  const { selectedRole } = useAuth(); // assuming user object has user.id
+  const [currentPage, setCurrentPage] = useState(1);
+  useEffect(() => {
+    const loadDocuments = async () => {
+      try {
+        const { data } = await fetchDocuments(
+          Number(selectedRole?.ID),
+          currentPage
+        );
+
+        setDocuments(data.documents);
+      } catch (err) {
+        console.error("Failed to fetch documents", err);
+      }
+    };
+
+    loadDocuments();
+  }, [selectedRole, currentPage]);
+  // console.log({ documents });
   const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
       const file = e.target.files[0];
@@ -51,13 +75,106 @@ export default function DocumentUpload() {
       setNewDoc((prev) => ({ ...prev, fileName: file.name }));
     }
   };
+  const handleAddDocument = async () => {
+    try {
+      const formData = new FormData();
+      if (selectedFile) {
+        formData.append("file", selectedFile);
+      }
+      // FILE NAME ,DATE AND DESCRIPTION
+      formData.append("filename", newDoc.name || "");
+      formData.append("FileDescription", newDoc.fileDescription || "");
+      formData.append("Description", newDoc.description || "");
+      formData.append(
+        "filedate",
+        newDoc.fileDate
+          ? new Date(newDoc.fileDate).toISOString().slice(0, 10)
+          : ""
+      );
 
-  const handleAddOrUpdate = () => {
+      formData.append(
+        "expdate",
+        newDoc.expirationDate
+          ? new Date(newDoc.expirationDate).toISOString().slice(0, 10)
+          : ""
+      );
+      newDoc.expirationDate && formData.append("expiration", "true");
+      // DEPARTMENT AND SUBDEPARTMENT
+      formData.append("dep", newDoc.department || "");
+      formData.append("subdep", newDoc.subdepartment || "");
+
+      // CONFIDENTIAL AND PUBLISHING STATUS
+      formData.append("confidential", String(newDoc.confidential || false));
+      formData.append("publishing_status", "false");
+      formData.append("remarks", newDoc.remarks || "");
+
+      const response = await uploadFile(formData);
+
+      setDocuments((prev) => [...prev, response.data]);
+      toast.success("Document Added Successfully");
+
+      resetForm();
+    } catch (error) {
+      console.error("Add document failed:", error);
+      toast.error("Failed to add document");
+    }
+  };
+  const handleUpdateDocument = async () => {
+    try {
+      const formData = new FormData();
+      if (selectedFile) {
+        formData.append("file", selectedFile);
+      }
+
+      formData.append("id", editId!);
+      // FILE NAME ,DATE AND DESCRIPTION
+      formData.append("filename", newDoc.name || "");
+      formData.append("FileDescription", newDoc.fileDescription || "");
+      formData.append("Description", newDoc.description || "");
+      formData.append(
+        "filedate",
+        newDoc.fileDate
+          ? new Date(newDoc.fileDate).toISOString().slice(0, 10)
+          : ""
+      );
+
+      formData.append(
+        "expdate",
+        newDoc.expirationDate
+          ? new Date(newDoc.expirationDate).toISOString().slice(0, 10)
+          : ""
+      );
+
+      // DEPARTMENT AND SUBDEPARTMENT
+      formData.append("dep", newDoc.department || "");
+      formData.append("subdep", newDoc.subdepartment || "");
+
+      // CONFIDENTIAL AND PUBLISHING STATUS
+      formData.append("confidential", String(newDoc.confidential || false));
+      formData.append("publishing_status", "false");
+      formData.append("remarks", newDoc.remarks || "");
+
+      const response = await editDocument(formData);
+
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === editId ? { ...doc, ...response.data } : doc
+        )
+      );
+      toast.success("Document Updated Successfully");
+
+      resetForm();
+    } catch (error) {
+      console.error("Update document failed:", error);
+      toast.error("Failed to update document");
+    }
+  };
+  const handleAddOrUpdate = async () => {
     if (!newDoc.name || !newDoc.fileDescription) {
-      toast.error("Enter All Required Fields ");
+      toast.error("Enter All Required Fields");
       return;
     }
-    // Check if document name already exists (excluding current document if editing)
+
     const isDocumentNameExists = documents.some(
       (doc) => doc.name === newDoc.name && (!editId || doc.id !== editId)
     );
@@ -65,22 +182,14 @@ export default function DocumentUpload() {
       toast.error("Document Name Already Exists");
       return;
     }
+
     if (editId) {
-      setDocuments((prev) =>
-        prev.map((doc) =>
-          doc.id === editId ? ({ ...doc, ...newDoc } as Document) : doc
-        )
-      );
+      await handleUpdateDocument();
     } else {
-      setDocuments([
-        ...documents,
-        {
-          ...newDoc,
-          id: `doc-${Date.now()}`,
-          remarks: newDoc.remarks || "",
-        } as Document,
-      ]);
+      await handleAddDocument();
     }
+  };
+  const resetForm = () => {
     setNewDoc({
       department: "",
       subdepartment: "",
@@ -89,7 +198,6 @@ export default function DocumentUpload() {
     setSelectedFile(null);
     setEditId(null);
   };
-
   const handleEdit = (id: string) => {
     const doc = documents.find((d) => d.id === id);
     if (doc) {
@@ -99,14 +207,16 @@ export default function DocumentUpload() {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
   };
 
-  const filteredDocs = documents?.filter(
+  const filteredDocs = documents.filter(
     (doc) =>
-      doc?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      doc?.description?.toLowerCase().includes(search.toLowerCase())
+      (doc.FileName || "").toLowerCase().includes(search.toLowerCase()) ||
+      (doc.FileDescription || doc.Description || "")
+        .toLowerCase()
+        .includes(search.toLowerCase())
   );
   // Add this function to check if all required fields are filled
   const isFormValid = () => {
@@ -169,6 +279,7 @@ export default function DocumentUpload() {
                 setNewDoc({ ...newDoc, fileDescription: e.target.value })
               }
               required
+              placeholder="Enter file description"
             />
           </div>
 
@@ -183,6 +294,7 @@ export default function DocumentUpload() {
                 setNewDoc({ ...newDoc, fileDate: e.target.value })
               }
               required
+              placeholder="Enter file date"
             />
           </div>
 
@@ -194,6 +306,7 @@ export default function DocumentUpload() {
               value={newDoc.name || ""}
               onChange={(e) => setNewDoc({ ...newDoc, name: e.target.value })}
               required
+              placeholder="Enter name"
             />
           </div>
 
@@ -207,6 +320,7 @@ export default function DocumentUpload() {
                 setNewDoc({ ...newDoc, description: e.target.value })
               }
               required
+              placeholder="Enter description"
             />
           </div>
 
@@ -221,6 +335,7 @@ export default function DocumentUpload() {
                 setNewDoc({ ...newDoc, expirationDate: e.target.value })
               }
               required
+              placeholder="Enter expiration date"
             />
           </div>
 
@@ -247,6 +362,7 @@ export default function DocumentUpload() {
               onChange={(e) =>
                 setNewDoc({ ...newDoc, remarks: e.target.value })
               }
+              placeholder="Enter remarks"
             ></textarea>
           </div>
 
@@ -374,30 +490,36 @@ export default function DocumentUpload() {
               </thead>
               <tbody>
                 {filteredDocs.map((doc) => (
-                  <tr key={doc.id}>
-                    <td className="border px-6 py-3">{doc.id}</td>
-                    <td className="border px-6 py-3 table-cell">{doc.name}</td>
+                  <tr key={doc.ID}>
+                    <td className="border px-6 py-3">{doc.ID}</td>
                     <td className="border px-6 py-3 table-cell">
-                      {doc.description}
+                      {doc.FileName}
                     </td>
-                    <td className="border px-6 py-3">{doc.fileDate || "-"}</td>
                     <td className="border px-6 py-3 table-cell">
-                      {doc.fileName || "-"}
+                      {doc.FileDescription || doc.Description || "-"}
                     </td>
-                    <td className="border px-6 py-3 ">
+                    <td className="border px-6 py-3">
+                      {doc.FileDate
+                        ? new Date(doc.FileDate).toLocaleDateString()
+                        : "-"}
+                    </td>
+                    <td className="border px-6 py-3 table-cell">
+                      {doc.FileName || "-"}
+                    </td>
+                    <td className="border px-6 py-3">
                       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEdit(doc.id)}
+                          onClick={() => handleEdit(doc.ID)}
                           className="w-full sm:flex-1 text-blue-600 hover:text-blue-900"
                         >
                           <Edit className="h-4 w-4" />
                           Edit
                         </Button>
                         <DeleteDialog
-                          key={doc.id}
-                          onConfirm={() => handleDelete(doc.id)}
+                          key={doc.ID}
+                          onConfirm={() => handleDelete(doc.ID)}
                         >
                           <Button
                             variant="ghost"
@@ -410,16 +532,19 @@ export default function DocumentUpload() {
                         </DeleteDialog>
                       </div>
                     </td>
-                    <td className="border px-6 py-3 ">
+                    <td className="border px-6 py-3">
                       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full sm:flex-1 text-gray-600 hover:text-gray-900"
-                        >
-                          <Scissors className="h-4 w-4" />
-                          Draft
-                        </Button>
+                        {!doc.publishing_status && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full sm:flex-1 text-gray-600 hover:text-gray-900"
+                          >
+                            <Scissors className="h-4 w-4" />
+                            {/* {doc.publishing_status ? "Published" : "Draft"} */}
+                            Draft
+                          </Button>
+                        )}
 
                         <Button
                           variant="ghost"
@@ -427,7 +552,7 @@ export default function DocumentUpload() {
                           className="w-full sm:flex-1 text-green-600 hover:text-green-700"
                         >
                           <BookCheck className="h-4 w-4" />
-                          Publish
+                          {doc.publishing_status ? "Published" : "Publish"}
                         </Button>
                       </div>
                     </td>

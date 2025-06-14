@@ -24,7 +24,7 @@ const useRoles = (initialPermissions: Permission[]) => {
         const transformed: UserAccess[] = userAccess.map((roleItem: any) => ({
           role: roleItem.Description,
           userAccessID: roleItem.ID,
-          permissions: initialPermissions.map((perm) => {
+          permissions: initialPermissions?.map((perm) => {
             const match = roleItem.moduleAccess.find(
               (m: any) => m.ModuleID === perm.id
             );
