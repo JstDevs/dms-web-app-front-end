@@ -9,8 +9,10 @@ export async function uploadFile(payload: FormData) {
   return response.data;
 }
 
-export async function fetchDocuments() {
-  const response = await axios.get("/documents");
+export async function fetchDocuments(userId: number, page: number = 1) {
+  const response = await axios.get(
+    `/documents/documents/${userId}?page=${page}`
+  );
   return response.data;
 }
 

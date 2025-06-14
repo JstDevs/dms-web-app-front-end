@@ -179,7 +179,7 @@ const UserAccessPage = () => {
           />
         )}
 
-        {selectedRole && (
+        {selectedRole ? (
           <div className="mt-6 flex justify-end space-x-3">
             <Button
               className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -210,6 +210,13 @@ const UserAccessPage = () => {
             >
               {isNewRole ? "Add Role and Save" : "Save Changes"}
             </Button>
+          </div>
+        ) : (
+          <div className="flex justify-center items-center h-64">
+            <h1 className="text-3xl font-bold text-blue-800">
+              {" "}
+              No role selected{" "}
+            </h1>
           </div>
         )}
       </div>

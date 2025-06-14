@@ -11,9 +11,10 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { editDocument, uploadFile } from "./utils/uploadAPIs";
+import { editDocument, fetchDocuments, uploadFile } from "./utils/uploadAPIs";
+import { useAuth } from "@/contexts/AuthContext";
 // import { useDispatch, useSelector } from "react-redux";
 
 interface Document {
@@ -31,10 +32,11 @@ interface Document {
 }
 
 export default function DocumentUpload() {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [search, setSearch] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
+
   const [newDoc, setNewDoc] = useState<Partial<Document>>({
     name: "",
     fileDescription: "",
@@ -47,6 +49,25 @@ export default function DocumentUpload() {
   // ----------REDUX STATE---------------
   // const dispatch = useDispatch<AppDispatch>();
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
+  const { selectedRole } = useAuth(); // assuming user object has user.id
+  const [currentPage, setCurrentPage] = useState(1);
+  useEffect(() => {
+    const loadDocuments = async () => {
+      try {
+        const { data } = await fetchDocuments(
+          Number(selectedRole?.ID),
+          currentPage
+        );
+
+        setDocuments(data.documents);
+      } catch (err) {
+        console.error("Failed to fetch documents", err);
+      }
+    };
+
+    loadDocuments();
+  }, [selectedRole, currentPage]);
+  // console.log({ documents });
   const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
       const file = e.target.files[0];
@@ -186,14 +207,16 @@ export default function DocumentUpload() {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
   };
 
-  const filteredDocs = documents?.filter(
+  const filteredDocs = documents.filter(
     (doc) =>
-      doc?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      doc?.description?.toLowerCase().includes(search.toLowerCase())
+      (doc.FileName || "").toLowerCase().includes(search.toLowerCase()) ||
+      (doc.FileDescription || doc.Description || "")
+        .toLowerCase()
+        .includes(search.toLowerCase())
   );
   // Add this function to check if all required fields are filled
   const isFormValid = () => {
@@ -467,30 +490,36 @@ export default function DocumentUpload() {
               </thead>
               <tbody>
                 {filteredDocs.map((doc) => (
-                  <tr key={doc.id}>
-                    <td className="border px-6 py-3">{doc.id}</td>
-                    <td className="border px-6 py-3 table-cell">{doc.name}</td>
+                  <tr key={doc.ID}>
+                    <td className="border px-6 py-3">{doc.ID}</td>
                     <td className="border px-6 py-3 table-cell">
-                      {doc.description}
+                      {doc.FileName}
                     </td>
-                    <td className="border px-6 py-3">{doc.fileDate || "-"}</td>
                     <td className="border px-6 py-3 table-cell">
-                      {doc.fileName || "-"}
+                      {doc.FileDescription || doc.Description || "-"}
                     </td>
-                    <td className="border px-6 py-3 ">
+                    <td className="border px-6 py-3">
+                      {doc.FileDate
+                        ? new Date(doc.FileDate).toLocaleDateString()
+                        : "-"}
+                    </td>
+                    <td className="border px-6 py-3 table-cell">
+                      {doc.FileName || "-"}
+                    </td>
+                    <td className="border px-6 py-3">
                       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEdit(doc.id)}
+                          onClick={() => handleEdit(doc.ID)}
                           className="w-full sm:flex-1 text-blue-600 hover:text-blue-900"
                         >
                           <Edit className="h-4 w-4" />
                           Edit
                         </Button>
                         <DeleteDialog
-                          key={doc.id}
-                          onConfirm={() => handleDelete(doc.id)}
+                          key={doc.ID}
+                          onConfirm={() => handleDelete(doc.ID)}
                         >
                           <Button
                             variant="ghost"
@@ -503,16 +532,19 @@ export default function DocumentUpload() {
                         </DeleteDialog>
                       </div>
                     </td>
-                    <td className="border px-6 py-3 ">
+                    <td className="border px-6 py-3">
                       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full sm:flex-1 text-gray-600 hover:text-gray-900"
-                        >
-                          <Scissors className="h-4 w-4" />
-                          Draft
-                        </Button>
+                        {!doc.publishing_status && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full sm:flex-1 text-gray-600 hover:text-gray-900"
+                          >
+                            <Scissors className="h-4 w-4" />
+                            {/* {doc.publishing_status ? "Published" : "Draft"} */}
+                            Draft
+                          </Button>
+                        )}
 
                         <Button
                           variant="ghost"
@@ -520,7 +552,7 @@ export default function DocumentUpload() {
                           className="w-full sm:flex-1 text-green-600 hover:text-green-700"
                         >
                           <BookCheck className="h-4 w-4" />
-                          Publish
+                          {doc.publishing_status ? "Published" : "Publish"}
                         </Button>
                       </div>
                     </td>

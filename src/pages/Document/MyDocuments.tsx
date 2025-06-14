@@ -1,49 +1,70 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDocument } from "@/contexts/DocumentContext";
+// import { useDocument } from "@/contexts/DocumentContext";
 import DocumentCard from "@/components/documents/DocumentCard";
 // import { Input, Select } from "@/components/ui"; // Assuming you have these UI components
 import { FiSearch, FiFilter, FiX } from "react-icons/fi";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchDocuments } from "./utils/uploadAPIs";
 
 const MyDocuments: React.FC = () => {
-  const { documents } = useDocument();
+  // const { documents } = useDocument();
   const navigate = useNavigate();
 
   // State for filters
   const [searchTerm, setSearchTerm] = useState("");
   const [department, setDepartment] = useState("");
   const [subDepartment, setSubDepartment] = useState("");
+  // TODO CHANGE THIS TS TYPE
+  const [documents, setDocuments] = useState<any[]>([]);
   const [filteredDocs, setFilteredDocs] = useState(documents);
   const [showFilters, setShowFilters] = useState(false);
+  const { selectedRole } = useAuth(); // assuming user object has user.id
+  const [currentPage, setCurrentPage] = useState(1);
+  console.log("selectedRole", selectedRole);
+  useEffect(() => {
+    const loadDocuments = async () => {
+      try {
+        const { data } = await fetchDocuments(
+          Number(selectedRole?.ID),
+          currentPage
+        );
 
-  // Get unique departments and sub-departments for filter options
-  const departments = Array.from(
-    new Set(documents.map((doc) => doc.department))
-  );
+        setDocuments(data.documents);
+        setFilteredDocs(data.documents);
+      } catch (err) {
+        console.error("Failed to fetch documents", err);
+      }
+    };
+
+    loadDocuments();
+  }, [selectedRole, currentPage]);
+  // Department/subDept options
+  const departments = Array.from(new Set(documents.map((d) => d.DepartmentId)));
   const subDepartments = Array.from(
     new Set(
       documents
-        .filter((doc) => (department ? doc.department === department : true))
-        .map((doc) => doc.subDepartment)
+        .filter((d) => (department ? d.DepartmentId === +department : true))
+        .map((d) => d.SubDepartmentId)
     )
   );
 
   // Apply filters whenever any filter changes
+  // Filtering logic
   useEffect(() => {
-    const results = documents.filter((doc) => {
+    const filtered = documents.filter((doc) => {
       const matchesSearch =
-        doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesDept = department ? doc.department === department : true;
+        doc.FileName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.FileDescription?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesDept = department ? doc.DepartmentId === +department : true;
       const matchesSubDept = subDepartment
-        ? doc.subDepartment === subDepartment
+        ? doc.SubDepartmentId === +subDepartment
         : true;
-
       return matchesSearch && matchesDept && matchesSubDept;
     });
-    setFilteredDocs(results);
+    setFilteredDocs(filtered);
   }, [searchTerm, department, subDepartment, documents]);
 
   const clearFilters = () => {
@@ -159,9 +180,9 @@ const MyDocuments: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredDocs.map((document) => (
             <DocumentCard
-              key={document.id}
+              key={document.ID}
               document={document}
-              onClick={() => navigate(`/documents/${document.id}`)}
+              onClick={() => navigate(`/documents/${document.ID}`)}
             />
           ))}
         </div>

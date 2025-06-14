@@ -9,7 +9,7 @@ import { useUsers } from "./useUser";
 import toast from "react-hot-toast";
 import { Portal, Select } from "@chakra-ui/react";
 import useAccessLevelRole from "./Users Access/useAccessLevelRole";
-import { deleteUserSoft, registerUser } from "@/api/auth";
+import { deleteUserSoft, registerUser, updateUser } from "@/api/auth";
 import { set } from "date-fns";
 
 export const UsersPage: React.FC = () => {
@@ -65,38 +65,18 @@ export const UsersPage: React.FC = () => {
       password: formData.password,
       confirmPassword: formData.confirmPassword,
       employeeID: Math.floor(Math.random() * 10000),
-      userAccessArray: accessLevelValue,
+      userAccessArray: JSON.stringify(accessLevelValue),
     };
 
     try {
       await registerUser(payload);
+      refetch();
       toast.success("User created successfully!");
     } catch (error: any) {
       toast.error(error.message);
       console.error(error);
     }
 
-    const newUser: User = {
-      ID: Date.now(),
-      UserName: formData.username,
-      EmployeeID: Math.floor(Math.random() * 10000),
-      Password: formData.password,
-      Active: true,
-      CreatedBy: "frontend",
-      CreatedDate: new Date().toISOString(),
-      UserAccessID: 1,
-
-      userAccess: {
-        ID: 1,
-        Description: "Administration",
-        Active: true,
-        Createdby: "frontend",
-        CreatedDate: new Date().toISOString(),
-        moduleAccess: [],
-      },
-    };
-
-    setLocalUsers((prev) => [...prev, newUser]);
     toast.success("User created successfully");
     setFormData({
       username: "",
@@ -113,11 +93,11 @@ export const UsersPage: React.FC = () => {
       password: "",
       confirmPassword: "",
     });
-    // TODO : FIX THIS
-    // const selectedAccessLevel = user.userAccess.map((accessLevel) =>
-    //   accessLevel.ID.toString()
-    // );
-    // setAccessLevelValue(user.userAccess.ID);
+
+    const selectedAccessLevel = user.accessList.map((accessLevel) =>
+      accessLevel.ID.toString()
+    );
+    setAccessLevelValue(selectedAccessLevel);
     setIsEditing(true);
     setIsCreating(false);
     setTimeout(() => {
@@ -125,35 +105,39 @@ export const UsersPage: React.FC = () => {
     }, 100);
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password && formData.password !== formData.confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
+    if (!formData.username || accessLevelValue.length === 0) {
+      toast.error("Please fill out all fields");
+      return;
+    }
 
-    if (currentUser) {
-      setLocalUsers((prev) =>
-        prev.map((user) =>
-          user.ID === currentUser.ID
-            ? {
-                ...user,
-                UserName: formData.username,
-                userAccess: {
-                  ...user.userAccess,
-                  ID: 1,
-                  Description: "Administration",
-                },
-              }
-            : user
-        )
-      );
-      toast.success("User updated successfully");
+    const payload = {
+      userName: formData.username,
+      password: formData.password,
+      cpassword: formData.confirmPassword,
+      id: currentUser?.ID,
+      userAccessArray: JSON.stringify(accessLevelValue),
+    };
+
+    try {
+      await updateUser(payload);
+      refetch();
+      toast.success("User updated successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update user");
+    } finally {
       setFormData({
         username: "",
         password: "",
         confirmPassword: "",
       });
+      setAccessLevelValue([]);
       setIsEditing(false);
       setCurrentUser(null);
     }
@@ -169,7 +153,7 @@ export const UsersPage: React.FC = () => {
       toast.error("Failed to delete user");
     }
   };
-
+  // console.log({ paginatedDepartments });
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg p-2 sm:p-6">
       <header className="flex justify-between items-center gap-4 flex-wrap">
@@ -187,7 +171,6 @@ export const UsersPage: React.FC = () => {
                 setIsEditing(false);
                 setFormData({
                   username: "",
-                  // accessId: "user",
                   password: "",
                   confirmPassword: "",
                 });
@@ -200,7 +183,6 @@ export const UsersPage: React.FC = () => {
           )}
         </div>
       </header>
-
       {loading ? (
         <p className="text-center font-bold text-2xl">Loading...</p>
       ) : (
@@ -260,9 +242,12 @@ export const UsersPage: React.FC = () => {
                     <Portal>
                       <Select.Positioner>
                         <Select.Content border={"medium"}>
-                          {accessOptions?.items?.map((framework: any) => (
-                            <Select.Item item={framework} key={framework.value}>
-                              {framework.label}
+                          {accessOptions?.items?.map((accessType: any) => (
+                            <Select.Item
+                              item={accessType}
+                              key={accessType.value}
+                            >
+                              {accessType.label}
                               <Select.ItemIndicator />
                             </Select.Item>
                           ))}
@@ -304,7 +289,6 @@ export const UsersPage: React.FC = () => {
                       setCurrentUser(null);
                       setFormData({
                         username: "",
-                        // accessId: "user",
                         password: "",
                         confirmPassword: "",
                       });
@@ -341,24 +325,29 @@ export const UsersPage: React.FC = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedDepartments?.length > 0 ? (
-                  paginatedDepartments.map((user) => (
+                  paginatedDepartments?.map((user) => (
                     <tr key={user.ID} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {user.UserName}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      <td className="px-6 py-4 text-sm text-gray-500  space-x-1">
+                        {user?.accessList?.length > 0
+                          ? user?.accessList.map((access: any) => (
+                              <span
+                                key={access.ID}
+                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                             ${
-                              user.userAccess.Description === "Administration"
+                              access?.Description === "Administrator"
                                 ? "bg-blue-100 text-blue-800"
-                                : user.userAccess.Description === "Manager"
+                                : access?.Description === "Manager"
                                 ? "bg-green-100 text-green-800"
                                 : "bg-gray-100 text-gray-800"
                             }`}
-                        >
-                          {user.userAccess.Description}
-                        </span>
+                              >
+                                {access?.Description || "User"}
+                              </span>
+                            ))
+                          : ""}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
                         <Button
@@ -366,7 +355,6 @@ export const UsersPage: React.FC = () => {
                           size="sm"
                           className="text-blue-600 hover:text-blue-900"
                           onClick={() => handleEditClick(user)}
-                          // disabled={user.CreatedBy !== "frontend"}
                         >
                           <Edit className="h-4 w-4" />
                           Edit
@@ -379,7 +367,6 @@ export const UsersPage: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             className="text-red-600 hover:text-red-900"
-                            // disabled={user.CreatedBy !== "frontend"}
                           >
                             <Trash2 className="h-4 w-4" />
                             Delete

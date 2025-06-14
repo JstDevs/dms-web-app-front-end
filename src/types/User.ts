@@ -7,6 +7,7 @@ export interface User {
   CreatedBy: string;
   CreatedDate: string;
   UserAccessID: number;
+  accessList: any[];
   userAccess: {
     ID: number;
     Description: string;

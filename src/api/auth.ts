@@ -16,7 +16,14 @@ export interface RegisterUserPayload {
   userName: string;
   password: string;
   confirmPassword: string;
-  userAccessArray: string[];
+  userAccessArray: string;
+}
+export interface UpdateUserPayload {
+  userName: string;
+  password: string;
+  cpassword: string;
+  id: number | undefined;
+  userAccessArray: string;
 }
 // ---------------LOGIN---------------
 export async function fetchLogin(
@@ -61,6 +68,22 @@ export async function registerUser(
 ): Promise<{ message: string }> {
   try {
     const { data } = await axios.post("/auth/register", user);
+    return data;
+  } catch (error: any) {
+    const message =
+      error.response?.data?.message ||
+      error.message ||
+      "User registration failed";
+    throw new Error(message);
+  }
+}
+// -------------REGISTER USER---------------
+
+export async function updateUser(
+  user: UpdateUserPayload
+): Promise<{ message: string }> {
+  try {
+    const { data } = await axios.post("/users/edit", user);
     return data;
   } catch (error: any) {
     const message =

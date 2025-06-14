@@ -50,7 +50,7 @@ const useRoles = (initialPermissions: Permission[]) => {
       }
     };
 
-    if (initialPermissions.length >= 0 && !isInitialized) {
+    if (initialPermissions.length > 0 && !isInitialized) {
       loadRoles();
     }
   }, [initialPermissions, isInitialized]);
