@@ -4,6 +4,10 @@ import { Button } from "@chakra-ui/react";
 // import { Text } from "@chakra-ui/react";
 import { useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { useTemplates } from "./utils/useTemplates";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUnrecordedDocuments } from "./utils/useUnrecorded";
+import { runOCR } from "./utils/unrecordedHelpers";
 interface FormData {
   department: string;
   subdepartment: string;
@@ -38,51 +42,59 @@ const OCRUnrecordedUI = () => {
     isLoaded: false,
   });
 
-  const [selection, setSelection] = useState<Rect | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(
-    null
-  );
+  // const [selection, setSelection] = useState<Rect | null>(null);
+  // const [isDragging, setIsDragging] = useState(false);
+  // const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(
+  //   null
+  // );
+
   const imgRef = useRef<HTMLImageElement>(null);
 
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!formData.isLoaded || !imgRef.current) return;
+  const { templateOptions } = useTemplates();
+  const { selectedRole } = useAuth();
+  const { unrecordedDocuments, fetchUnrecorded } = useUnrecordedDocuments();
+  const handleOCR = async () => {
+    const selectedDocument = unrecordedDocuments.find(
+      (doc) => doc.FileName === formData.selectedDoc
+    );
+    const selectedTemplateName = templateOptions.find(
+      (temp) => temp.value === formData.template
+    )?.label;
+    if (!selectedDocument) {
+      toast.error("No document selected");
+      return;
+    }
 
-    const rect = imgRef.current.getBoundingClientRect();
-    setStartPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    setIsDragging(true);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging || !startPoint || !imgRef.current) return;
-
-    const rect = imgRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    setSelection({
-      x: Math.min(startPoint.x, x),
-      y: Math.min(startPoint.y, y),
-      width: Math.abs(x - startPoint.x),
-      height: Math.abs(y - startPoint.y),
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleOCR = () => {
-    if (selection) {
-      console.log("Selected OCR Area:", selection);
-      toast.success("Selected OCR Area");
-      // You would send `selection` coordinates along with `selectedDoc` to your OCR backend
+    const payload = {
+      templateName: selectedTemplateName,
+      userId: Number(selectedRole?.ID),
+    };
+    console.log(payload, selectedDocument);
+    try {
+      await runOCR(selectedDocument.ID, payload);
+      toast.success("OCR processing started successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to start OCR");
     }
   };
+  // -------GET ALL UNRECORDED DOCUMENTS-----------
+  const handleLoad = async () => {
+    setFormData({ ...formData, isLoaded: false });
 
-  const handleLoad = () => {
-    if (formData.selectedDoc) {
+    try {
+      fetchUnrecorded(
+        formData.department,
+        formData.subdepartment,
+        String(selectedRole?.ID)
+      );
+
+      toast.success("Documents loaded successfully");
+    } catch (error) {
+      console.log(error);
+      toast.error("Failed to load document");
+    } finally {
       setFormData({ ...formData, isLoaded: true });
     }
   };
@@ -129,95 +141,69 @@ const OCRUnrecordedUI = () => {
                 setFormData({ ...formData, template: e.target.value })
               }
               placeholder="Select a Template"
-              options={[
-                { value: "id", label: "ID Card" },
-                { value: "birth", label: "Birth Certificate" },
-                { value: "passport", label: "Passport" },
-              ]}
+              options={templateOptions}
             />
+
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
+              onClick={handleLoad}
+              disabled={
+                !formData.department ||
+                !formData.subdepartment ||
+                !formData.template
+              }
+            >
+              Get Documents
+            </Button>
           </div>
 
           {/* NOTE: HARD CODED FOR NOW  */}
-          {formData.template === "birth" ? (
-            <>
-              <div className="bg-orange-100 text-orange-700 font-semibold px-4 py-2 rounded text-center">
-                8 Unrecorded Documents
+          {unrecordedDocuments.length > 0 &&
+            unrecordedDocuments?.map((doc) => (
+              <div
+                key={doc.ID}
+                onClick={() =>
+                  setFormData({
+                    ...formData,
+                    selectedDoc: doc.FileName,
+                    isLoaded: true,
+                  })
+                }
+                className={`cursor-pointer text-sm px-2 py-1 rounded hover:bg-blue-100 ${
+                  formData.selectedDoc === doc.FileName ? "bg-blue-200" : ""
+                }`}
+              >
+                {doc.FileName}
               </div>
+            ))}
 
-              <div className="border rounded p-2 h-96 overflow-y-auto space-y-4">
-                {documents.map((doc, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        selectedDoc: doc,
-                        isLoaded: false,
-                      })
-                    }
-                    className={`cursor-pointer text-sm px-2 py-1 rounded hover:bg-blue-100 ${
-                      formData.selectedDoc === doc ? "bg-blue-200" : ""
-                    }`}
-                  >
-                    {doc}
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  className="flex-1 bg-gray-100 py-1.5 rounded hover:bg-gray-200 text-sm"
-                  onClick={handleLoad}
-                >
-                  Load
-                </Button>
-                <Button
-                  onClick={handleOCR}
-                  disabled={!formData.selectedDoc}
-                  className="flex-1 bg-blue-600 text-white py-1.5 rounded hover:bg-blue-700 text-sm"
-                >
-                  OCR
-                </Button>
-              </div>
-            </>
-          ) : formData.template === "id" ? (
-            <div className="bg-orange-100 text-orange-700 font-semibold px-4 py-2 rounded text-center">
-              0 Documents Found
-            </div>
-          ) : null}
+          {formData.selectedDoc && (
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
+              onClick={handleOCR}
+              disabled={!formData.selectedDoc}
+            >
+              Start OCR
+            </Button>
+          )}
         </div>
 
         {/* Right Panel - Document Preview */}
         <div className="w-full lg:w-3/5 p-2 sm:p-4 bg-white">
           <div className="h-full flex items-center justify-center relative border rounded-md min-h-[500px]">
             {formData.isLoaded ? (
-              <div
-                className="relative w-full h-full overflow-hidden"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-              >
-                <img
+              <div className="relative w-full h-full overflow-hidden">
+                {/* <img
                   ref={imgRef}
-                  src="/sample.png"
+                  src={
+                    formData.selectedDoc
+                      ? `/uploads/${formData.selectedDoc}`
+                      : "/sample.png"
+                  }
                   alt="Document Preview"
                   className="object-contain w-full h-full select-none"
                   draggable={false}
-                />
-                {selection && (
-                  <div
-                    className="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-20"
-                    style={{
-                      left: selection.x,
-                      top: selection.y,
-                      width: selection.width,
-                      height: selection.height,
-                    }}
-                  />
-                )}
-                <div className="absolute bottom-2 left-2 bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                  Drag to select OCR area then click "OCR"
-                </div>
+                /> */}
               </div>
             ) : (
               <p className="text-gray-400">Select a document to preview</p>

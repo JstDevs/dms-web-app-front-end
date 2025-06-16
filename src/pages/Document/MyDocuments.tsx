@@ -54,7 +54,8 @@ const MyDocuments: React.FC = () => {
   // Apply filters whenever any filter changes
   // Filtering logic
   useEffect(() => {
-    const filtered = documents.filter((doc) => {
+    const filtered = documents.filter((docWrapper) => {
+      const doc = docWrapper.newdoc;
       const matchesSearch =
         doc.FileName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         doc.FileDescription?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -178,13 +179,17 @@ const MyDocuments: React.FC = () => {
       {/* Documents Grid */}
       {filteredDocs.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredDocs.map((document) => (
-            <DocumentCard
-              key={document.ID}
-              document={document}
-              onClick={() => navigate(`/documents/${document.ID}`)}
-            />
-          ))}
+          {filteredDocs.map((document) => {
+            const doc = document.newdoc;
+            console.log(doc);
+            return (
+              <DocumentCard
+                key={doc.ID}
+                document={doc}
+                onClick={() => navigate(`/documents/${doc.ID}`)}
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="bg-gray-50 rounded-md p-8 text-center">

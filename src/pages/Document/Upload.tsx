@@ -14,7 +14,12 @@ import {
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { editDocument, fetchDocuments, uploadFile } from "./utils/uploadAPIs";
+import {
+  editDocument,
+  fetchDocuments,
+  uploadFile,
+  deleteDocument,
+} from "./utils/uploadAPIs";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildDocumentFormData } from "./utils/documentHelpers";
 // import { useDispatch, useSelector } from "react-redux";
@@ -206,7 +211,7 @@ export default function DocumentUpload() {
     setEditId(null);
   };
   const handleEdit = (id: string) => {
-    const doc = documents.find((d) => d.id === id);
+    const doc = documents.find((d) => d.newdoc.ID === id);
     if (doc) {
       setNewDoc(doc);
       setEditId(id);
@@ -214,11 +219,18 @@ export default function DocumentUpload() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    setDocuments((prev) => prev.filter((d) => d.id !== id));
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteDocument(id);
+      toast.success("Document deleted successfully");
+      setDocuments((prev) => prev.filter((d) => d.newdoc.ID !== id));
+    } catch (error) {
+      console.error("Failed to delete document:", error);
+      toast.error("Failed to delete document");
+    }
   };
 
-  const filteredDocs = documents.filter(
+  const filteredDocs = documents?.filter(
     (doc) =>
       (doc.FileName || "").toLowerCase().includes(search.toLowerCase()) ||
       (doc.FileDescription || doc.Description || "")
@@ -509,91 +521,83 @@ export default function DocumentUpload() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDocs.map((doc) => (
-                  <tr key={doc.ID}>
-                    <td className="border px-6 py-3">{doc.ID}</td>
-                    <td className="border px-6 py-3 table-cell">
-                      {doc.FileName}
-                    </td>
-                    <td className="border px-6 py-3 table-cell">
-                      {doc.FileDescription || doc.Description || "-"}
-                    </td>
-                    <td className="border px-6 py-3">
-                      {doc.FileDate
-                        ? new Date(doc.FileDate).toLocaleDateString()
-                        : "-"}
-                    </td>
-                    <td className="border px-6 py-3 table-cell">
-                      {doc.FileName || "-"}
-                    </td>
-                    <td className="border px-6 py-3">
-                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(doc.ID)}
-                          className="w-full sm:flex-1 text-blue-600 hover:text-blue-900"
-                        >
-                          <Edit className="h-4 w-4" />
-                          Edit
-                        </Button>
-                        <DeleteDialog
-                          key={doc.ID}
-                          onConfirm={() => handleDelete(doc.ID)}
-                        >
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full sm:flex-1 text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </Button>
-                        </DeleteDialog>
-                      </div>
-                    </td>
-                    <td className="border px-6 py-3">
-                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
-                        {/* {!doc.publishing_status && (
+                {filteredDocs.map((docWrapper) => {
+                  const doc = docWrapper.newdoc;
+
+                  return (
+                    <tr key={doc.ID}>
+                      <td className="border px-6 py-3">{doc.ID}</td>
+                      <td className="border px-6 py-3 table-cell">
+                        {doc.FileName}
+                      </td>
+                      <td className="border px-6 py-3 table-cell">
+                        {doc.FileDescription || doc.Description || "-"}
+                      </td>
+                      <td className="border px-6 py-3">
+                        {doc.FileDate
+                          ? new Date(doc.FileDate).toLocaleDateString()
+                          : "-"}
+                      </td>
+                      <td className="border px-6 py-3 table-cell">
+                        {doc.FileName || "-"}
+                      </td>
+                      <td className="border px-6 py-3">
+                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
                           <Button
                             variant="outline"
                             size="sm"
-                            className="w-full sm:flex-1 text-gray-600 hover:text-gray-900"
+                            onClick={() => handleEdit(doc.ID)}
+                            className="w-full sm:flex-1 text-blue-600 hover:text-blue-900"
                           >
-                            <Scissors className="h-4 w-4" />
-                            {doc.publishing_status ? "Published" : "Draft"}
-                            Draft
+                            <Edit className="h-4 w-4" />
+                            Edit
                           </Button>
-                        )} */}
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`w-full sm:flex-1 ${
-                            doc.publishing_status
-                              ? "text-green-600 hover:text-green-900 cursor-not-allowed"
-                              : "text-blue-600 hover:text-blue-900"
-                          }`}
-                          {...(!doc.publishing_status && {
-                            onClick: () => handlePublish(doc),
-                          })}
-                        >
-                          {doc.publishing_status ? (
-                            <>
-                              <BookCheck className="h-4 w-4 mr-1" />
-                              Published
-                            </>
-                          ) : (
-                            <>
-                              <UploadCloud className="h-4 w-4 mr-1" />
-                              Publish
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <DeleteDialog
+                            key={doc.ID}
+                            onConfirm={() => handleDelete(doc.ID)}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full sm:flex-1 text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </Button>
+                          </DeleteDialog>
+                        </div>
+                      </td>
+                      <td className="border px-6 py-3">
+                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`w-full sm:flex-1 ${
+                              doc.publishing_status
+                                ? "text-green-600 hover:text-green-900 cursor-not-allowed"
+                                : "text-blue-600 hover:text-blue-900"
+                            }`}
+                            {...(!doc.publishing_status && {
+                              onClick: () => handlePublish(doc),
+                            })}
+                          >
+                            {doc.publishing_status ? (
+                              <>
+                                <BookCheck className="h-4 w-4 mr-1" />
+                                Published
+                              </>
+                            ) : (
+                              <>
+                                <UploadCloud className="h-4 w-4 mr-1" />
+                                Publish
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

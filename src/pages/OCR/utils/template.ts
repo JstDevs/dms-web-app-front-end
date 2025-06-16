@@ -9,12 +9,10 @@ export async function createTemplate(payload: FormData) {
   return response.data;
 }
 // TODO fetch Templates
-// export async function fetchDocuments(userId: number, page: number = 1) {
-//   const response = await axios.get(
-//     `/documents/documents/${userId}?page=${page}`
-//   );
-//   return response.data;
-// }
+export async function fetchTemplates() {
+  const response = await axios.get(`/templates`);
+  return response.data;
+}
 
 // export async function editDocument(payload: FormData) {
 //   const response = await axios.post(`/documents/edit`, payload, {

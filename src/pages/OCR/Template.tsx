@@ -315,7 +315,7 @@ export const TemplateOCR = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept="application/pdf"
+            accept="application/pdf, image/*"
             className="hidden"
             onChange={handleFileUpload}
           />

@@ -10,7 +10,6 @@ import toast from "react-hot-toast";
 import { Portal, Select } from "@chakra-ui/react";
 import useAccessLevelRole from "./Users Access/useAccessLevelRole";
 import { deleteUserSoft, registerUser, updateUser } from "@/api/auth";
-import { set } from "date-fns";
 
 export const UsersPage: React.FC = () => {
   const { users, loading, error, refetch } = useUsers();
