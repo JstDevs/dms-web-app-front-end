@@ -6,8 +6,7 @@ import toast from "react-hot-toast";
 import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
 import { createTemplate } from "./utils/template";
 import { useOCRFields } from "./Fields/useOCRFields";
-import { useAuth } from "@/contexts/AuthContext";
-import { fetchDocuments } from "../Document/utils/uploadAPIs";
+// import { useAuth } from "@/contexts/AuthContext";
 import {
   convertBufferToFile,
   convertPdfToImage,
@@ -21,11 +20,14 @@ interface BackendPDF {
   };
   [key: string]: any; // Add more fields as needed
 }
+
+const round = (n: number) => Math.round(n * 100) / 100;
+
 export const TemplateOCR = () => {
   const [templateName, setTemplateName] = useState("");
   const [headerName, setHeaderName] = useState("");
   // const [fieldName, setFieldName] = useState("");
-  const [selectedPDF, setSelectedPDF] = useState<BackendPDF | null>();
+  const [selectedPDF, setSelectedPDF] = useState<File | null>();
   const [selectionArea, setSelectionArea] = useState<Rect | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showImagePanel, setShowImagePanel] = useState(false);
@@ -59,15 +61,19 @@ export const TemplateOCR = () => {
     imageHeight: 600,
   });
   const imgRef = useRef<HTMLImageElement>(null);
-
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const { fields, loading, error } = useOCRFields();
-  const { selectedRole } = useAuth();
+  // const { selectedRole } = useAuth();
+  // Update the handleMouseDown and handleMouseMove functions:
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!imgRef.current) return;
 
     const rect = imgRef.current.getBoundingClientRect();
-    setStartPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    setStartPoint({ x, y });
     setIsDragging(true);
   };
 
@@ -90,6 +96,7 @@ export const TemplateOCR = () => {
     setIsDragging(false);
   };
 
+  // Update the handleSaveField function to store pixel coordinates:
   const handleSaveField = () => {
     if (!selectionArea || !selectedField) {
       toast.error("Please select a field and draw an area.");
@@ -106,19 +113,46 @@ export const TemplateOCR = () => {
     const newField = {
       id: selectedField.ID,
       fieldName: selectedField.Field,
-      x: Math.round(selectionArea.x),
-      y: Math.round(selectionArea.y),
-      width: Math.round(selectionArea.width),
-      height: Math.round(selectionArea.height),
+      x: selectionArea.x,
+      y: selectionArea.y,
+      width: selectionArea.width,
+      height: selectionArea.height,
     };
 
     setOcrFields((prev) => [...prev, newField]);
     setSelectionArea(null);
     toast.success("Field saved!");
   };
+  // const renderBoxStyle = (field: any) => {
+  //   const width = formData.imageWidth;
+  //   const height = formData.imageHeight;
+
+  //   return {
+  //     left: `${(field.x / 100) * width}px`,
+  //     top: `${(field.y / 100) * height}px`,
+  //     width: `${(field.width / 100) * width}px`,
+  //     height: `${(field.height / 100) * height}px`,
+  //   };
+  // };
+  const renderBoxStyle = (field: any) => {
+    if (!imgRef.current) return {};
+
+    const rect = imgRef.current.getBoundingClientRect();
+    const scaleX = rect.width / imgRef.current.naturalWidth;
+    const scaleY = rect.height / imgRef.current.naturalHeight;
+
+    return {
+      position: "absolute",
+      top: `${field.y * scaleY}px`,
+      left: `${field.x * scaleX}px`,
+      width: `${field.width * scaleX}px`,
+      height: `${field.height * scaleY}px`,
+    };
+  };
   const handleDeleteField = (fieldId: number) => {
     if (!ocrFields.some((field) => field.id === fieldId)) {
       toast.error("Field not found.");
+      setSelectionArea(null);
       return;
     }
     setOcrFields((prev) => prev.filter((field) => field.id !== fieldId));
@@ -139,22 +173,27 @@ export const TemplateOCR = () => {
     formDataToSend.append("fields", JSON.stringify(ocrFields));
 
     // ✅ Convert backend PDF buffer to File if needed
-    let fileToSend: File | null = null;
-    if (selectedPDF instanceof File) {
-      fileToSend = selectedPDF;
-    } else if (selectedPDF?.DataImage?.data) {
-      fileToSend = convertBufferToFile(
-        selectedPDF?.DataImage,
-        selectedPDF?.FileName || "sample.pdf"
-      );
-    }
+    // let fileToSend: File | null = null;
+    // if (selectedPDF instanceof File) {
+    //   fileToSend = selectedPDF;
+    // } else if (selectedPDF?.DataImage?.data) {
+    // fileToSend = convertBufferToFile(
+    //   selectedPDF || { type: "application/pdf", data: [] },
+    //   selectedPDF || "sample.pdf"
+    // );
+    // }
 
-    if (!fileToSend) {
-      toast.error("PDF file is missing or invalid.");
+    // if (!fileToSend) {
+    //   toast.error("PDF file is missing or invalid.");
+    //   return;
+    // }
+
+    if (selectedPDF) {
+      formDataToSend.append("samplePdf", selectedPDF);
+    } else {
+      toast.error("File is missing or invalid.");
       return;
     }
-
-    formDataToSend.append("samplePdf", fileToSend);
 
     try {
       await createTemplate(formDataToSend);
@@ -175,7 +214,7 @@ export const TemplateOCR = () => {
       setPdfPanelVisible(false);
       setShowImagePanel(false);
       setPdfImage(null);
-      setDocuments([]);
+      // setDocuments([]);
       setSelectionArea(null);
       setOcrFields([]);
       setSelectedPDF(null);
@@ -184,42 +223,54 @@ export const TemplateOCR = () => {
     }
   };
 
-  const handleSelectDocument = async (doc: any) => {
-    if (doc?.DataImage?.data) {
-      const byteArray = new Uint8Array(doc.DataImage.data);
-      const arrayBuffer = byteArray.buffer;
+  // const handleSelectDocument = async (doc: any) => {
+  //   if (doc?.DataImage?.data) {
+  //     const byteArray = new Uint8Array(doc.DataImage.data);
+  //     const arrayBuffer = byteArray.buffer;
 
-      try {
-        const imageDataUrl = await convertPdfToImage(arrayBuffer);
-        setPdfImage(imageDataUrl); // Store image URL
-        setShowImagePanel(true);
-      } catch (error) {
-        toast.error("Failed to convert PDF to image");
-        setPdfImage(null);
-        setShowImagePanel(false);
-        console.error(error);
-      }
-    } else {
-      setPdfImage(null);
-      setShowImagePanel(false);
-    }
-  };
-  const handlePDFsUploadClick = async () => {
-    if (!selectedRole?.ID) {
-      toast.error("Invalid user role");
+  //     try {
+  //       const imageDataUrl = await convertPdfToImage(arrayBuffer);
+  //       setPdfImage(imageDataUrl); // Store image URL
+  //       setShowImagePanel(true);
+  //     } catch (error) {
+  //       toast.error("Failed to convert PDF to image");
+  //       setPdfImage(null);
+  //       setShowImagePanel(false);
+  //       console.error(error);
+  //     }
+  //   } else {
+  //     setPdfImage(null);
+  //     setShowImagePanel(false);
+  //   }
+  // };
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("File input triggered"); // ← MUST show when you select a file
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isPDF = file.type === "application/pdf";
+    const isImage = file.type.startsWith("image/");
+
+    if (!isPDF && !isImage) {
+      toast.error("Only PDF or Image files are allowed.");
       return;
     }
 
-    try {
-      const docs = await fetchDocuments(selectedRole.ID);
-      console.log({ docs });
-      setDocuments(docs.data.documents);
-      setPdfPanelVisible(true);
-    } catch (err) {
-      toast.error("Failed to load documents");
-      console.error("Error fetching documents:", err);
+    setFormData((prev) => ({ ...prev, samplePdf: file }));
+    setSelectedPDF(file);
+    if (isPDF) {
+      const buffer = await file.arrayBuffer();
+      const imageFromPDF = await convertPdfToImage(buffer);
+      setPdfImage(imageFromPDF);
+    } else if (isImage) {
+      const imageURL = URL.createObjectURL(file);
+      setPdfImage(imageURL);
     }
+
+    setPdfPanelVisible(true);
+    setShowImagePanel(true);
   };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -260,15 +311,23 @@ export const TemplateOCR = () => {
           />
         </div>
         <div className="flex items-end">
-          <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
-            onClick={handlePDFsUploadClick}
-            disabled={
-              !formData.department || !formData.subdepartment || pdfPanelVisible
-            }
-          >
-            Load PDFs
-          </Button>
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          <label htmlFor="file-upload">
+            <Button
+              type="button"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Upload File
+            </Button>
+          </label>
         </div>
       </div>
 
@@ -279,7 +338,7 @@ export const TemplateOCR = () => {
           <div className="w-full lg:w-1/2 p-2 sm:p-6 space-y-4 border-r bg-white">
             {/* PDF Selection */}
             <div className="space-y-3">
-              <div className="flex justify-between w-full items-center">
+              {/* <div className="flex justify-between w-full items-center">
                 <label className="block text-sm font-medium text-gray-700">
                   Select a PDF
                 </label>
@@ -289,8 +348,8 @@ export const TemplateOCR = () => {
                 >
                   Upload
                 </button>
-              </div>
-              <div className="flex gap-2 flex-col max-h-[200px] overflow-auto">
+              </div> */}
+              {/* <div className="flex gap-2 flex-col max-h-[200px] overflow-auto">
                 {documents?.map((doc, idx) => (
                   <div
                     key={idx}
@@ -304,7 +363,7 @@ export const TemplateOCR = () => {
                     {doc.FileName}
                   </div>
                 ))}
-              </div>
+              </div> */}
             </div>
 
             {/* Template Name */}
@@ -445,52 +504,71 @@ export const TemplateOCR = () => {
               </div>
 
               {/* Image Selection Panel */}
-              <div
-                className="relative w-full h-[600px] border rounded-md overflow-hidden"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-              >
-                {/* <img
-                  ref={imgRef}
-                  src="/sample.png"
-                  alt="OCR Template"
-                  className="object-contain w-full h-full select-none"
-                  draggable={false}
-                /> */}
-                {pdfImage ? (
-                  <img
-                    ref={imgRef}
-                    src={pdfImage}
-                    alt="PDF Page"
-                    className="object-contain w-full h-full select-none"
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-500">
-                    No PDF selected
-                  </div>
-                )}
-                {selectionArea && (
-                  <div
-                    className="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-20"
-                    style={{
-                      left: selectionArea.x,
-                      top: selectionArea.y,
-                      width: selectionArea.width,
-                      height: selectionArea.height,
-                    }}
-                  />
-                )}
-                <div className="max-sm:hidden absolute bottom-2 left-2 bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                  Drag to select OCR area
+              <div className="w-full max-h-[60vh] overflow-auto border rounded-md">
+                <div
+                  className="relative"
+                  style={{
+                    cursor: "crosshair",
+                    width: "100%", // Allows horizontal scrolling
+                    minWidth: "100%", // Ensures it takes full width when smaller than container
+                  }}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                >
+                  {/* Image */}
+                  {pdfImage ? (
+                    <img
+                      ref={imgRef}
+                      src={pdfImage}
+                      alt="Uploaded"
+                      className="block"
+                      style={{
+                        width: formData.imageWidth,
+                        height: "100%",
+                        minWidth: formData.imageWidth, // Prevents shrinking
+                      }}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">
+                      No File Selected
+                    </div>
+                  )}
+
+                  {/* Live dragging rectangle */}
+                  {selectionArea && isDragging && (
+                    <div
+                      className="absolute border-2 border-blue-500 bg-blue-300 bg-opacity-30 pointer-events-none"
+                      style={{
+                        left: `${selectionArea.x}px`,
+                        top: `${selectionArea.y}px`,
+                        width: `${selectionArea.width}px`,
+                        height: `${selectionArea.height}px`,
+                      }}
+                    />
+                  )}
+
+                  {/* OCR saved boxes */}
+                  {ocrFields.map((field) => (
+                    <div
+                      key={field.id}
+                      className="absolute border-2 border-green-600 bg-green-200 bg-opacity-20"
+                      style={{
+                        left: `${field.x}px`,
+                        top: `${field.y}px`,
+                        width: `${field.width}px`,
+                        height: `${field.height}px`,
+                      }}
+                    />
+                  ))}
                 </div>
               </div>
 
               <div className="flex justify-end gap-2">
                 <Button
                   className="bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded text-sm"
-                  onClick={() => setShowImagePanel(false)}
+                  onClick={() => setPdfPanelVisible(false)}
                 >
                   Close
                 </Button>

@@ -8,7 +8,7 @@ export async function createTemplate(payload: FormData) {
   });
   return response.data;
 }
-
+// TODO fetch Templates
 // export async function fetchDocuments(userId: number, page: number = 1) {
 //   const response = await axios.get(
 //     `/documents/documents/${userId}?page=${page}`
