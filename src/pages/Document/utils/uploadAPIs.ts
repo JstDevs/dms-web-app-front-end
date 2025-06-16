@@ -24,3 +24,8 @@ export async function editDocument(payload: FormData) {
   });
   return response.data;
 }
+
+export async function deleteDocument(id: number) {
+  const response = await axios.delete(`/documents/delete/${id}`);
+  return response.data;
+}
