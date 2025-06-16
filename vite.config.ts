@@ -7,4 +7,9 @@ export default defineConfig({
   worker: {
     format: "es",
   },
+  preview: {
+    port: 4173, // or your preferred port
+    host: true, // allow external access
+    allowedHosts: ["staging-canvas.testthelink.online"], // allow specific hosts
+  },
 });

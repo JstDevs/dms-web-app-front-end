@@ -129,7 +129,7 @@ export const BatchUploadPanel = () => {
       </header>
 
       {/* Context Selection */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Department
@@ -177,7 +177,7 @@ export const BatchUploadPanel = () => {
           </div>
         </div>
 
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             OCR Template
           </label>
@@ -197,7 +197,7 @@ export const BatchUploadPanel = () => {
             </select>
             <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Drag and Drop Area */}

@@ -10,11 +10,13 @@ import {
   Scissors,
   Search,
   Trash2,
+  UploadCloud,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { editDocument, fetchDocuments, uploadFile } from "./utils/uploadAPIs";
 import { useAuth } from "@/contexts/AuthContext";
+import { buildDocumentFormData } from "./utils/documentHelpers";
 // import { useDispatch, useSelector } from "react-redux";
 
 interface Document {
@@ -77,37 +79,37 @@ export default function DocumentUpload() {
   };
   const handleAddDocument = async () => {
     try {
-      const formData = new FormData();
-      if (selectedFile) {
-        formData.append("file", selectedFile);
-      }
-      // FILE NAME ,DATE AND DESCRIPTION
-      formData.append("filename", newDoc.name || "");
-      formData.append("FileDescription", newDoc.fileDescription || "");
-      formData.append("Description", newDoc.description || "");
-      formData.append(
-        "filedate",
-        newDoc.fileDate
-          ? new Date(newDoc.fileDate).toISOString().slice(0, 10)
-          : ""
-      );
+      // const formData = new FormData();
+      // if (selectedFile) {
+      //   formData.append("file", selectedFile);
+      // }
+      // // FILE NAME ,DATE AND DESCRIPTION
+      // formData.append("filename", newDoc.name || "");
+      // formData.append("FileDescription", newDoc.fileDescription || "");
+      // formData.append("Description", newDoc.description || "");
+      // formData.append(
+      //   "filedate",
+      //   newDoc.fileDate
+      //     ? new Date(newDoc.fileDate).toISOString().slice(0, 10)
+      //     : ""
+      // );
 
-      formData.append(
-        "expdate",
-        newDoc.expirationDate
-          ? new Date(newDoc.expirationDate).toISOString().slice(0, 10)
-          : ""
-      );
-      newDoc.expirationDate && formData.append("expiration", "true");
-      // DEPARTMENT AND SUBDEPARTMENT
-      formData.append("dep", newDoc.department || "");
-      formData.append("subdep", newDoc.subdepartment || "");
+      // formData.append(
+      //   "expdate",
+      //   newDoc.expirationDate
+      //     ? new Date(newDoc.expirationDate).toISOString().slice(0, 10)
+      //     : ""
+      // );
+      // newDoc.expirationDate && formData.append("expiration", "true");
+      // // DEPARTMENT AND SUBDEPARTMENT
+      // formData.append("dep", newDoc.department || "");
+      // formData.append("subdep", newDoc.subdepartment || "");
 
-      // CONFIDENTIAL AND PUBLISHING STATUS
-      formData.append("confidential", String(newDoc.confidential || false));
-      formData.append("publishing_status", "false");
-      formData.append("remarks", newDoc.remarks || "");
-
+      // // CONFIDENTIAL AND PUBLISHING STATUS
+      // formData.append("confidential", String(newDoc.confidential || false));
+      // formData.append("publishing_status", "false");
+      // formData.append("remarks", newDoc.remarks || "");
+      const formData = buildDocumentFormData(newDoc, selectedFile, true);
       const response = await uploadFile(formData);
 
       setDocuments((prev) => [...prev, response.data]);
@@ -121,39 +123,44 @@ export default function DocumentUpload() {
   };
   const handleUpdateDocument = async () => {
     try {
-      const formData = new FormData();
-      if (selectedFile) {
-        formData.append("file", selectedFile);
-      }
+      // const formData = new FormData();
+      // if (selectedFile) {
+      //   formData.append("file", selectedFile);
+      // }
 
-      formData.append("id", editId!);
-      // FILE NAME ,DATE AND DESCRIPTION
-      formData.append("filename", newDoc.name || "");
-      formData.append("FileDescription", newDoc.fileDescription || "");
-      formData.append("Description", newDoc.description || "");
-      formData.append(
-        "filedate",
-        newDoc.fileDate
-          ? new Date(newDoc.fileDate).toISOString().slice(0, 10)
-          : ""
+      // formData.append("id", editId!);
+      // // FILE NAME ,DATE AND DESCRIPTION
+      // formData.append("filename", newDoc.name || "");
+      // formData.append("FileDescription", newDoc.fileDescription || "");
+      // formData.append("Description", newDoc.description || "");
+      // formData.append(
+      //   "filedate",
+      //   newDoc.fileDate
+      //     ? new Date(newDoc.fileDate).toISOString().slice(0, 10)
+      //     : ""
+      // );
+
+      // formData.append(
+      //   "expdate",
+      //   newDoc.expirationDate
+      //     ? new Date(newDoc.expirationDate).toISOString().slice(0, 10)
+      //     : ""
+      // );
+
+      // // DEPARTMENT AND SUBDEPARTMENT
+      // formData.append("dep", newDoc.department || "");
+      // formData.append("subdep", newDoc.subdepartment || "");
+
+      // // CONFIDENTIAL AND PUBLISHING STATUS
+      // formData.append("confidential", String(newDoc.confidential || false));
+      // formData.append("publishing_status", "false");
+      // formData.append("remarks", newDoc.remarks || "");
+      const formData = buildDocumentFormData(
+        newDoc,
+        selectedFile,
+        false,
+        editId!
       );
-
-      formData.append(
-        "expdate",
-        newDoc.expirationDate
-          ? new Date(newDoc.expirationDate).toISOString().slice(0, 10)
-          : ""
-      );
-
-      // DEPARTMENT AND SUBDEPARTMENT
-      formData.append("dep", newDoc.department || "");
-      formData.append("subdep", newDoc.subdepartment || "");
-
-      // CONFIDENTIAL AND PUBLISHING STATUS
-      formData.append("confidential", String(newDoc.confidential || false));
-      formData.append("publishing_status", "false");
-      formData.append("remarks", newDoc.remarks || "");
-
       const response = await editDocument(formData);
 
       setDocuments((prev) =>
@@ -229,7 +236,20 @@ export default function DocumentUpload() {
     // Require file only when adding new document, not when editing
     return editId ? baseValidation : baseValidation && selectedFile;
   };
-  console.log(newDoc);
+
+  const handlePublish = async (doc: any) => {
+    const payload = { ...doc, publishing_status: "true" };
+    console.log(payload);
+    try {
+      await editDocument(payload);
+    } catch (error) {
+      console.error("Failed to publish document:", error);
+      toast.error("Failed to publish document");
+    }
+  };
+
+  // console.log(newDoc);
+
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6 space-y-6">
       {/* Header */}
@@ -534,25 +554,41 @@ export default function DocumentUpload() {
                     </td>
                     <td className="border px-6 py-3">
                       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 w-full">
-                        {!doc.publishing_status && (
+                        {/* {!doc.publishing_status && (
                           <Button
                             variant="outline"
                             size="sm"
                             className="w-full sm:flex-1 text-gray-600 hover:text-gray-900"
                           >
                             <Scissors className="h-4 w-4" />
-                            {/* {doc.publishing_status ? "Published" : "Draft"} */}
+                            {doc.publishing_status ? "Published" : "Draft"}
                             Draft
                           </Button>
-                        )}
+                        )} */}
 
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="w-full sm:flex-1 text-green-600 hover:text-green-700"
+                          className={`w-full sm:flex-1 ${
+                            doc.publishing_status
+                              ? "text-green-600 hover:text-green-900 cursor-not-allowed"
+                              : "text-blue-600 hover:text-blue-900"
+                          }`}
+                          {...(!doc.publishing_status && {
+                            onClick: () => handlePublish(doc),
+                          })}
                         >
-                          <BookCheck className="h-4 w-4" />
-                          {doc.publishing_status ? "Published" : "Publish"}
+                          {doc.publishing_status ? (
+                            <>
+                              <BookCheck className="h-4 w-4 mr-1" />
+                              Published
+                            </>
+                          ) : (
+                            <>
+                              <UploadCloud className="h-4 w-4 mr-1" />
+                              Publish
+                            </>
+                          )}
                         </Button>
                       </div>
                     </td>

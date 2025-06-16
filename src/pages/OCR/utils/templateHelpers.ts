@@ -11,16 +11,21 @@ GlobalWorkerOptions.workerSrc = new URL(
 
 const convertPdfToImage = async (pdfBuffer: ArrayBuffer): Promise<string> => {
   const pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
-  const page = await pdf.getPage(1); // First page only (can extend later)
+  const page = await pdf.getPage(1);
 
-  const viewport = page.getViewport({ scale: 2 });
+  const desiredWidth = 800;
+  const viewport = page.getViewport({ scale: 1 });
+  const scale = desiredWidth / viewport.width;
+  const scaledViewport = page.getViewport({ scale });
+
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
 
-  canvas.height = viewport.height;
-  canvas.width = viewport.width;
+  canvas.width = scaledViewport.width;
+  canvas.height = scaledViewport.height;
 
-  await page.render({ canvasContext: context!, viewport }).promise;
+  await page.render({ canvasContext: context!, viewport: scaledViewport })
+    .promise;
   return canvas.toDataURL("image/png");
 };
 const convertBufferToFile = (
