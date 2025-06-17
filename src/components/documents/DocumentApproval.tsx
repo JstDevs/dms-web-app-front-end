@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Document, ApprovalStep } from "../../types/Document";
-import { useUser } from "../../contexts/UserContext";
-import { useDocument } from "../../contexts/DocumentContext";
-import { useNotification } from "../../contexts/NotificationContext";
+import { ApprovalStep, CurrentDocument } from "@/types/Document";
+import { useUser } from "@/contexts/UserContext";
+import { useDocument } from "@/contexts/DocumentContext";
+import { useNotification } from "@/contexts/NotificationContext";
 import {
   CheckCircle,
   XCircle,
@@ -17,10 +17,47 @@ import { Button } from "@chakra-ui/react";
 // import { Button } from "../ui/Button";
 
 interface DocumentApprovalProps {
-  document: Document;
+  document: any;
 }
 
 const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
+  if (!document) return null;
+  const approvalMatrix = [
+    {
+      name: "Financial Review",
+      type: "all",
+      active: true,
+      completed: true,
+      completedAt: "2025-04-12T10:15:00Z",
+      approvers: [
+        {
+          ID: "user-2",
+          name: "Jane Smith",
+          role: "Manager",
+          approved: true,
+          approvedAt: "2025-04-12T10:15:00Z",
+          comment: "Numbers look accurate.",
+        },
+      ],
+    },
+    {
+      name: "Executive Approval",
+      type: "single",
+      active: true,
+      completed: true,
+      completedAt: "2025-04-12T16:30:00Z",
+      approvers: [
+        {
+          ID: "user-1",
+          name: "John Doe",
+          role: "Admin",
+          approved: true,
+          approvedAt: "2025-04-12T16:30:00Z",
+          comment: "Approved for distribution.",
+        },
+      ],
+    },
+  ];
   const { users } = useUser();
   const { updateDocument } = useDocument();
   const { addNotification } = useNotification();
@@ -32,12 +69,11 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
 
   const handleApprove = () => {
     // Find the current user's approval step
-    const currentStepIndex = document.approvalMatrix.findIndex((step) =>
+    const currentStepIndex = approvalMatrix.findIndex((step) =>
       step.approvers.some(
-        (approver) =>
-          approver.id === currentUser.id &&
-          !approver.approved &&
-          !approver.rejected
+        (approver: any) =>
+          // approver.id === currentUser.id &&
+          !approver.approved && !approver.rejected
       )
     );
 
@@ -46,12 +82,12 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
       return;
     }
 
-    const updatedMatrix = [...document.approvalMatrix];
+    const updatedMatrix = [...approvalMatrix];
     const currentStep = updatedMatrix[currentStepIndex];
 
     // Update the approver status
     const approverIndex = currentStep.approvers.findIndex(
-      (approver) => approver.id === currentUser.id
+      (approver: any) => approver.id === currentUser.ID
     );
     currentStep.approvers[approverIndex] = {
       ...currentStep.approvers[approverIndex],
@@ -62,7 +98,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
 
     // Check if this step is completed
     const isStepCompleted = currentStep.approvers.every(
-      (approver) => approver.approved || approver.rejected
+      (approver: any) => approver.approved || approver.rejected
     );
     if (isStepCompleted) {
       currentStep.completed = true;
@@ -84,8 +120,8 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
           status: "approved",
           activity: [
             {
-              userId: currentUser.id,
-              userName: currentUser.name,
+              userId: currentUser.ID,
+              userName: currentUser.UserName,
               action: "approved the document",
               timestamp: new Date().toISOString(),
             },
@@ -112,8 +148,8 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
       approvalMatrix: updatedMatrix,
       activity: [
         {
-          userId: currentUser.id,
-          userName: currentUser.name,
+          userId: currentUser.ID,
+          userName: currentUser.UserName,
           action: "approved the document",
           timestamp: new Date().toISOString(),
         },
@@ -124,7 +160,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
     addNotification({
       id: `notif-${Date.now()}`,
       title: "Approval Updated",
-      message: `${currentUser.name} approved "${document.title}"`,
+      message: `${currentUser.UserName} approved "${document.title}"`,
       time: "Just now",
       read: false,
     });
@@ -140,10 +176,10 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
     }
 
     // Find the current user's approval step
-    const currentStepIndex = document.approvalMatrix.findIndex((step) =>
+    const currentStepIndex = approvalMatrix.findIndex((step: any) =>
       step.approvers.some(
-        (approver) =>
-          approver.id === currentUser.id &&
+        (approver: any) =>
+          approver.id === currentUser.ID &&
           !approver.approved &&
           !approver.rejected
       )
@@ -154,19 +190,19 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
       return;
     }
 
-    const updatedMatrix = [...document.approvalMatrix];
+    const updatedMatrix = [...approvalMatrix];
     const currentStep = updatedMatrix[currentStepIndex];
 
     // Update the approver status
     const approverIndex = currentStep.approvers.findIndex(
-      (approver) => approver.id === currentUser.id
+      (approver: any) => approver.id === currentUser.ID
     );
     currentStep.approvers[approverIndex] = {
       ...currentStep.approvers[approverIndex],
       rejected: true,
       rejectedAt: new Date().toISOString(),
       comment: approvalComment,
-    };
+    } as any;
 
     // Mark step as completed and document as rejected
     currentStep.completed = true;
@@ -178,8 +214,8 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
       status: "needs_attention",
       activity: [
         {
-          userId: currentUser.id,
-          userName: currentUser.name,
+          userId: currentUser.ID,
+          userName: currentUser.UserName,
           action: "rejected the document",
           timestamp: new Date().toISOString(),
         },
@@ -190,7 +226,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
     addNotification({
       id: `notif-${Date.now()}`,
       title: "Document Rejected",
-      message: `${currentUser.name} rejected "${document.title}"`,
+      message: `${currentUser.UserName} rejected "${document.title}"`,
       time: "Just now",
       read: false,
     });
@@ -209,15 +245,14 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
   };
 
   const isUserCurrentApprover = () => {
-    return document.approvalMatrix.some(
-      (step) =>
+    return approvalMatrix.some(
+      (step: any) =>
         step.active &&
         !step.completed &&
         step.approvers.some(
-          (approver) =>
-            approver.id === currentUser.id &&
-            !approver.approved &&
-            !approver.rejected
+          (approver: any) =>
+            // approver.id === currentUser.id &&
+            !approver.approved && !approver.rejected
         )
     );
   };
@@ -309,20 +344,17 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
                   className="bg-blue-600 h-2.5 rounded-full"
                   style={{
                     width: `${
-                      (document.approvalMatrix.filter((step) => step.completed)
+                      (approvalMatrix.filter((step: any) => step.completed)
                         .length /
-                        document.approvalMatrix.length) *
+                        approvalMatrix.length) *
                       100
                     }%`,
                   }}
                 ></div>
               </div>
               <span className="text-sm text-gray-500 whitespace-nowrap">
-                {
-                  document.approvalMatrix.filter((step) => step.completed)
-                    .length
-                }
-                /{document.approvalMatrix.length} steps
+                {approvalMatrix.filter((step: any) => step.completed).length}/
+                {approvalMatrix.length} steps
               </span>
             </div>
           </div>
@@ -348,7 +380,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
         {showApprovalMatrix && (
           <div className="p-4 overflow-x-auto">
             <div className="space-y-4 min-w-[400px]">
-              {document.approvalMatrix.map((step, stepIndex) => {
+              {approvalMatrix.map((step: any, stepIndex: number) => {
                 const stepStatus = getStepStatus(step);
 
                 return (
@@ -394,52 +426,54 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
                     </div>
 
                     <div className="p-3 divide-y divide-gray-100">
-                      {step.approvers.map((approver, approverIndex) => (
-                        <div
-                          key={approverIndex}
-                          className="py-2 first:pt-0 last:pb-0 flex items-start justify-between"
-                        >
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                              <UserCircle className="h-6 w-6 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {approver.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {approver.role}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="text-right">
-                            {approver.approved ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Approved
-                              </span>
-                            ) : approver.rejected ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                                <XCircle className="h-3 w-3 mr-1" />
-                                Rejected
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                <Clock className="h-3 w-3 mr-1" />
-                                Pending
-                              </span>
-                            )}
-
-                            {(approver.approved || approver.rejected) &&
-                              approver.comment && (
-                                <p className="text-xs text-gray-500 mt-1 max-w-xs truncate">
-                                  "{approver.comment}"
+                      {step.approvers.map(
+                        (approver: any, approverIndex: any) => (
+                          <div
+                            key={approverIndex}
+                            className="py-2 first:pt-0 last:pb-0 flex items-start justify-between"
+                          >
+                            <div className="flex items-center">
+                              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                <UserCircle className="h-6 w-6 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {approver.name}
                                 </p>
+                                <p className="text-xs text-gray-500">
+                                  {approver.role}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              {approver.approved ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Approved
+                                </span>
+                              ) : approver.rejected ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Rejected
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  Pending
+                                </span>
                               )}
+
+                              {(approver.approved || approver.rejected) &&
+                                approver.comment && (
+                                  <p className="text-xs text-gray-500 mt-1 max-w-xs truncate">
+                                    "{approver.comment}"
+                                  </p>
+                                )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
                   </div>
                 );

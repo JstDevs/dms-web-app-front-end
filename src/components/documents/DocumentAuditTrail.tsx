@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Document, AuditEntry } from "../../types/Document";
+import { AuditEntry, AuditTrail, CurrentDocument } from "@/types/Document";
 import { format } from "date-fns";
 import {
   Clock,
@@ -13,7 +13,7 @@ import { Button } from "@chakra-ui/react";
 // import { Button } from "../ui/Button";
 
 interface DocumentAuditTrailProps {
-  document: Document;
+  document: CurrentDocument | null;
 }
 
 const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
@@ -27,25 +27,28 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
     from: "",
     to: "",
   });
-
+  if (!document) return null;
   // Combine audit entries from document and changes from change history
-  const allAuditEntries: AuditEntry[] = [
-    ...document.auditTrail,
-    ...document.activity.map((activity) => ({
-      id: `activity-${activity.timestamp}`,
-      documentId: document.id,
-      userId: activity.userId,
-      userName: activity.userName,
-      action: activity.action,
-      timestamp: activity.timestamp,
-      changes: [],
-    })),
-  ].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  // const allAuditEntries: AuditEntry[] = [
+  //   ...document.auditTrails,
+  //   ...document?.activity?.map((activity) => ({
+  //     id: `activity-${activity.timestamp}`,
+  //     documentId: document.id,
+  //     userId: activity.userId,
+  //     userName: activity.userName,
+  //     action: activity.action,
+  //     timestamp: activity.timestamp,
+  //     changes: [],
+  //   })),
+  // ].sort(
+  //   (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  // );
+  const allAuditEntries: AuditTrail[] = document.auditTrails.sort(
+    (a, b) =>
+      new Date(b.ActionDate).getTime() - new Date(a.ActionDate).getTime()
   );
-
   // Filter entries based on search and filters
-  const filteredEntries = allAuditEntries.filter((entry) => {
+  const filteredEntries = allAuditEntries.filter((entry: any) => {
     // Search term filter
     if (
       searchTerm &&
@@ -81,15 +84,15 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
 
   // Get unique users and actions for filters
   const uniqueUsers = Array.from(
-    new Set(allAuditEntries.map((entry) => entry.userId))
+    new Set(allAuditEntries.map((entry: any) => entry.userId))
   );
   const uniqueUserNames = Array.from(
-    new Set(allAuditEntries.map((entry) => entry.userName))
+    new Set(allAuditEntries.map((entry: any) => entry.userName))
   );
   const uniqueActions = Array.from(
     new Set(
-      allAuditEntries.map((entry) => {
-        const action = entry.action.split(" ")[0]; // Get the verb
+      allAuditEntries.map((entry: any) => {
+        const action = entry.action; // Get the verb
         return action;
       })
     )
@@ -97,8 +100,8 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
 
   // Group entries by date
   const entriesByDate: { [date: string]: AuditEntry[] } = {};
-  filteredEntries.forEach((entry) => {
-    const date = format(new Date(entry.timestamp), "yyyy-MM-dd");
+  filteredEntries.forEach((entry: any) => {
+    const date = format(new Date(entry.AdditionalData), "yyyy-MM-dd");
     if (!entriesByDate[date]) {
       entriesByDate[date] = [];
     }
@@ -262,7 +265,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                   <div className="absolute top-0 bottom-0 left-4 w-0.5 bg-gray-200"></div>
 
                   <div className="space-y-6">
-                    {entriesByDate[date].map((entry, entryIndex) => (
+                    {entriesByDate[date].map((entry: any, entryIndex) => (
                       <div
                         key={entry.id}
                         className="relative pl-10 animate-fade-in"
@@ -281,7 +284,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                             </p>
                             <p className="text-xs text-gray-500 mt-1 flex items-center">
                               <Clock className="h-3 w-3 mr-1" />
-                              {format(new Date(entry.timestamp), "h:mm a")}
+                              {format(new Date(entry.AdditionalData), "h:mm a")}
                             </p>
                           </div>
 
@@ -291,24 +294,26 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                                 Changes:
                               </p>
                               <div className="space-y-2">
-                                {entry.changes.map((change, changeIndex) => (
-                                  <div key={changeIndex} className="text-xs">
-                                    <span className="text-gray-700">
-                                      {change.field}:{" "}
-                                    </span>
-                                    <div className="flex flex-col sm:flex-row sm:items-start gap-1 mt-1">
-                                      <div className="bg-red-50 p-1 rounded text-red-800 line-through">
-                                        {change.oldValue}
-                                      </div>
-                                      <div className="hidden sm:block text-gray-400">
-                                        →
-                                      </div>
-                                      <div className="bg-green-50 p-1 rounded text-green-800">
-                                        {change.newValue}
+                                {entry.changes.map(
+                                  (change: any, changeIndex: any) => (
+                                    <div key={changeIndex} className="text-xs">
+                                      <span className="text-gray-700">
+                                        {change.field}:{" "}
+                                      </span>
+                                      <div className="flex flex-col sm:flex-row sm:items-start gap-1 mt-1">
+                                        <div className="bg-red-50 p-1 rounded text-red-800 line-through">
+                                          {change.oldValue}
+                                        </div>
+                                        <div className="hidden sm:block text-gray-400">
+                                          →
+                                        </div>
+                                        <div className="bg-green-50 p-1 rounded text-green-800">
+                                          {change.newValue}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  )
+                                )}
                               </div>
                             </div>
                           )}

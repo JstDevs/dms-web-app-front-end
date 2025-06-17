@@ -51,9 +51,10 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
           {Confidential && <Lock className="text-red-500 w-4 h-4 shrink-0" />}
         </div>
 
-        <div className="text-sm text-gray-500 flex gap-4">
+        <div className="text-sm text-gray-500 flex gap-4 justify-between">
           <div className="flex items-center gap-1">
             <Calendar className="w-4 h-4" />
+            Created:{" "}
             {FileDate ? new Date(FileDate).toLocaleDateString() : "No date"}
           </div>
           {ExpirationDate && (

@@ -19,12 +19,12 @@ import Team from "./pages/Team";
 import Settings from "./pages/Settings";
 import { HomePage } from "./pages/HomePage";
 import { DocumentTypesPage } from "./pages/Document/DocumentTypesPage";
-import { RegionsPage } from "./pages/LocationPages/RegionsPage";
-import { MunicipalitiesPage } from "./pages/LocationPages/MunicipalitiesPage";
-import { BarangaysPage } from "./pages/LocationPages/BarangaysPage";
-import { LGUMaintenancePage } from "./pages/LGUMaintenancePage";
-import { AccountingPage } from "./pages/AccountingPage";
-import { RPTPage } from "./pages/RPTPage";
+// import { RegionsPage } from "./pages/LocationPages/RegionsPage";
+// import { MunicipalitiesPage } from "./pages/LocationPages/MunicipalitiesPage";
+// import { BarangaysPage } from "./pages/LocationPages/BarangaysPage";
+// import { LGUMaintenancePage } from "./pages/LGUMaintenancePage";
+// import { AccountingPage } from "./pages/AccountingPage";
+// import { RPTPage } from "./pages/RPTPage";
 import { UsersPage } from "./pages/Users/UsersPage";
 // import UserAccessPage from "./pages/Users/Users Access/UsersAccessPage";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
@@ -34,7 +34,7 @@ import { AllocationPanel } from "./pages/Digitalization/Allocation";
 import { BatchUploadPanel } from "./pages/Digitalization/BatchUpload";
 import { DepartmentsMain } from "./pages/Departments/DepartmentsMain";
 import { SubDepartments } from "./pages/Departments/SubDepartments";
-import { HandWrittenOCRUploader } from "./pages/OCR/HandWrittenDocs";
+// import { HandWrittenOCRUploader } from "./pages/OCR/HandWrittenDocs";
 import { TemplateOCR } from "./pages/OCR/Template";
 import UnrecordedOCR from "./pages/OCR/Unrecorded";
 import ChangePassword from "./pages/Settings/ChangePassword";
@@ -118,7 +118,7 @@ function App() {
                       element={<ModulesManagement />}
                     />
                     {/* ---------------LOCATIONS--------------- */}
-                    <Route
+                    {/* <Route
                       path="/locations/regions"
                       element={<RegionsPage />}
                     />
@@ -129,7 +129,7 @@ function App() {
                     <Route
                       path="/locations/barangays"
                       element={<BarangaysPage />}
-                    />
+                    /> */}
                     {/* ------------------DIGITALIZATION----------------- */}
                     <Route
                       path="/digitalization/allocation"
@@ -140,10 +140,10 @@ function App() {
                       element={<BatchUploadPanel />}
                     />
                     {/* ------------------LGU MAINTENANCE----------------- */}
-                    <Route path="/lgu" element={<LGUMaintenancePage />} />
+                    {/* <Route path="/lgu" element={<LGUMaintenancePage />} /> */}
                     {/* ---------------ACCOUNTING && RPT--------------- */}
-                    <Route path="/accounting" element={<AccountingPage />} />
-                    <Route path="/rpt" element={<RPTPage />} />
+                    {/* <Route path="/accounting" element={<AccountingPage />} />
+                    <Route path="/rpt" element={<RPTPage />} /> */}
                   </Route>
                 </Route>
 

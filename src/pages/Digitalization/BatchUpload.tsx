@@ -1,21 +1,8 @@
 import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
-import { UploadCloud, Trash2, Eye, ChevronDown } from "lucide-react";
+import { UploadCloud, Trash2, ChevronDown } from "lucide-react";
 import { useState, useRef, ChangeEvent, DragEvent } from "react";
-
-type Department = {
-  value: string;
-  label: string;
-};
-
-type SubDepartment = {
-  value: string;
-  label: string;
-};
-
-type Template = {
-  value: string;
-  label: string;
-};
+import toast from "react-hot-toast";
+import { performBatchUpload } from "./utils/batchServices";
 
 type UploadedFile = {
   id: number;
@@ -24,52 +11,16 @@ type UploadedFile = {
   size: string;
   status: "Pending" | "Success";
   department: string;
+  file: File;
 };
 export const BatchUploadPanel = () => {
-  // Dummy data for dropdowns
-  // const departments: Department[] = [
-  //   { value: "finance", label: "Finance" },
-  //   { value: "payroll", label: "Payroll" },
-  //   { value: "hr", label: "HR" },
-  // ];
-
-  // const subDepartments: SubDepartment[] = [
-  //   { value: "payroll", label: "Payroll" },
-  //   { value: "documents", label: "Documents" },
-  //   { value: "records", label: "Records" },
-  // ];
-
-  const templates: Template[] = [
-    { value: "id", label: "ID Card" },
-    { value: "birth", label: "Birth Certificate" },
-    { value: "passport", label: "Passport" },
-  ];
-
   // State for selections
   const [selectedDepartment, setSelectedDepartment] = useState<string>("");
   const [selectedSubDepartment, setSelectedSubDepartment] =
     useState<string>("");
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
 
   // State for uploaded files
-  const [files, setFiles] = useState<UploadedFile[]>([
-    {
-      id: 1,
-      name: "Payroll_June.xlsx",
-      type: "Excel",
-      size: "220 KB",
-      status: "Success",
-      department: "Payroll",
-    },
-    {
-      id: 2,
-      name: "HR_Records.pdf",
-      type: "PDF",
-      size: "115 KB",
-      status: "Pending",
-      department: "HR",
-    },
-  ]);
+  const [files, setFiles] = useState<UploadedFile[]>([]);
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,6 +39,7 @@ export const BatchUploadPanel = () => {
           ? departmentOptions.find((d) => d.value === selectedDepartment)
               ?.label || "Not specified"
           : "Not specified",
+        file,
       })
     );
 
@@ -100,7 +52,7 @@ export const BatchUploadPanel = () => {
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (!selectedTemplate || !e.dataTransfer.files) return;
+    if (!e.dataTransfer.files) return;
 
     const droppedFiles = e.dataTransfer.files;
     if (droppedFiles.length > 0) {
@@ -117,6 +69,22 @@ export const BatchUploadPanel = () => {
 
   const deleteFile = (id: number) => {
     setFiles(files.filter((file) => file.id !== id));
+  };
+  const handleUpload = async () => {
+    if (!files || files.length === 0) return;
+
+    const formData = new FormData();
+    const uploadedFile = files[0]; // type: UploadedFile
+    formData.append("batchupload", uploadedFile.file, uploadedFile.name); // <-- actual File object
+
+    try {
+      const data = await performBatchUpload(formData);
+      toast.success("Batch Upload successfully!");
+      console.log(data);
+    } catch (error) {
+      console.error(error);
+      toast.error("Batch upload failed.");
+    }
   };
 
   return (
@@ -203,26 +171,26 @@ export const BatchUploadPanel = () => {
       {/* Drag and Drop Area */}
       <div
         className={`border-2 border-dashed rounded-md p-6 text-center transition cursor-pointer ${
-          selectedTemplate
-            ? "border-gray-300 bg-gray-50 hover:bg-gray-100"
+          selectedSubDepartment
+            ? "border-blue-300 bg-blue-50 hover:bg-blue-100"
             : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
         }`}
-        onClick={selectedTemplate ? triggerFileInput : undefined}
+        onClick={selectedSubDepartment ? triggerFileInput : undefined}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
         <p className="text-sm">
-          {selectedTemplate
+          {selectedSubDepartment
             ? "Drag & drop files here or click to upload"
             : "Please select a template first"}
         </p>
         <input
           type="file"
-          multiple
+          accept=".xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
           className="hidden"
           ref={fileInputRef}
           onChange={handleFileUpload}
-          disabled={!selectedTemplate}
+          disabled={!selectedSubDepartment}
         />
       </div>
 
@@ -235,6 +203,7 @@ export const BatchUploadPanel = () => {
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
           disabled={!files.some((f) => f.status === "Pending")}
+          onClick={handleUpload}
         >
           <UploadCloud className="w-4 h-4" />
           Upload{" "}
@@ -254,7 +223,7 @@ export const BatchUploadPanel = () => {
       </div>
 
       {/* Uploaded Files Table */}
-      {files.length > 0 && (
+      {files.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm text-left">
             <thead className="bg-gray-50 text-black">
@@ -298,7 +267,7 @@ export const BatchUploadPanel = () => {
                     </span>
                   </td>
                   <td className="px-4 py-2 text-center">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-center gap-2">
                       {/* TODO: Preview button for PDF files */}
                       {/* <button
                         className="text-blue-600 hover:text-blue-800"
@@ -319,6 +288,15 @@ export const BatchUploadPanel = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full">
+          <p className="text-lg font-medium text-gray-900 mb-4">
+            No files uploaded yet
+          </p>
+          <p className="text-sm text-gray-500">
+            Drag and drop files here or click to upload
+          </p>
         </div>
       )}
     </div>

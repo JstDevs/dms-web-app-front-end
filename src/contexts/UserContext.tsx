@@ -1,39 +1,8 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { User } from "../types/User";
-import toast from "react-hot-toast";
 
 // Mock data
-const mockUsers: User[] = [
-  {
-    id: "user-1",
-    name: "Test",
-    email: "test@sofueled.com",
-    role: "Admin",
-    password: "test123",
-    avatar: "",
-  },
-  {
-    id: "user-2",
-    name: "Jane Smith",
-    email: "jane@example.com",
-    role: "Manager",
-    avatar: "",
-  },
-  {
-    id: "user-3",
-    name: "Robert Johnson",
-    email: "robert@example.com",
-    role: "Editor",
-    avatar: "",
-  },
-  {
-    id: "user-4",
-    name: "Emily Wilson",
-    email: "emily@example.com",
-    role: "Viewer",
-    avatar: "",
-  },
-];
+const mockUsers: User[] = [];
 
 interface UserContextType {
   user: User | null;
@@ -50,15 +19,15 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({
   const [user, setUser] = useState<User | null>(mockUsers[0]); // Auto-login for demo
 
   const login = (credentials: { email: string; password: string }) => {
-    const foundUser = mockUsers.find(
-      (u) =>
-        u.email === credentials.email && u.password === credentials.password
-    );
+    // const foundUser = mockUsers.find(
+    //   (u) =>
+    //     u.email === credentials.email && u.password === credentials.password
+    // );
 
-    if (foundUser) {
-      setUser(foundUser);
-      return foundUser;
-    }
+    // if (foundUser) {
+    //   setUser(foundUser);
+    //   return foundUser;
+    // }
     return null;
   };
 
