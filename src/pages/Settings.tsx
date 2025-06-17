@@ -1,12 +1,11 @@
 import React from "react";
-import { useUser } from "../contexts/UserContext";
 import { UserCircle, Bell, Lock, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
-  const navitage = useNavigate();
+  const navigate = useNavigate();
   return (
     <div className="animate-fade-in">
       <h1 className="text-3xl font-bold text-blue-800 mb-6">Settings</h1>
@@ -22,9 +21,17 @@ const Settings: React.FC = () => {
                 {user?.UserName}
               </h2>
               <p className="text-sm text-gray-500">{user?.UserAccessID}</p>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-2">
-                {user?.userAccess?.Description}
-              </span>
+              <div className="flex gap-2 ">
+                {user?.accessList?.map((accessLevel) => (
+                  <span
+                    key={accessLevel.ID}
+                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-2"
+                  >
+                    {" "}
+                    {accessLevel.Description}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -38,7 +45,7 @@ const Settings: React.FC = () => {
               <div className="space-y-4">
                 <button
                   onClick={() => {
-                    navitage("/settings/change-password");
+                    navigate("/settings/change-password");
                   }}
                   className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100"
                 >

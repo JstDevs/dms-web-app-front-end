@@ -1,20 +1,29 @@
 import { Select } from "@/components/ui/Select";
 import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
 import { Button } from "@chakra-ui/react";
-// import { Text } from "@chakra-ui/react";
 import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTemplates } from "./utils/useTemplates";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUnrecordedDocuments } from "./utils/useUnrecorded";
+import {
+  UnrecordedDocument,
+  useUnrecordedDocuments,
+} from "./utils/useUnrecorded";
 import { runOCR } from "./utils/unrecordedHelpers";
 interface FormData {
   department: string;
   subdepartment: string;
   template: string;
   accessId: string;
-  selectedDoc: string;
+  selectedDoc: UnrecordedDocument | null;
   isLoaded: boolean;
+  previewUrl: string;
+  lastFetchedValues?: {
+    // Track what was last fetched
+    department: string;
+    subdepartment: string;
+    template: string;
+  };
 }
 
 export interface Rect {
@@ -23,31 +32,17 @@ export interface Rect {
   width: number;
   height: number;
 }
-export const documents = [
-  "BC-187_document-0000000349.pdf",
-  "BC-187_document-0000000348.pdf",
-  "BC-187_document-0000000347.pdf",
-  "BC-187_document-0000000346.pdf",
-  "BC-187_document-0000000345.pdf",
-  "BC-187_document-0000000344.pdf",
-  "BC-187_document-0000000343.pdf",
-];
+
 const OCRUnrecordedUI = () => {
   const [formData, setFormData] = useState<FormData>({
     department: "",
     subdepartment: "",
     template: "",
     accessId: "",
-    selectedDoc: "",
+    selectedDoc: null,
     isLoaded: false,
+    previewUrl: "",
   });
-
-  // const [selection, setSelection] = useState<Rect | null>(null);
-  // const [isDragging, setIsDragging] = useState(false);
-  // const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(
-  //   null
-  // );
-
   const imgRef = useRef<HTMLImageElement>(null);
 
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
@@ -56,11 +51,12 @@ const OCRUnrecordedUI = () => {
   const { unrecordedDocuments, fetchUnrecorded } = useUnrecordedDocuments();
   const handleOCR = async () => {
     const selectedDocument = unrecordedDocuments.find(
-      (doc) => doc.FileName === formData.selectedDoc
+      (doc) => doc.FileName === formData.selectedDoc?.FileName
     );
     const selectedTemplateName = templateOptions.find(
       (temp) => temp.value === formData.template
     )?.label;
+
     if (!selectedDocument) {
       toast.error("No document selected");
       return;
@@ -69,10 +65,19 @@ const OCRUnrecordedUI = () => {
     const payload = {
       templateName: selectedTemplateName,
       userId: Number(selectedRole?.ID),
+      linkId: selectedDocument.LinkID,
     };
-    console.log(payload, selectedDocument);
+
     try {
-      await runOCR(selectedDocument.ID, payload);
+      const res = await runOCR(selectedDocument.ID, payload);
+      console.log(res, "runOCR");
+      // TODO : IF OCR IS SUCCESSFUL THEN REMOVE IT FROM THE LIST....
+      setFormData({ ...formData, selectedDoc: null });
+      fetchUnrecorded(
+        formData.department,
+        formData.subdepartment,
+        String(selectedRole?.ID)
+      );
       toast.success("OCR processing started successfully!");
     } catch (error) {
       console.error(error);
@@ -81,15 +86,25 @@ const OCRUnrecordedUI = () => {
   };
   // -------GET ALL UNRECORDED DOCUMENTS-----------
   const handleLoad = async () => {
+    if (!selectedRole?.ID) {
+      toast.error("Please select a role");
+      return;
+    }
     setFormData({ ...formData, isLoaded: false });
-
     try {
       fetchUnrecorded(
         formData.department,
         formData.subdepartment,
         String(selectedRole?.ID)
       );
-
+      setFormData((prev) => ({
+        ...prev,
+        lastFetchedValues: {
+          department: prev.department,
+          subdepartment: prev.subdepartment,
+          template: prev.template,
+        },
+      }));
       toast.success("Documents loaded successfully");
     } catch (error) {
       console.log(error);
@@ -98,6 +113,25 @@ const OCRUnrecordedUI = () => {
       setFormData({ ...formData, isLoaded: true });
     }
   };
+  const handleDocSelection = (doc: UnrecordedDocument) => {
+    const byteArray = new Uint8Array(doc.DataImage.data);
+    const blob = new Blob([byteArray], {
+      type: doc.DataType === "pdf" ? "application/pdf" : "image/png", // Adjust MIME as needed
+    });
+    const previewUrl = URL.createObjectURL(blob);
+
+    setFormData({
+      ...formData,
+      selectedDoc: doc,
+      isLoaded: true,
+      previewUrl,
+    });
+  };
+
+  const isSameAsLastFetch =
+    formData.department === formData.lastFetchedValues?.department &&
+    formData.subdepartment === formData.lastFetchedValues?.subdepartment &&
+    formData.template === formData.lastFetchedValues?.template;
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg">
       {/* HEADER */}
@@ -112,8 +146,8 @@ const OCRUnrecordedUI = () => {
 
       <div className="flex gap-4 p-2 sm:p-4 w-full max-md:flex-col">
         {/* Left Panel - Document List */}
-        <div className="w-full lg:w-2/5 p-2 sm:p-6 space-y-6 border-r bg-white">
-          <div className="flex gap-4 md:flex-col max-sm:flex-col">
+        <div className="w-full lg:w-1/2 p-2 sm:p-6 space-y-6 border-r bg-white">
+          <div className="flex gap-4 flex-col">
             <Select
               label="Department"
               value={formData.department}
@@ -150,7 +184,8 @@ const OCRUnrecordedUI = () => {
               disabled={
                 !formData.department ||
                 !formData.subdepartment ||
-                !formData.template
+                !formData.template ||
+                isSameAsLastFetch
               }
             >
               Get Documents
@@ -162,20 +197,22 @@ const OCRUnrecordedUI = () => {
             unrecordedDocuments?.map((doc) => (
               <div
                 key={doc.ID}
-                onClick={() =>
-                  setFormData({
-                    ...formData,
-                    selectedDoc: doc.FileName,
-                    isLoaded: true,
-                  })
-                }
+                onClick={() => handleDocSelection(doc)}
                 className={`cursor-pointer text-sm px-2 py-1 rounded hover:bg-blue-100 ${
-                  formData.selectedDoc === doc.FileName ? "bg-blue-200" : ""
+                  formData.selectedDoc?.FileName === doc.FileName
+                    ? "bg-blue-200"
+                    : ""
                 }`}
               >
                 {doc.FileName}
               </div>
             ))}
+
+          {unrecordedDocuments.length === 0 && formData.isLoaded && (
+            <div className="text-xl text-center px-2 py-1  ">
+              No Documents Found
+            </div>
+          )}
 
           {formData.selectedDoc && (
             <Button
@@ -189,27 +226,43 @@ const OCRUnrecordedUI = () => {
         </div>
 
         {/* Right Panel - Document Preview */}
-        <div className="w-full lg:w-3/5 p-2 sm:p-4 bg-white">
-          <div className="h-full flex items-center justify-center relative border rounded-md min-h-[500px]">
-            {formData.isLoaded ? (
-              <div className="relative w-full h-full overflow-hidden">
-                {/* <img
-                  ref={imgRef}
-                  src={
-                    formData.selectedDoc
-                      ? `/uploads/${formData.selectedDoc}`
-                      : "/sample.png"
-                  }
-                  alt="Document Preview"
-                  className="object-contain w-full h-full select-none"
-                  draggable={false}
-                /> */}
+        <div className="w-full lg:w-1/2 p-2 sm:p-4 bg-white">
+          {/* <div className="w-full h-full flex items-center justify-center relative"> */}
+          {formData.isLoaded && formData.selectedDoc ? (
+            <div className="w-full max-h-[60vh] overflow-auto border rounded-md">
+              <div
+                className="relative"
+                style={{ width: "100%", minWidth: "100%", height: "100%" }}
+              >
+                {formData.selectedDoc.DataType === "pdf" ? (
+                  <iframe
+                    src={formData.previewUrl}
+                    title="PDF Preview"
+                    className="w-full h-full"
+                  />
+                ) : (
+                  <>
+                    <img
+                      ref={imgRef}
+                      src={formData.previewUrl}
+                      alt="Document Preview"
+                      className="block"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        minWidth: "100%",
+                      }}
+                      draggable={false}
+                    />
+                  </>
+                )}
               </div>
-            ) : (
-              <p className="text-gray-400">Select a document to preview</p>
-            )}
-          </div>
+            </div>
+          ) : (
+            <p className="text-gray-400">Select a document to preview</p>
+          )}
         </div>
+        {/* </div> */}
       </div>
     </div>
   );

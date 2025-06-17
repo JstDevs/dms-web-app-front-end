@@ -1,39 +1,39 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
 import ReactDiffViewer from "react-diff-viewer-continued";
-import { Document, Version } from "../../types/Document";
+// import { Document, Version } from "../../types/Document";
 import { Clock, ArrowLeft, ArrowRight, RefreshCw } from "lucide-react";
-import toast from "react-hot-toast";
+// import toast from "react-hot-toast";
 import { Button } from "@chakra-ui/react";
+import { CurrentDocument, DocumentVersion } from "@/types/Document";
 // import { Button } from "../ui/Button";
 
 interface DocumentVersionHistoryProps {
-  document: Document;
+  document: CurrentDocument | null;
 }
 
 const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
   document,
 }) => {
-  const [selectedVersion, setSelectedVersion] = useState<Version | null>(null);
-  const [compareVersion, setCompareVersion] = useState<Version | null>(null);
+  const [selectedVersion, setSelectedVersion] =
+    useState<DocumentVersion | null>(null);
+  const [compareVersion, setCompareVersion] = useState<DocumentVersion | null>(
+    null
+  );
   const [showComparison, setShowComparison] = useState(false);
 
   const currentVersion = {
-    id: "current",
-    number: document.versions.length + 1,
-    createdAt: document.lastModifiedAt,
-    createdBy: document.lastModifiedBy,
-    content: document.content,
+    ...document?.versions[0],
   };
 
-  const allVersions = [currentVersion, ...document.versions];
+  const allVersions = document?.versions || [];
 
-  const handleVersionSelect = (version: Version) => {
+  const handleVersionSelect = (version: DocumentVersion) => {
     setSelectedVersion(version);
     setShowComparison(false);
   };
 
-  const handleCompareSelect = (version: Version) => {
+  const handleCompareSelect = (version: DocumentVersion) => {
     setCompareVersion(version);
     setShowComparison(true);
   };
@@ -42,9 +42,9 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
     if (!selectedVersion) return;
 
     // In a real app, this would call an API to restore the version
-    toast.success(`Restored to version ${selectedVersion.number}`);
+    // toast.success(`Restored to version ${selectedVersion.number}`);
   };
-
+  console.log("selectedVersion", selectedVersion, allVersions);
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
       <div className="p-6 border-b border-gray-200">
@@ -63,17 +63,17 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
           <div className="overflow-y-auto max-h-[calc(100vh-300px)]">
             {allVersions.map((version, index) => (
               <div
-                key={version.id}
+                key={version.ID}
                 className={`border-b border-gray-200 p-4 cursor-pointer hover:bg-gray-100 transition-colors ${
-                  selectedVersion?.id === version.id ? "bg-blue-50" : ""
+                  selectedVersion?.ID === version.ID ? "bg-blue-50" : ""
                 }`}
                 onClick={() => handleVersionSelect(version)}
               >
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    v{version.number}
+                    {version.VersionNumber}
                   </span>
-                  {selectedVersion?.id === version.id &&
+                  {selectedVersion?.ID === version.ID &&
                     compareVersion === null && (
                       <Button
                         onClick={(e) => {
@@ -88,29 +88,29 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                     )}
                 </div>
                 <p className="text-sm font-medium text-gray-900 mt-2">
-                  {version.id === "current"
+                  {version.ID === currentVersion.ID
                     ? "Current Version"
-                    : `Version ${version.number}`}
+                    : `Version ${version.VersionNumber}`}
                 </p>
                 <div className="flex items-center mt-1 text-xs text-gray-500">
                   <Clock size={12} className="mr-1" />
                   <span>
-                    {format(new Date(version.createdAt), "MMM d, yyyy h:mm a")}
+                    {/* {format(new Date(version.createdAt), "MMM d, yyyy h:mm a")} */}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  By {version.createdBy}
+                  By {version.ModifiedBy}
                 </p>
 
-                {selectedVersion?.id === version.id &&
+                {selectedVersion?.ID === version.ID &&
                   compareVersion === null &&
-                  version.id !== "current" && (
+                  version.ID !== currentVersion.ID && (
                     <div className="mt-3 flex-1">
                       <Button
                         onClick={(e) => {
                           e.stopPropagation();
                           const currentVersionIndex = allVersions.findIndex(
-                            (v) => v.id === "current"
+                            (v) => v.ID === version.ID
                           );
                           handleCompareSelect(allVersions[currentVersionIndex]);
                         }}
@@ -122,7 +122,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                     </div>
                   )}
 
-                {compareVersion?.id === version.id && (
+                {compareVersion?.ID === version.ID && (
                   <div className="mt-2">
                     <Button
                       onClick={(e) => {
@@ -170,35 +170,41 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
               <div className="flex items-center justify-between mb-4 bg-gray-50 p-3 rounded-md">
                 <div>
                   <span className="text-sm font-medium text-gray-700">
-                    Version {selectedVersion.number}
+                    Version {selectedVersion?.VersionNumber}
                   </span>
                   <div className="text-xs text-gray-500">
-                    {format(new Date(selectedVersion.createdAt), "MMM d, yyyy")}
+                    {format(
+                      new Date(selectedVersion?.ModificationDate),
+                      "MMM d, yyyy"
+                    )}
                   </div>
                 </div>
                 <div className="text-gray-400">vs</div>
                 <div>
                   <span className="text-sm font-medium text-gray-700">
-                    {compareVersion.id === "current"
+                    {compareVersion?.ID === selectedVersion?.ID
                       ? "Current Version"
-                      : `Version ${compareVersion.number}`}
+                      : `Version ${compareVersion.VersionNumber}`}
                   </span>
                   <div className="text-xs text-gray-500">
-                    {format(new Date(compareVersion.createdAt), "MMM d, yyyy")}
+                    {format(
+                      new Date(compareVersion.ModificationDate),
+                      "MMM d, yyyy"
+                    )}
                   </div>
                 </div>
               </div>
 
               <ReactDiffViewer
-                oldValue={selectedVersion.content}
-                newValue={compareVersion.content}
+                oldValue={selectedVersion.Changes}
+                newValue={compareVersion.Changes}
                 splitView={true}
                 useDarkTheme={false}
-                leftTitle={`Version ${selectedVersion.number}`}
+                leftTitle={`Version ${selectedVersion.VersionNumber}`}
                 rightTitle={
-                  compareVersion.id === "current"
+                  compareVersion.ID === selectedVersion?.ID
                     ? "Current Version"
-                    : `Version ${compareVersion.number}`
+                    : `Version ${compareVersion.VersionNumber}`
                 }
               />
             </div>
@@ -206,12 +212,12 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
             <div>
               <div className="mb-4 flex items-center justify-between flex-wrap">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {selectedVersion.id === "current"
+                  {selectedVersion.ID === compareVersion?.ID
                     ? "Current Version"
-                    : `Version ${selectedVersion.number}`}
+                    : `Version ${selectedVersion.VersionNumber}`}
                 </h3>
 
-                {selectedVersion.id !== "current" && (
+                {selectedVersion.ID !== compareVersion?.ID && (
                   <Button
                     onClick={handleRestore}
                     className=" flex-initial px-2 bg-blue-600 text-white hover:bg-blue-700"
@@ -226,17 +232,17 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                 <div className="text-sm text-gray-500 flex items-center gap-1 mb-2">
                   <Clock size={14} />
                   {format(
-                    new Date(selectedVersion.createdAt),
+                    new Date(selectedVersion.ModificationDate),
                     "MMMM d, yyyy h:mm a"
                   )}
                 </div>
                 <div className="text-sm text-gray-500">
-                  Modified by {selectedVersion.createdBy}
+                  Modified by {selectedVersion.ModifiedBy}
                 </div>
               </div>
 
               <div className="border border-gray-200 rounded-md p-4 mt-4 whitespace-pre-wrap text-gray-800">
-                {selectedVersion.content}
+                {/* {selectedVersion?.Changes} */}
               </div>
             </div>
           )}

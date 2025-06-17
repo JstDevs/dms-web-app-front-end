@@ -64,25 +64,157 @@ export interface ActivityEntry {
   action: string;
   timestamp: string;
 }
+// -------------------------------NEW INTERFACES----------------------------------
+export interface DocumentVersionChanges {
+  FileName?: string;
+  FileDate?: string;
+  Expiration?: boolean;
+  Confidential?: boolean;
+  ExpirationDate?: string;
+  Remarks?: string;
+}
 
-export interface Document {
-  id: string;
-  title: string;
-  type: string;
-  content: string;
-  description: string;
-  subDepartment: string;
-  status: DocumentStatus;
-  department: string;
-  createdBy: string;
+export interface DocumentVersion {
+  Changes: DocumentVersionChanges | string;
+  ID: number;
+  DocumentID: number;
+  LinkID: string;
+  VersionNumber: string;
+  ModificationDate: string;
+  ModifiedBy: string;
+  IsCurrentVersion: boolean;
+  Active: boolean;
+}
+
+export interface Collaborator {
+  userAccessArray: string;
+  ID: number;
+  EmployeeID: number;
+  UserName: string;
+  Password: string;
+  UserAccessID: string;
+  Active: boolean;
+  CreatedBy: string;
+  CreatedDate: string;
+}
+
+export interface DocumentActivity {
+  ActivityDetails: string;
+  ID: number;
+  DocumentID: number;
+  LinkID: string;
+  CollaboratorID: number;
+  DocumentCollaborationID: number;
+  ActivityType: string;
+  ActivityDate: string;
+  Duration: number | null;
+  PageViewed: number | null;
+  IPAddress: string;
+  DeviceInfo: string;
+}
+
+export interface DocumentCollaboration {
+  ID: number;
+  DocumentID: number;
+  LinkID: string;
+  CollaboratorID: number;
+  CollaboratorName: string;
+  PermissionLevel: string;
+  AddedBy: string;
+  AddedDate: string;
+  LastActivity: string | null;
+  Active: boolean;
+  Collaborator: Collaborator;
+  Activities: DocumentActivity[];
+}
+
+export interface AuditTrail {
+  OldValues: any;
+  NewValues: any;
+  ChangedFields: any;
+  AdditionalData: any;
+  ID: number;
+  DocumentID: number;
+  LinkID: string;
+  Action: string;
+  ActionBy: number;
+  ActionDate: string;
+  IPAddress: string;
+  UserAgent: string;
+  SessionID: string | null;
+  Description: string | null;
+  actor: User;
+}
+
+export interface OCRDocumentReadField {
+  ID: number;
+  Field: string;
+  Value: string;
+  DocumentID: string;
+  LinkId: string;
+  template_id: number;
   createdAt: string;
-  lastModifiedBy: string;
-  lastModifiedAt: string;
-  lastAction: string;
-  versions: Version[];
-  comments: Comment[];
-  collaborators: User[];
-  approvalMatrix: ApprovalStep[];
-  auditTrail: AuditEntry[];
-  activity: ActivityEntry[];
+  updatedAt: string;
+  Restricted: boolean;
+}
+export interface CurrentDocument {
+  document: {
+    ID: number;
+    LinkID: string;
+    DepartmentId: number;
+    SubDepartmentId: number;
+    DataImage: {
+      type: string;
+      data: number[];
+    };
+    DataName: string | null;
+    DataType: string;
+    FileName: string;
+    FileDescription: string;
+    Description: string;
+    FileDate: string;
+    Text1: string | null;
+    Date1: string | null;
+    Text2: string | null;
+    Date2: string | null;
+    Text3: string | null;
+    Date3: string | null;
+    Text4: string | null;
+    Date4: string | null;
+    Text5: string | null;
+    Date5: string | null;
+    Text6: string | null;
+    Date6: string | null;
+    Text7: string | null;
+    Date7: string | null;
+    Text8: string | null;
+    Date8: string | null;
+    Text9: string | null;
+    Date9: string | null;
+    Text10: string | null;
+    Date10: string | null;
+    Expiration: boolean;
+    ExpirationDate: string;
+    Confidential: boolean;
+    PageCount: number | null;
+    Remarks: string;
+    Active: boolean;
+    Createdby: string;
+    CreatedDate: string;
+    publishing_status: boolean;
+  };
+  versions: DocumentVersion[];
+  collaborations: DocumentCollaboration[];
+  comments: any[];
+  auditTrails: AuditTrail[];
+  restrictions: any[];
+  OCRDocumentReadFields: OCRDocumentReadField[];
+}
+
+export interface DocumentContextType {
+  currentDocument: CurrentDocument | null;
+  loading: boolean;
+  error: string | null;
+  fetchDocument: (id: string) => Promise<void>;
+  updateDocument: (updatedDocument: CurrentDocument) => void;
 }

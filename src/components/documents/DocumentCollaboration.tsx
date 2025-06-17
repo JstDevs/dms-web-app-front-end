@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { User } from "../../types/User";
-import { Document, Comment } from "../../types/Document";
+// import { Document, Comment } from "../../types/Document";
 import { useUser } from "../../contexts/UserContext";
 import { useNotification } from "../../contexts/NotificationContext";
 import { useDocument } from "../../contexts/DocumentContext";
@@ -15,9 +15,10 @@ import {
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { Button } from "@chakra-ui/react";
+import { CurrentDocument } from "@/types/Document";
 
 interface DocumentCollaborationProps {
-  document: Document;
+  document: CurrentDocument | null;
 }
 
 const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
@@ -33,59 +34,61 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
   const handleAddComment = () => {
     if (!comment.trim()) return;
 
-    const newComment: Comment = {
-      id: `comment-${Date.now()}`,
-      text: comment,
-      createdAt: new Date().toISOString(),
-      userId: users[0].id,
-      userName: users[0].name,
-    };
+    // const newComment: Comment = {
+    //   id: `comment-${Date.now()}`,
+    //   text: comment,
+    //   createdAt: new Date().toISOString(),
+    //   userId: users[0].id,
+    //   userName: users[0].name,
+    // };
 
-    const updatedComments = [...document.comments, newComment];
+    // const updatedComments = [...document.comments, newComment];
 
-    updateDocument({
-      ...document,
-      comments: updatedComments,
-    });
+    // updateDocument({
+    //   ...document,
+    //   comments: updatedComments,
+    // });
 
     // Add notification
-    addNotification({
-      id: `notif-${Date.now()}`,
-      title: "New Comment",
-      message: `${users[0].name} commented on "${document.title}"`,
-      time: "Just now",
-      read: false,
-    });
+    // addNotification({
+    //   id: `notif-${Date.now()}`,
+    //   title: "New Comment",
+    //   message: `${users[0].name} commented on "${document.title}"`,
+    //   time: "Just now",
+    //   read: false,
+    // });
 
     setComment("");
     toast.success("Comment added");
   };
 
   const handleAddCollaborator = (user: User) => {
-    if (document.collaborators.some((c) => c.id === user.id)) {
-      toast.error(`${user.name} is already a collaborator`);
-      return;
-    }
+    // if (document.collaborators.some((c) => c.id === user.id)) {
+    //   toast.error(`${user.name} is already a collaborator`);
+    //   return;
+    // }
 
-    const updatedCollaborators = [...document.collaborators, user];
+    // const updatedCollaborators = [...document.collaborators, user];
 
-    updateDocument({
-      ...document,
-      collaborators: updatedCollaborators,
-    });
+    // updateDocument({
+    //   ...document,
+    //   collaborators: updatedCollaborators,
+    // });
 
     // Add notification
-    addNotification({
-      id: `notif-${Date.now()}`,
-      title: "Collaborator Added",
-      message: `${users[0].name} added ${user.name} as a collaborator on "${document.title}"`,
-      time: "Just now",
-      read: false,
-    });
+    // addNotification({
+    //   id: `notif-${Date.now()}`,
+    //   title: "Collaborator Added",
+    //   message: `${users[0].name} added ${user.name} as a collaborator on "${document.title}"`,
+    //   time: "Just now",
+    //   read: false,
+    // });
 
     setShowUserSelector(false);
-    toast.success(`${user.name} added as collaborator`);
+    // toast.success(`${user.name} added as collaborator`);
   };
+  // Needed to remove the ?. check
+  if (!document) return null;
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
@@ -105,7 +108,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
               <h3 className="text-sm font-medium text-gray-700">Comments</h3>
             </div>
             <div className="text-xs text-gray-500">
-              {document.comments.length} comments
+              {document?.comments.length} comments
             </div>
           </div>
 
@@ -202,9 +205,9 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
 
           {/* Collaborator list */}
           <div className="p-4 space-y-3">
-            {document.collaborators.map((user) => (
+            {document?.collaborations?.map((user) => (
               <div
-                key={user.id}
+                key={user.ID}
                 className="flex items-center p-2 bg-white rounded-md border border-gray-200"
               >
                 <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
@@ -212,19 +215,19 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900">
-                    {user.name}
+                    {user.CollaboratorName}
                   </p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
+                  <p className="text-xs text-gray-500">{user.CollaboratorID}</p>
                 </div>
                 <div className="ml-auto">
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                    {user.role}
+                    {user.PermissionLevel}
                   </span>
                 </div>
               </div>
             ))}
 
-            {document.collaborators.length === 0 && (
+            {document.collaborations.length === 0 && (
               <div className="text-center py-4">
                 <p className="text-gray-500">No collaborators yet</p>
               </div>
@@ -244,11 +247,11 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                   {users
                     .filter(
                       (user) =>
-                        !document.collaborators.some((c) => c.id === user.id)
+                        !document.collaborations.some((c) => c.ID === user.ID)
                     )
                     .map((user) => (
                       <div
-                        key={user.id}
+                        key={user.ID}
                         className="p-3 hover:bg-gray-50 cursor-pointer flex items-center"
                         onClick={() => handleAddCollaborator(user)}
                       >
@@ -257,9 +260,11 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                         </div>
                         <div>
                           <p className="text-sm font-medium text-gray-900">
-                            {user.name}
+                            {user.UserName}
                           </p>
-                          <p className="text-xs text-gray-500">{user.email}</p>
+                          <p className="text-xs text-gray-500">
+                            {user.EmployeeID}
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -278,7 +283,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
             </div>
 
             <div className="space-y-3">
-              {document.activity.slice(0, 5).map((activity, index) => (
+              {/* {document.activity.slice(0, 5).map((activity, index) => (
                 <div key={index} className="flex items-start text-xs">
                   <div className="flex-shrink-0 mr-2 mt-0.5">
                     <div className="h-4 w-4 rounded-full bg-blue-100 flex items-center justify-center">
@@ -302,7 +307,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
 
               {document.activity.length === 0 && (
                 <p className="text-xs text-gray-500">No recent activity</p>
-              )}
+              )} */}
             </div>
           </div>
         </div>

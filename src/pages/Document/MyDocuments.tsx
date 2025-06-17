@@ -23,7 +23,7 @@ const MyDocuments: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const { selectedRole } = useAuth(); // assuming user object has user.id
   const [currentPage, setCurrentPage] = useState(1);
-  console.log("selectedRole", selectedRole);
+  // console.log("selectedRole", selectedRole);
   useEffect(() => {
     const loadDocuments = async () => {
       try {

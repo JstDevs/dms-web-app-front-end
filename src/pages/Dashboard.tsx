@@ -14,17 +14,17 @@ import {
 import { Button } from "@chakra-ui/react";
 
 const Dashboard: React.FC = () => {
-  const { documents } = useDocument();
+  // const { documents } = useDocument();
   const navigate = useNavigate();
 
   // Filter documents by status
-  const recentDocuments = documents.slice(0, 4);
-  const pendingApproval = documents.filter(
-    (doc) => doc.status === "pending_approval"
-  );
-  const needsAttention = documents.filter(
-    (doc) => doc.status === "needs_attention"
-  );
+  // const recentDocuments = documents.slice(0, 4);
+  // const pendingApproval = documents.filter(
+  //   (doc) => doc.status === "pending_approval"
+  // );
+  // const needsAttention = documents.filter(
+  //   (doc) => doc.status === "needs_attention"
+  // );
 
   const handleCardClick = (id: string) => {
     navigate(`/documents/${id}`);
@@ -33,7 +33,7 @@ const Dashboard: React.FC = () => {
   const statCards = [
     {
       title: "Total Documents",
-      count: documents.length,
+      count: 5,
       icon: <Folder className="h-8 w-8 text-green-500" />,
       color: "border-green-100",
       path: "/documents/library",
@@ -52,7 +52,7 @@ const Dashboard: React.FC = () => {
     // },
     {
       title: "Users",
-      count: recentDocuments.length,
+      count: 8,
       icon: <Users className="h-8 w-8 text-blue-500" />,
       color: "border-blue-100",
       path: "/users/members",

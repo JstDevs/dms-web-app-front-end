@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 
 interface Props {
-  restrictedFields: Record<string, string[]>; // userId => restricted field names
+  restrictedFields?: Record<string, string[]>; // userId => restricted field names
   document: any;
   users: { id: string; name: string }[];
   onRestrictField: (fieldName: string, userId: string) => void;
@@ -73,7 +73,7 @@ const FieldRestrictions: React.FC<Props> = ({
             {users.find((u) => u.id === selectedUser)?.name}
           </h3>
           <ul className="list-disc list-inside space-y-1 mt-2">
-            {(restrictedFields[selectedUser] || []).map((field) => (
+            {(restrictedFields?.[selectedUser] || []).map((field) => (
               <li key={field} className="flex justify-between items-center">
                 <span>{field}</span>
                 <button
@@ -84,7 +84,7 @@ const FieldRestrictions: React.FC<Props> = ({
                 </button>
               </li>
             ))}
-            {(!restrictedFields[selectedUser] ||
+            {(!restrictedFields?.[selectedUser] ||
               restrictedFields[selectedUser].length === 0) && (
               <p className="text-sm text-gray-500">No restrictions yet.</p>
             )}
