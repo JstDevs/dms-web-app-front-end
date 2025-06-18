@@ -67,7 +67,7 @@ const Header: React.FC = () => {
               onChange={handleRoleChange}
               className="text-sm border border-gray-300 rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="" disabled>
+              <option value="" hidden>
                 Select Role
               </option>
               {user.accessList.map((role) => (

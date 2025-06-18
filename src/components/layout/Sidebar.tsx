@@ -46,11 +46,6 @@ const Sidebar: React.FC = () => {
         { name: "Library", path: "/documents/library" },
       ],
     },
-    // { name: "Documents", icon: FileText, path: "/my-documents" },
-    // { name: "Pending Approvals", icon: FileCheck, path: "/pending-approvals" },
-    // { name: "Recent Activity", icon: Clock, path: "/activity" },
-    // { name: "Department Files", icon: FolderClosed, path: "/department" },
-    // { name: "Team", icon: Users, path: "/team" },
     {
       name: "Users Settings",
       icon: Users,
@@ -68,16 +63,6 @@ const Sidebar: React.FC = () => {
         { name: "Batch Upload", path: "/digitalization/batch-upload" },
       ],
     },
-
-    // {
-    //   name: "Locations",
-    //   icon: Map,
-    //   submenu: [
-    //     { name: "Regions", path: "/locations/regions" },
-    //     { name: "Municipalities", path: "/locations/municipalities" },
-    //     { name: "Barangays", path: "/locations/barangays" },
-    //   ],
-    // },
     {
       name: "OCR",
       icon: BookOpenCheck,
@@ -87,11 +72,6 @@ const Sidebar: React.FC = () => {
         { name: "Fields", path: "/ocr/fields" },
       ],
     },
-    // {
-    //   name: "LGU Maintenance",
-    //   path: "/lgu",
-    //   icon: SlidersHorizontal,
-    // },
     { name: "Settings", icon: Settings, path: "/settings" },
   ];
 

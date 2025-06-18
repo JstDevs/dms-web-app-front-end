@@ -63,6 +63,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 userData.accessList.length >= 2
                   ? userData.accessList[1]
                   : userData.accessList[0];
+
               setSelectedRole(fallbackRole);
             }
           }
@@ -99,7 +100,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             user.accessList.length >= 2
               ? user.accessList[1]
               : user.accessList[0];
-          setSelectedRole(defaultRole.ID);
+          setSelectedRole(defaultRole);
         }
 
         toast.success(`Welcome back, ${user.UserName}!`);

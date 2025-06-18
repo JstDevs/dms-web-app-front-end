@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDocument } from "../../contexts/DocumentContext";
 import { useNotification } from "../../contexts/NotificationContext";
-import DocumentVersionHistory from "../../components/versioning/DocumentVersionHistory";
+import DocumentVersionHistory from "../../components/documents/DocumentVersionHistory";
 import DocumentCollaboration from "../../components/documents/DocumentCollaboration";
 import DocumentApproval from "../../components/documents/DocumentApproval";
 import DocumentAuditTrail from "../../components/documents/DocumentAuditTrail";
@@ -20,7 +20,7 @@ import {
   EyeIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import FieldRestrictions from "../../components/documents/DocumentRestriction";
+import FieldRestrictions from "@/components/documents/DocumentRestriction";
 import { Button } from "@chakra-ui/react";
 import { useAuth } from "@/contexts/AuthContext";
 import Modal from "@/components/ui/Modal";
@@ -33,32 +33,15 @@ type TabType =
   | "approval"
   | "audit"
   | "restrictions";
-// const users = [
-//   { id: "1", name: "Alice" },
-//   { id: "2", name: "Bob" },
-// ];
 
-// const dummyDocument = {
-//   fields: {
-//     Header: "CERTIFICATE OF LIVE BIRTH",
-//     Registry: "123456",
-//     Sex: "Male",
-//     "Full Name": "John Doe",
-//   },
-// };
 const DocumentView: React.FC = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const { currentDocument, loading, error, fetchDocument, updateDocument } =
     useDocument();
-  const { user } = useAuth();
-  const { addNotification } = useNotification();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<TabType>("document");
-  const [isEditing, setIsEditing] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [documentContent, setDocumentContent] = useState("");
-  // const [analytics, setAnalytics] = useState<DocumentAnalytics | null>(null);
 
   useEffect(() => {
     if (documentId) {
@@ -76,78 +59,21 @@ const DocumentView: React.FC = () => {
     setIsViewerOpen(true);
     // setDocumentContent(document.content);
   };
-
-  const handleSave = () => {
-    // const updatedDoc = {
-    //   ...document,
-    //   content: documentContent,
-    //   lastModifiedAt: new Date().toISOString(),
-    //   lastModifiedBy: user?.UserName,
-    //   lastAction: "updated",
-    //   versions: [
-    //     {
-    //       id: `v${document.versions.length + 1}`,
-    //       number: document.versions.length + 1,
-    //       createdAt: new Date().toISOString(),
-    //       createdBy: user?.UserName,
-    //       content: documentContent,
-    //     },
-    //     ...document.versions,
-    //   ],
-    // };
-
-    // updateDocument(updatedDoc);
-    setIsEditing(false);
-
-    // Add notification
-    addNotification({
-      id: `notif-${Date.now()}`,
-      title: "Document Updated",
-      message: `${user?.UserName} updated "${document.title}"`,
-      time: "Just now",
-      read: false,
-    });
-
-    toast.success("Document updated successfully");
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setDocumentContent("");
-  };
-  // handler
-  const handleRestrictField = (field: string, userId: string) => {
-    // setRestrictedFields((prev) => ({
-    //   ...prev,
-    //   [userId]: [...(prev[userId] || []), field],
-    // }));
-  };
-
-  const handleRemoveRestriction = (field: string, userId: string) => {
-    // setRestrictedFields((prev) => ({
-    //   ...prev,
-    //   [userId]: (prev[userId] || []).filter((f) => f !== field),
-    // }));
-  };
-  console.log({
-    currentDocument,
-    v: currentDocument?.versions[0]?.VersionNumber,
-  });
+  console.log({ currentDocument });
+  const currentDocumentInfo = currentDocument?.document[0];
   const renderTabContent = () => {
     switch (activeTab) {
       case "document":
         return (
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 sm:p-6">
-            {isViewerOpen && currentDocument?.document?.DataImage ? (
+            {isViewerOpen && currentDocumentInfo?.DataImage ? (
               <Modal
                 isOpen={isViewerOpen}
                 onClose={() => setIsViewerOpen(false)}
               >
                 <div className="w-full h-full">
                   <iframe
-                    src={getBase64FromBuffer(
-                      currentDocument?.document?.DataImage
-                    )}
+                    src={getBase64FromBuffer(currentDocumentInfo.DataImage)}
                     title="Document Preview"
                     className="w-full h-full border-none rounded"
                   />
@@ -161,7 +87,7 @@ const DocumentView: React.FC = () => {
                       {currentDocument?.versions[0].VersionNumber}
                     </span>
                     <h1 className="text-xl sm:text-2xl font-bold mb-1">
-                      {currentDocument?.document.FileName}
+                      {currentDocumentInfo?.FileName}
                     </h1>
                     <div className="text-sm text-gray-500 flex items-center gap-1">
                       <Clock
@@ -179,15 +105,14 @@ const DocumentView: React.FC = () => {
                   <div className="flex gap-2">
                     <Button
                       onClick={handleViewDocument}
+                      disabled={!currentDocumentInfo?.DataImage}
                       className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
                     >
                       <EyeIcon /> View
                     </Button>
                   </div>
                 </div>
-                <div className="mb-4  border border-gray-200 rounded-md bg-gray-50">
-                  {/* <p>{document.content}</p> */}
-                </div>
+                <div className="mb-4  border border-gray-200 rounded-md bg-gray-50"></div>
               </div>
             )}
 
@@ -199,7 +124,7 @@ const DocumentView: React.FC = () => {
                     Type
                   </h4>
                   <p className="text-gray-900">
-                    {currentDocument?.document?.DataType}
+                    {currentDocumentInfo?.DataType}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-md border border-gray-100">
@@ -207,7 +132,7 @@ const DocumentView: React.FC = () => {
                     Confidential
                   </h4>
                   <p className="text-gray-900">
-                    {currentDocument?.document?.Confidential ? "Yes" : "No"}
+                    {currentDocumentInfo?.Confidential ? "Yes" : "No"}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-md border border-gray-100">
@@ -215,7 +140,7 @@ const DocumentView: React.FC = () => {
                     Department Id
                   </h4>
                   <p className="text-gray-900">
-                    {currentDocument?.document?.DepartmentId}
+                    {currentDocumentInfo?.DepartmentId}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-md border border-gray-100">
@@ -224,7 +149,7 @@ const DocumentView: React.FC = () => {
                   </h4>
                   <p className="text-gray-900">
                     {" "}
-                    {currentDocument?.document?.SubDepartmentId}
+                    {currentDocumentInfo?.SubDepartmentId}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-md border border-gray-100">
@@ -233,7 +158,7 @@ const DocumentView: React.FC = () => {
                   </h4>
                   <p className="text-gray-900">
                     {" "}
-                    {currentDocument?.document?.FileDescription}
+                    {currentDocumentInfo?.FileDescription}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-md border border-gray-100">
@@ -242,10 +167,8 @@ const DocumentView: React.FC = () => {
                   </h4>
                   <p className="text-gray-900">
                     {" "}
-                    {currentDocument?.document?.FileDate
-                      ? new Date(
-                          currentDocument.document.FileDate
-                        ).toLocaleString()
+                    {currentDocumentInfo?.FileDate
+                      ? new Date(currentDocumentInfo.FileDate).toLocaleString()
                       : "-"}
                   </p>
                 </div>
@@ -262,18 +185,7 @@ const DocumentView: React.FC = () => {
       case "audit":
         return <DocumentAuditTrail document={currentDocument} />;
       case "restrictions":
-        return (
-          <FieldRestrictions
-            // restrictedFields={restrictedFields}
-            document={[]}
-            users={[
-              { id: "1", name: "Alice" },
-              { id: "2", name: "Bob" },
-            ]}
-            onRestrictField={handleRestrictField}
-            onRemoveRestriction={handleRemoveRestriction}
-          />
-        );
+        return <FieldRestrictions document={currentDocument} />;
       default:
         return null;
     }
@@ -315,26 +227,9 @@ const DocumentView: React.FC = () => {
             <ChevronLeft size={20} />
           </button>
           <h1 className="text-2xl font-semibold text-gray-900 ">
-            {currentDocument?.document.FileName}
+            {currentDocumentInfo?.FileName}
           </h1>
         </div>
-
-        {/* <div className="flex flex-wrap gap-2">
-          <Button
-            className="btn flex items-center gap-2 w-full sm:w-auto"
-            variant="outline"
-          >
-            <Share2 size={16} />
-            <span className="inline">Share</span>
-          </Button>
-          <Button
-            className="btn flex items-center gap-2 w-full sm:w-auto"
-            variant="outline"
-          >
-            <Download size={16} />
-            <span className="inline">Download</span>
-          </Button>
-        </div> */}
       </div>
 
       <div className="mb-6 border-b border-gray-200 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-300 pb-2">
