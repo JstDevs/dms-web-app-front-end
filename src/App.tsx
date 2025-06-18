@@ -18,7 +18,7 @@ import DepartmentFiles from "./pages/DepartmentFiles";
 import Team from "./pages/Team";
 import Settings from "./pages/Settings";
 import { HomePage } from "./pages/HomePage";
-import { DocumentTypesPage } from "./pages/Document/DocumentTypesPage";
+// import { DocumentTypesPage } from "./pages/Document/DocumentTypesPage";
 // import { RegionsPage } from "./pages/LocationPages/RegionsPage";
 // import { MunicipalitiesPage } from "./pages/LocationPages/MunicipalitiesPage";
 // import { BarangaysPage } from "./pages/LocationPages/BarangaysPage";
@@ -81,10 +81,7 @@ function App() {
                       element={<ChangePassword />}
                     />
                     {/* ----------------------Document && Document Types-------------------- */}
-                    <Route
-                      path="/documents/document-types"
-                      element={<DocumentTypesPage />}
-                    />
+
                     <Route
                       path="/documents/upload"
                       element={<DocumentUpload />}

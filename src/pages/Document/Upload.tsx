@@ -45,7 +45,7 @@ export default function DocumentUpload() {
     Confidential: false,
     Description: "",
     Remarks: "",
-    Active: false,
+    Active: true,
     Expiration: false,
     publishing_status: false,
     // Initialize all text fields
@@ -169,12 +169,19 @@ export default function DocumentUpload() {
 
   const resetForm = () => {
     setNewDoc({
+      FileName: "",
+      FileDescription: "",
       DepartmentId: 0,
       SubDepartmentId: 0,
+      FileDate: "",
+      ExpirationDate: "",
       Confidential: false,
-      Active: false,
+      Description: "",
+      Remarks: "",
+      Active: true,
       Expiration: false,
       publishing_status: false,
+
       // Reset all text fields
       Text1: "",
       Text2: "",
@@ -210,7 +217,7 @@ export default function DocumentUpload() {
       setSelectedFile(null);
     }
   };
-
+  console.log(newDoc);
   const handleDelete = async (id: number) => {
     try {
       await deleteDocument(id);
@@ -249,19 +256,12 @@ export default function DocumentUpload() {
       const publishDoc = {
         ...doc,
         publishing_status: true,
-        name: doc.FileName,
-        fileDescription: doc.FileDescription,
-        description: doc.Description,
-        fileDate: doc.FileDate,
-        expirationDate: doc.ExpirationDate,
-        department: doc.DepartmentId.toString(),
-        subdepartment: doc.SubDepartmentId.toString(),
-        confidential: doc.Confidential,
-        remarks: doc.Remarks,
       };
 
       const formData = buildDocumentFormData(publishDoc, null, false, doc.ID);
-      await editDocument(formData);
+      const { status } = await editDocument(formData);
+
+      if (!status) throw new Error("Failed to publish document");
 
       setDocuments((prev) =>
         prev.map((d) =>
@@ -464,10 +464,10 @@ export default function DocumentUpload() {
           </div>
 
           {/* Active Checkbox */}
-          <div className="col-span-1 flex items-center gap-2 ">
+          {/* <div className="col-span-1 flex items-center gap-2 ">
             <input
               type="checkbox"
-              checked={newDoc.Active || false}
+              checked={newDoc.Active || true}
               onChange={(e) =>
                 setNewDoc({ ...newDoc, Active: e.target.checked })
               }
@@ -480,7 +480,7 @@ export default function DocumentUpload() {
             >
               Active
             </label>
-          </div>
+          </div> */}
           {/* Expiration Checkbox */}
           <div className="col-span-1 flex items-center gap-2">
             <input
@@ -610,7 +610,7 @@ export default function DocumentUpload() {
                           : "-"}
                       </td>
                       <td className="border px-6 py-3">
-                        {doc.ExpirationDate
+                        {doc.Expiration
                           ? new Date(doc.ExpirationDate).toLocaleDateString()
                           : "-"}
                       </td>

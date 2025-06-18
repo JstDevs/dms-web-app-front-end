@@ -114,17 +114,19 @@ const OCRUnrecordedUI = () => {
     }
   };
   const handleDocSelection = (doc: UnrecordedDocument) => {
-    const byteArray = new Uint8Array(doc.DataImage.data);
-    const blob = new Blob([byteArray], {
-      type: doc.DataType === "pdf" ? "application/pdf" : "image/png", // Adjust MIME as needed
-    });
-    const previewUrl = URL.createObjectURL(blob);
+    // if (!doc.DataImage.data || !imgRef.current) return;
+
+    // const byteArray = new Uint8Array(doc.DataImage.data);
+    // const blob = new Blob([byteArray], {
+    //   type: doc.DataType === "pdf" ? "application/pdf" : "image/png", // Adjust MIME as needed
+    // });
+    // const previewUrl = URL.createObjectURL(blob);
 
     setFormData({
       ...formData,
       selectedDoc: doc,
       isLoaded: true,
-      previewUrl,
+      // previewUrl,
     });
   };
 
@@ -144,7 +146,7 @@ const OCRUnrecordedUI = () => {
         </p>
       </header>
 
-      <div className="flex gap-4 p-2 sm:p-4 w-full max-md:flex-col">
+      <div className="flex gap-4 p-2 sm:p-4 w-full max-lg:flex-col">
         {/* Left Panel - Document List */}
         <div className="w-full lg:w-1/2 p-2 sm:p-6 space-y-6 border-r bg-white">
           <div className="flex gap-4 flex-col">
@@ -259,7 +261,9 @@ const OCRUnrecordedUI = () => {
               </div>
             </div>
           ) : (
-            <p className="text-gray-400">Select a document to preview</p>
+            <p className="text-gray-400 text-center">
+              Select a document to preview
+            </p>
           )}
         </div>
         {/* </div> */}

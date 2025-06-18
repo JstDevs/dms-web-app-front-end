@@ -1,529 +1,437 @@
-import React, { useState } from "react";
-import { ApprovalStep, CurrentDocument } from "@/types/Document";
-import { useUser } from "@/contexts/UserContext";
-import { useDocument } from "@/contexts/DocumentContext";
-import { useNotification } from "@/contexts/NotificationContext";
+import React, { useState, useEffect } from "react";
+import { CurrentDocument } from "@/types/Document";
 import {
   CheckCircle,
   XCircle,
   AlertTriangle,
   Clock,
   UserCircle,
-  ChevronDown,
-  ChevronUp,
+  MessageSquare,
+  Loader2,
 } from "lucide-react";
-import toast from "react-hot-toast";
-import { Button } from "@chakra-ui/react";
-// import { Button } from "../ui/Button";
+// import { Button } from "@chakra-ui/react";
+import axios from "@/api/axios";
 
 interface DocumentApprovalProps {
-  document: any;
+  document: CurrentDocument | null;
+}
+
+interface ApprovalRequest {
+  ID: number;
+  DocumentID: number;
+  LinkID: string;
+  RequestedBy: string;
+  RequestedDate: string;
+  ApproverID: string;
+  ApproverName: string;
+  Status: "PENDING" | "APPROVED" | "REJECTED";
+  ApprovalDate: string | null;
+  Comments: string | null;
+  RejectionReason: string | null;
 }
 
 const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
-  if (!document) return null;
-  const approvalMatrix = [
-    {
-      name: "Financial Review",
-      type: "all",
-      active: true,
-      completed: true,
-      completedAt: "2025-04-12T10:15:00Z",
-      approvers: [
-        {
-          ID: "user-2",
-          name: "Jane Smith",
-          role: "Manager",
-          approved: true,
-          approvedAt: "2025-04-12T10:15:00Z",
-          comment: "Numbers look accurate.",
-        },
-      ],
-    },
-    {
-      name: "Executive Approval",
-      type: "single",
-      active: true,
-      completed: true,
-      completedAt: "2025-04-12T16:30:00Z",
-      approvers: [
-        {
-          ID: "user-1",
-          name: "John Doe",
-          role: "Admin",
-          approved: true,
-          approvedAt: "2025-04-12T16:30:00Z",
-          comment: "Approved for distribution.",
-        },
-      ],
-    },
-  ];
-  const { users } = useUser();
-  const { updateDocument } = useDocument();
-  const { addNotification } = useNotification();
-
-  const [showApprovalMatrix, setShowApprovalMatrix] = useState(true);
   const [approvalComment, setApprovalComment] = useState("");
+  const [processingApproval, setProcessingApproval] = useState<number | null>(
+    null
+  );
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>(
+    []
+  );
+  const [loading, setLoading] = useState(true);
 
-  const currentUser = users[0]; // In a real app, this would be the logged-in user
-
-  const handleApprove = () => {
-    // Find the current user's approval step
-    const currentStepIndex = approvalMatrix.findIndex((step) =>
-      step.approvers.some(
-        (approver: any) =>
-          // approver.id === currentUser.id &&
-          !approver.approved && !approver.rejected
-      )
-    );
-
-    if (currentStepIndex === -1) {
-      toast.error("You're not an approver for this document");
-      return;
+  useEffect(() => {
+    if (document) {
+      fetchApprovalRequests();
     }
+  }, [document]);
 
-    const updatedMatrix = [...approvalMatrix];
-    const currentStep = updatedMatrix[currentStepIndex];
-
-    // Update the approver status
-    const approverIndex = currentStep.approvers.findIndex(
-      (approver: any) => approver.id === currentUser.ID
-    );
-    currentStep.approvers[approverIndex] = {
-      ...currentStep.approvers[approverIndex],
-      approved: true,
-      approvedAt: new Date().toISOString(),
-      comment: approvalComment,
-    };
-
-    // Check if this step is completed
-    const isStepCompleted = currentStep.approvers.every(
-      (approver: any) => approver.approved || approver.rejected
-    );
-    if (isStepCompleted) {
-      currentStep.completed = true;
-      currentStep.completedAt = new Date().toISOString();
-
-      // If all approvers in this step approved, move to next step
-      const allApproved = currentStep.approvers.every(
-        (approver) => approver.approved
+  const fetchApprovalRequests = async () => {
+    try {
+      const response = await axios.get(
+        `/documents/documents/${document?.document[0].ID}/approvals`
       );
-      if (allApproved && currentStepIndex < updatedMatrix.length - 1) {
-        updatedMatrix[currentStepIndex + 1].active = true;
+      if (response.data.success) {
+        setApprovalRequests(response.data.data);
       }
-
-      // If this is the last step and all approved, mark document as approved
-      if (allApproved && currentStepIndex === updatedMatrix.length - 1) {
-        updateDocument({
-          ...document,
-          approvalMatrix: updatedMatrix,
-          status: "approved",
-          activity: [
-            {
-              userId: currentUser.ID,
-              userName: currentUser.UserName,
-              action: "approved the document",
-              timestamp: new Date().toISOString(),
-            },
-            ...document.activity,
-          ],
-        });
-
-        addNotification({
-          id: `notif-${Date.now()}`,
-          title: "Document Approved",
-          message: `Document "${document.title}" has been fully approved`,
-          time: "Just now",
-          read: false,
-        });
-
-        toast.success("Document approved successfully");
-        return;
-      }
+    } catch (error) {
+      console.error("Failed to fetch approval requests:", error);
+      showMessage("Failed to load approval requests. Please try again.", true);
+    } finally {
+      setLoading(false);
     }
-
-    // Update the document
-    updateDocument({
-      ...document,
-      approvalMatrix: updatedMatrix,
-      activity: [
-        {
-          userId: currentUser.ID,
-          userName: currentUser.UserName,
-          action: "approved the document",
-          timestamp: new Date().toISOString(),
-        },
-        ...document.activity,
-      ],
-    });
-
-    addNotification({
-      id: `notif-${Date.now()}`,
-      title: "Approval Updated",
-      message: `${currentUser.UserName} approved "${document.title}"`,
-      time: "Just now",
-      read: false,
-    });
-
-    setApprovalComment("");
-    toast.success("Document approved");
   };
 
-  const handleReject = () => {
+  const showMessage = (message: string, isError: boolean = false) => {
+    if (isError) {
+      setErrorMessage(message);
+      setTimeout(() => setErrorMessage(""), 5000);
+    } else {
+      setSuccessMessage(message);
+      setTimeout(() => setSuccessMessage(""), 3000);
+    }
+  };
+
+  const handleApprove = async (requestId: number) => {
+    if (!document) return;
+
+    setProcessingApproval(requestId);
+    try {
+      const response = await axios.post(
+        `/documents/documents/${document.document[0].ID}/approvals/${requestId}/approve`,
+        {
+          comment: approvalComment.trim(),
+        }
+      );
+
+      if (response.data.success) {
+        showMessage(`Approval granted successfully!`);
+        setApprovalComment("");
+        fetchApprovalRequests(); // Refresh the data
+      }
+    } catch (error: any) {
+      console.error("Failed to approve request:", error);
+      showMessage("Failed to approve request. Please try again.", true);
+    } finally {
+      setProcessingApproval(null);
+    }
+  };
+
+  const handleReject = async (requestId: number) => {
+    if (!document) return;
+
     if (!approvalComment.trim()) {
-      toast.error("Please provide a reason for rejection");
+      showMessage("Please provide a reason for rejection.", true);
       return;
     }
 
-    // Find the current user's approval step
-    const currentStepIndex = approvalMatrix.findIndex((step: any) =>
-      step.approvers.some(
-        (approver: any) =>
-          approver.id === currentUser.ID &&
-          !approver.approved &&
-          !approver.rejected
-      )
-    );
-
-    if (currentStepIndex === -1) {
-      toast.error("You're not an approver for this document");
-      return;
-    }
-
-    const updatedMatrix = [...approvalMatrix];
-    const currentStep = updatedMatrix[currentStepIndex];
-
-    // Update the approver status
-    const approverIndex = currentStep.approvers.findIndex(
-      (approver: any) => approver.id === currentUser.ID
-    );
-    currentStep.approvers[approverIndex] = {
-      ...currentStep.approvers[approverIndex],
-      rejected: true,
-      rejectedAt: new Date().toISOString(),
-      comment: approvalComment,
-    } as any;
-
-    // Mark step as completed and document as rejected
-    currentStep.completed = true;
-    currentStep.completedAt = new Date().toISOString();
-
-    updateDocument({
-      ...document,
-      approvalMatrix: updatedMatrix,
-      status: "needs_attention",
-      activity: [
+    setProcessingApproval(requestId);
+    try {
+      const response = await axios.post(
+        `/documents/documents/${document.document[0].ID}/approvals/${requestId}/reject`,
         {
-          userId: currentUser.ID,
-          userName: currentUser.UserName,
-          action: "rejected the document",
-          timestamp: new Date().toISOString(),
-        },
-        ...document.activity,
-      ],
-    });
+          reason: approvalComment.trim(),
+        }
+      );
 
-    addNotification({
-      id: `notif-${Date.now()}`,
-      title: "Document Rejected",
-      message: `${currentUser.UserName} rejected "${document.title}"`,
-      time: "Just now",
-      read: false,
-    });
-
-    setApprovalComment("");
-    toast.error("Document rejected");
-  };
-
-  const getStepStatus = (step: ApprovalStep) => {
-    if (!step.active) return "pending";
-    if (step.completed) {
-      const allApproved = step.approvers.every((approver) => approver.approved);
-      return allApproved ? "approved" : "rejected";
+      if (response.data.success) {
+        showMessage(`Request has been rejected.`);
+        setApprovalComment("");
+        fetchApprovalRequests(); // Refresh the data
+      }
+    } catch (error: any) {
+      console.error("Failed to reject request:", error);
+      showMessage("Failed to reject request. Please try again.", true);
+    } finally {
+      setProcessingApproval(null);
     }
-    return "in_progress";
   };
 
-  const isUserCurrentApprover = () => {
-    return approvalMatrix.some(
-      (step: any) =>
-        step.active &&
-        !step.completed &&
-        step.approvers.some(
-          (approver: any) =>
-            // approver.id === currentUser.id &&
-            !approver.approved && !approver.rejected
-        )
-    );
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  const renderStepStatus = (status: string) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
-      case "approved":
+      case "APPROVED":
         return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case "rejected":
+      case "REJECTED":
         return <XCircle className="h-5 w-5 text-red-500" />;
-      case "in_progress":
+      case "PENDING":
         return <Clock className="h-5 w-5 text-yellow-500" />;
       default:
-        return <Clock className="h-5 w-5 text-gray-300" />;
+        return <Clock className="h-5 w-5 text-gray-400" />;
     }
   };
 
-  const getStepStatusClass = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case "approved":
+      case "APPROVED":
         return "bg-green-100 text-green-800";
-      case "rejected":
+      case "REJECTED":
         return "bg-red-100 text-red-800";
-      case "in_progress":
+      case "PENDING":
         return "bg-yellow-100 text-yellow-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
-  const getStepStatusText = (status: string) => {
-    switch (status) {
-      case "approved":
-        return "Approved";
-      case "rejected":
-        return "Rejected";
-      case "in_progress":
-        return "In Progress";
-      default:
-        return "Pending";
-    }
-  };
+  const pendingRequests = approvalRequests.filter(
+    (req) => req.Status === "PENDING"
+  );
+  const processedRequests = approvalRequests.filter(
+    (req) => req.Status !== "PENDING"
+  );
+
+  if (!document) return null;
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-      <div className="p-3 sm:p-6  border-b border-gray-200">
-        <h2 className="text-xl font-medium text-gray-900">Approval Workflow</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Track the approval status of this document
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+        <h2 className="text-xl font-semibold text-gray-900">
+          Document Approvals
+        </h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Manage approval requests for this document
         </p>
       </div>
 
-      {/* Document status summary */}
-      <div className="p-3 sm:p-6  bg-gray-50 border-b border-gray-200">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
-          {/* Current Status */}
-          <div className="flex flex-row sm:flex-col max-sm:gap-4 justify-between items-center sm:items-start">
-            <h2 className="text-sm font-medium text-gray-700">
-              Current Status
-            </h2>
-            <div className="flex items-center mt-1">
-              {document.status === "approved" ? (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  Approved
-                </span>
-              ) : document.status === "pending_approval" ? (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                  <Clock className="h-4 w-4 mr-1" />
-                  Pending Approval
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                  <AlertTriangle className="h-4 w-4 mr-1" />
-                  Needs Attention
-                </span>
-              )}
-            </div>
-          </div>
+      {/* Success/Error Messages */}
+      {successMessage && (
+        <div className="mx-6 mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+          <CheckCircle size={16} className="text-green-600" />
+          <span className="text-sm text-green-700">{successMessage}</span>
+        </div>
+      )}
 
-          {/* Approval Progress */}
-          <div className="sm:w-full sm:max-w-[15rem]">
-            <p className="text-sm font-medium text-gray-700">
-              Approval Progress
-            </p>
-            <div className="mt-1 flex items-center gap-2 w-full">
-              <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                <div
-                  className="bg-blue-600 h-2.5 rounded-full"
-                  style={{
-                    width: `${
-                      (approvalMatrix.filter((step: any) => step.completed)
-                        .length /
-                        approvalMatrix.length) *
-                      100
-                    }%`,
-                  }}
-                ></div>
-              </div>
-              <span className="text-sm text-gray-500 whitespace-nowrap">
-                {approvalMatrix.filter((step: any) => step.completed).length}/
-                {approvalMatrix.length} steps
+      {errorMessage && (
+        <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+          <AlertTriangle size={16} className="text-red-600" />
+          <span className="text-sm text-red-700">{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Document Status Summary */}
+      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-1">
+              Approval Status
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                <Clock className="h-4 w-4 mr-1" />
+                {pendingRequests.length} Pending
+              </span>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                <CheckCircle className="h-4 w-4 mr-1" />
+                {
+                  approvalRequests.filter((r) => r.Status === "APPROVED").length
+                }{" "}
+                Approved
+              </span>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                <XCircle className="h-4 w-4 mr-1" />
+                {
+                  approvalRequests.filter((r) => r.Status === "REJECTED").length
+                }{" "}
+                Rejected
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Approval matrix */}
-      <div>
-        <div
-          className="p-4 border-b border-gray-200 flex justify-between items-center cursor-pointer"
-          onClick={() => setShowApprovalMatrix(!showApprovalMatrix)}
-        >
-          <h3 className="text-sm font-medium text-gray-700">Approval Matrix</h3>
-          <Button className="text-gray-500">
-            {showApprovalMatrix ? (
-              <ChevronUp size={16} />
-            ) : (
-              <ChevronDown size={16} />
-            )}
-          </Button>
-        </div>
+      {/* Pending Approval Requests */}
+      {pendingRequests.length > 0 && (
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            Pending Approvals ({pendingRequests.length})
+          </h3>
 
-        {showApprovalMatrix && (
-          <div className="p-4 overflow-x-auto">
-            <div className="space-y-4 min-w-[400px]">
-              {approvalMatrix.map((step: any, stepIndex: number) => {
-                const stepStatus = getStepStatus(step);
-
-                return (
-                  <div
-                    key={stepIndex}
-                    className={`border rounded-md overflow-hidden ${
-                      step.active && !step.completed
-                        ? "border-yellow-300"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    <div
-                      className={`p-3 flex justify-between items-center ${
-                        step.active && !step.completed
-                          ? "bg-yellow-50"
-                          : "bg-gray-50"
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <div className="mr-3 h-6 w-6 flex items-center justify-center rounded-full bg-white">
-                          {renderStepStatus(stepStatus)}
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-900">
-                            Step {stepIndex + 1}: {step.name}
-                          </h4>
-                          <p className="text-xs text-gray-500">
-                            {step.type === "single"
-                              ? "Single Approver"
-                              : step.type === "all"
-                              ? "All Must Approve"
-                              : "Any Can Approve"}
-                          </p>
-                        </div>
-                      </div>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStepStatusClass(
-                          stepStatus
-                        )}`}
-                      >
-                        {getStepStatusText(stepStatus)}
-                      </span>
+          <div className="space-y-4">
+            {pendingRequests.map((request) => (
+              <div
+                key={request.ID}
+                className="bg-yellow-50 border border-yellow-200 rounded-xl p-4"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center">
+                      <UserCircle className="h-8 w-8 text-white" />
                     </div>
-
-                    <div className="p-3 divide-y divide-gray-100">
-                      {step.approvers.map(
-                        (approver: any, approverIndex: any) => (
-                          <div
-                            key={approverIndex}
-                            className="py-2 first:pt-0 last:pb-0 flex items-start justify-between"
-                          >
-                            <div className="flex items-center">
-                              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                                <UserCircle className="h-6 w-6 text-blue-600" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {approver.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {approver.role}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="text-right">
-                              {approver.approved ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Approved
-                                </span>
-                              ) : approver.rejected ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                                  <XCircle className="h-3 w-3 mr-1" />
-                                  Rejected
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  Pending
-                                </span>
-                              )}
-
-                              {(approver.approved || approver.rejected) &&
-                                approver.comment && (
-                                  <p className="text-xs text-gray-500 mt-1 max-w-xs truncate">
-                                    "{approver.comment}"
-                                  </p>
-                                )}
-                            </div>
-                          </div>
-                        )
+                    <div>
+                      <h4 className="text-lg font-medium text-gray-900">
+                        {request.ApproverName}
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        Requested on {formatDate(request.RequestedDate)}
+                      </p>
+                      {request.Comments && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          <span className="font-medium">Request Comment:</span>{" "}
+                          {request.Comments}
+                        </p>
                       )}
                     </div>
                   </div>
-                );
-              })}
+                  <span
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(
+                      request.Status
+                    )}`}
+                  >
+                    {getStatusIcon(request.Status)}
+                    <span className="ml-1 capitalize">
+                      {request.Status.toLowerCase()}
+                    </span>
+                  </span>
+                </div>
+
+                {/* Comment/Reason Input */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Add Comment (Optional for approval, Required for rejection)
+                  </label>
+                  <textarea
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none transition-all"
+                    rows={3}
+                    placeholder="Add your comments or reason for rejection..."
+                    value={approvalComment}
+                    onChange={(e) => setApprovalComment(e.target.value)}
+                    disabled={processingApproval === request.ID}
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleApprove(request.ID)}
+                    disabled={processingApproval === request.ID}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  >
+                    {processingApproval === request.ID ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <CheckCircle size={16} />
+                    )}
+                    {processingApproval === request.ID
+                      ? "Processing..."
+                      : "Approve"}
+                  </button>
+
+                  <button
+                    onClick={() => handleReject(request.ID)}
+                    disabled={processingApproval === request.ID}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  >
+                    {processingApproval === request.ID ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <XCircle size={16} />
+                    )}
+                    {processingApproval === request.ID
+                      ? "Processing..."
+                      : "Reject"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Processed Requests History */}
+      <div className="px-6 py-4">
+        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+          <Clock className="h-5 w-5 text-gray-500" />
+          Approval History ({processedRequests.length})
+        </h3>
+
+        {processedRequests.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <MessageSquare size={24} className="text-gray-400" />
             </div>
+            <p className="text-gray-500 font-medium">
+              No processed requests yet
+            </p>
+            <p className="text-sm text-gray-400 mt-1">
+              Approved and rejected requests will appear here
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {processedRequests.map((request) => (
+              <div
+                key={request.ID}
+                className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                        request.Status === "APPROVED"
+                          ? "bg-gradient-to-r from-green-500 to-emerald-500"
+                          : "bg-gradient-to-r from-red-500 to-pink-500"
+                      }`}
+                    >
+                      <UserCircle className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900">
+                        {request.ApproverName}
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        Requested: {formatDate(request.RequestedDate)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {request.Status === "APPROVED"
+                          ? "Approved"
+                          : "Rejected"}
+                        : {formatDate(request.ApprovalDate)}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
+                      request.Status
+                    )}`}
+                  >
+                    {getStatusIcon(request.Status)}
+                    <span className="ml-1 capitalize">
+                      {request.Status.toLowerCase()}
+                    </span>
+                  </span>
+                </div>
+
+                {(request.Comments || request.RejectionReason) && (
+                  <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
+                    <p className="text-xs font-medium text-gray-700 mb-1">
+                      {request.Status === "APPROVED"
+                        ? "Comment:"
+                        : "Reason for rejection:"}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {request.Comments || request.RejectionReason}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Current user's approval actions */}
-      {isUserCurrentApprover() && (
-        <div className="p-3 sm:p-6  border-t border-gray-200">
-          <h3 className="text-sm font-medium text-gray-900 mb-4">
-            Your Approval Action
-          </h3>
-
-          <div className="mb-4">
-            <label
-              htmlFor="approval-comment"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Comments (optional for approval, required for rejection)
-            </label>
-            <textarea
-              id="approval-comment"
-              rows={3}
-              className="w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2"
-              placeholder="Add your comments here..."
-              value={approvalComment}
-              onChange={(e) => setApprovalComment(e.target.value)}
-            ></textarea>
+      {/* Empty State for No Requests */}
+      {approvalRequests.length === 0 && (
+        <div className="px-6 py-12 text-center">
+          <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <CheckCircle size={24} className="text-gray-400" />
           </div>
-
-          <div className="flex gap-4">
-            <Button
-              onClick={handleApprove}
-              className="shadow-sm text-white bg-green-600 hover:bg-green-700 px-2"
-            >
-              <CheckCircle className="h-4 w-4" />
-              Approve
-            </Button>
-
-            <Button
-              onClick={handleReject}
-              className="text-white bg-red-600 hover:bg-red-700 px-2"
-            >
-              <XCircle className="h-4 w-4" />
-              Reject
-            </Button>
-          </div>
+          <p className="text-gray-500 font-medium">No approval requests</p>
+          <p className="text-sm text-gray-400 mt-1">
+            Approval requests for this document will appear here
+          </p>
         </div>
       )}
     </div>

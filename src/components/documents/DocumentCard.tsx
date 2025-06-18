@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { FileText, Calendar, Lock, Eye } from "lucide-react";
-import Modal from "../ui/Modal";
+import { Calendar, Lock, Eye, Mail } from "lucide-react";
+import { Button } from "@chakra-ui/react";
+import axios from "@/api/axios";
 
 interface DocumentCardProps {
   document: any;
@@ -16,22 +17,42 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
     Confidential,
     DataImage,
     publishing_status,
+    Expiration,
+    ID,
+    approvalstatus,
   } = document;
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [requestError, setRequestError] = useState("");
 
-  const getBase64Preview = () => {
-    if (DataImage?.data) {
-      const binaryString = new Uint8Array(DataImage.data).reduce(
-        (acc, byte) => acc + String.fromCharCode(byte),
-        ""
+  const handleRequestApproval = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsRequesting(true);
+    setRequestError("");
+
+    try {
+      const response = await axios.post(
+        `/documents/documents/${ID}/approvals`,
+        {
+          requestedBy: "1", // Replace with actual user ID
+          approverId: "1", // Replace with author's user ID
+          approverName: "ro", // Replace with author's name
+          dueDate: "",
+          comments: "Please approve this document",
+        }
       );
-      return `data:application/pdf;base64,${btoa(binaryString)}`;
-    }
-    return null;
-  };
 
-  const previewUrl = getBase64Preview();
+      if (response.status === 200) {
+        alert("Approval request sent successfully!");
+        // You might want to update the document status here if needed
+      }
+    } catch (error) {
+      console.error("Error requesting approval:", error);
+      setRequestError("Failed to send approval request. Please try again.");
+    } finally {
+      setIsRequesting(false);
+    }
+  };
 
   return (
     <React.Fragment key={document.ID}>
@@ -57,7 +78,7 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
             Created:{" "}
             {FileDate ? new Date(FileDate).toLocaleDateString() : "No date"}
           </div>
-          {ExpirationDate && (
+          {Expiration && (
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
               Exp: {new Date(ExpirationDate).toLocaleDateString()}
@@ -68,30 +89,42 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
         <div className="flex justify-between items-center pt-2">
           <div className="text-xs font-medium uppercase text-gray-500">
             {publishing_status ? "Published" : "Draft"}
+            {!approvalstatus && " • Not Approved"}
           </div>
-          {previewUrl && (
-            <button
+
+          <div className="flex gap-2">
+            {/* <Button
               onClick={(e) => {
                 e.stopPropagation();
-                setIsModalOpen(true);
               }}
               className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+              size="sm"
+              variant="ghost"
             >
               <Eye className="w-4 h-4" />
               View PDF
-            </button>
-          )}
-        </div>
-      </div>
+            </Button> */}
 
-      {/* Modal Preview */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <iframe
-          src={previewUrl || ""}
-          title="Document Preview"
-          className="w-full h-full"
-        />
-      </Modal>
+            {/* Approval request button - only shown when not approved */}
+            {!approvalstatus && (
+              <Button
+                onClick={handleRequestApproval}
+                className="text-green-600 hover:underline text-sm flex items-center gap-1"
+                size="sm"
+                variant="outline"
+                loading={isRequesting}
+              >
+                <Mail className="w-4 h-4" />
+                Request Approval
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {requestError && (
+          <div className="text-red-500 text-sm mt-2">{requestError}</div>
+        )}
+      </div>
     </React.Fragment>
   );
 };

@@ -65,6 +65,7 @@ export interface ActivityEntry {
   timestamp: string;
 }
 // -------------------------------NEW INTERFACES----------------------------------
+// TODO : MIGHT ADD IN FUTURE
 export interface DocumentVersionChanges {
   FileName?: string;
   FileDate?: string;
@@ -75,7 +76,7 @@ export interface DocumentVersionChanges {
 }
 
 export interface DocumentVersion {
-  Changes: DocumentVersionChanges | string;
+  Changes: string | DocumentVersionChanges;
   ID: number;
   DocumentID: number;
   LinkID: string;
@@ -143,7 +144,7 @@ export interface AuditTrail {
   UserAgent: string;
   SessionID: string | null;
   Description: string | null;
-  actor: User;
+  actor: { id: number; userName: string };
 }
 
 export interface OCRDocumentReadField {
@@ -157,52 +158,56 @@ export interface OCRDocumentReadField {
   updatedAt: string;
   Restricted: boolean;
 }
-export interface CurrentDocument {
-  document: {
-    ID: number;
-    LinkID: string;
-    DepartmentId: number;
-    SubDepartmentId: number;
-    DataImage: {
-      type: string;
-      data: number[];
-    };
-    DataName: string | null;
-    DataType: string;
-    FileName: string;
-    FileDescription: string;
-    Description: string;
-    FileDate: string;
-    Text1: string | null;
-    Date1: string | null;
-    Text2: string | null;
-    Date2: string | null;
-    Text3: string | null;
-    Date3: string | null;
-    Text4: string | null;
-    Date4: string | null;
-    Text5: string | null;
-    Date5: string | null;
-    Text6: string | null;
-    Date6: string | null;
-    Text7: string | null;
-    Date7: string | null;
-    Text8: string | null;
-    Date8: string | null;
-    Text9: string | null;
-    Date9: string | null;
-    Text10: string | null;
-    Date10: string | null;
-    Expiration: boolean;
-    ExpirationDate: string;
-    Confidential: boolean;
-    PageCount: number | null;
-    Remarks: string;
-    Active: boolean;
-    Createdby: string;
-    CreatedDate: string;
-    publishing_status: boolean;
+
+export interface NewDocument {
+  ID: number;
+  LinkID: string;
+  DepartmentId: number;
+  SubDepartmentId: number;
+  DataImage: {
+    type: string;
+    data: number[];
   };
+  DataName: string | null;
+  DataType: string;
+  FileName: string;
+  FileDescription: string;
+  Description: string;
+  FileDate: string;
+  Text1: string | null;
+  Date1: string | null;
+  Text2: string | null;
+  Date2: string | null;
+  Text3: string | null;
+  Date3: string | null;
+  Text4: string | null;
+  Date4: string | null;
+  Text5: string | null;
+  Date5: string | null;
+  Text6: string | null;
+  Date6: string | null;
+  Text7: string | null;
+  Date7: string | null;
+  Text8: string | null;
+  Date8: string | null;
+  Text9: string | null;
+  Date9: string | null;
+  Text10: string | null;
+  Date10: string | null;
+  Expiration: boolean;
+  ExpirationDate: string;
+  Confidential: boolean;
+  PageCount: number | null;
+  Remarks: string;
+  Active: boolean;
+  Createdby: string;
+  CreatedDate: string;
+  approvalstatus: string;
+  publishing_status: boolean;
+}
+
+export interface CurrentDocument {
+  document: NewDocument[];
   versions: DocumentVersion[];
   collaborations: DocumentCollaboration[];
   comments: any[];

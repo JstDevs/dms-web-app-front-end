@@ -1,96 +1,244 @@
 import React, { useState } from "react";
+import { Button } from "@chakra-ui/react";
+import { UserCircle, Lock, Unlock, ChevronDown, ChevronUp } from "lucide-react";
+import { CurrentDocument } from "@/types/Document";
+import toast from "react-hot-toast";
+import {
+  removeRestrictedFields,
+  restrictFields,
+} from "./documentHelper/Restriction";
 
-interface Props {
-  restrictedFields?: Record<string, string[]>; // userId => restricted field names
-  document: any;
-  users: { id: string; name: string }[];
-  onRestrictField: (fieldName: string, userId: string) => void;
-  onRemoveRestriction: (fieldName: string, userId: string) => void;
+interface FieldRestrictionProps {
+  document: CurrentDocument | null;
 }
 
-const FieldRestrictions: React.FC<Props> = ({
-  restrictedFields,
-  document,
-  users,
-  onRestrictField,
-  onRemoveRestriction,
-}) => {
-  const [selectedField, setSelectedField] = useState("");
-  const [selectedUser, setSelectedUser] = useState("");
+const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
+  if (!document) return null;
 
-  const handleRestrict = () => {
-    if (selectedField && selectedUser) {
-      onRestrictField(selectedField, selectedUser);
-      setSelectedField("");
+  const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
+  const [selectedCollaboratorId, setSelectedCollaboratorId] = useState<
+    number | null
+  >(null);
+  const [expandedUser, setExpandedUser] = useState<number | null>(null);
+
+  console.log(document, "documentFields");
+  const {
+    OCRDocumentReadFields: documentFields,
+    collaborations: collaborators,
+  } = document;
+  const handleRestrict = async () => {
+    if (!selectedCollaboratorId || !selectedFieldId) return;
+
+    const selectedField = documentFields.find(
+      (field) => field.ID === selectedFieldId
+    );
+
+    const Collaborator = collaborators.find(
+      (collaborator) => collaborator.CollaboratorID === selectedCollaboratorId
+    );
+
+    const payload = {
+      LinkId: selectedField?.LinkId || "",
+      Field: selectedField?.Field || "",
+      UserID: Collaborator?.CollaboratorID || 0,
+      UserRole: 1,
+      Reason: "just wanted to test it out", // TODO : ADD REASON Field
+    };
+
+    try {
+      const res = await restrictFields(
+        String(document.document[0].ID),
+        payload
+      );
+      console.log({ res });
+      if (!res.success) throw new Error("Failed to restrict field");
+
+      toast.success("Field restricted successfully!");
+    } catch (error) {
+      console.error("Failed to restrict field:", error);
+      toast.error("Failed to restrict field");
+    } finally {
+      setSelectedFieldId(null);
+      setSelectedCollaboratorId(null);
     }
   };
 
-  const fields = Object.keys(document.fields ?? {});
-
+  const toggleUserExpansion = (userId: number) => {
+    setExpandedUser(expandedUser === userId ? null : userId);
+  };
+  console.log(documentFields, "documentFields", collaborators);
+  // Group restrictions by collaborator
+  const restrictionsByCollaborator = collaborators?.reduce(
+    (acc, collaborator) => {
+      acc[collaborator.CollaboratorID] = documentFields.filter(
+        (field) => field.Restricted
+      );
+      return acc;
+    },
+    {} as Record<number, typeof documentFields>
+  );
+  // const handleRemoveRestriction = async (field: string, userId: string) => {
+  //   try {
+  //     const res = await removeRestrictedFields(
+  //       String(document.document.ID),
+  //       field
+  //     );
+  //   } catch (error) {
+  //     console.error("Failed to remove restriction:", error);
+  //   }
+  // };
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden p-4">
-      <h2 className="text-lg font-bold">Field Restrictions</h2>
-
-      <div className="flex flex-col md:flex-row gap-4 my-4">
-        <select
-          value={selectedField}
-          onChange={(e) => setSelectedField(e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Select Field</option>
-          {fields.map((field) => (
-            <option key={field} value={field}>
-              {field}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={selectedUser}
-          onChange={(e) => setSelectedUser(e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Select User</option>
-          {users.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.name}
-            </option>
-          ))}
-        </select>
-
-        <button
-          onClick={handleRestrict}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Restrict
-        </button>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="p-6 border-b border-gray-200">
+        <h2 className="text-xl font-semibold text-gray-900">
+          Field Restrictions
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Manage which fields collaborators can access
+        </p>
       </div>
 
-      {selectedUser && (
-        <div>
-          <h3 className="text-md font-semibold mt-4">
-            Restricted Fields for{" "}
-            {users.find((u) => u.id === selectedUser)?.name}
-          </h3>
-          <ul className="list-disc list-inside space-y-1 mt-2">
-            {(restrictedFields?.[selectedUser] || []).map((field) => (
-              <li key={field} className="flex justify-between items-center">
-                <span>{field}</span>
-                <button
-                  onClick={() => onRemoveRestriction(field, selectedUser)}
-                  className="text-sm text-red-600 hover:underline bg-red-50 px-2 py-1 rounded"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-            {(!restrictedFields?.[selectedUser] ||
-              restrictedFields[selectedUser].length === 0) && (
-              <p className="text-sm text-gray-500">No restrictions yet.</p>
-            )}
-          </ul>
+      <div className="p-6">
+        {/* Field and User Selection */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Document Field
+            </label>
+            <select
+              value={selectedFieldId || ""}
+              onChange={(e) =>
+                setSelectedFieldId(Number(e.target.value) || null)
+              }
+              className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="" hidden>
+                Select a field
+              </option>
+              {documentFields?.map((field) => (
+                <option key={field.ID} value={field.ID}>
+                  {field.Field}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Collaborator
+            </label>
+            <select
+              value={selectedCollaboratorId || ""}
+              onChange={(e) =>
+                setSelectedCollaboratorId(Number(e.target.value) || null)
+              }
+              className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="" hidden>
+                Select a collaborator
+              </option>
+              {collaborators?.map((collab) => (
+                <option key={collab.ID} value={collab.CollaboratorID}>
+                  {collab.CollaboratorName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <Button
+              onClick={handleRestrict}
+              disabled={!selectedFieldId || !selectedCollaboratorId}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              Restrict Field
+            </Button>
+          </div>
         </div>
-      )}
+
+        {/* Restrictions List */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Current Restrictions
+          </h3>
+
+          {collaborators?.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No collaborators found</p>
+            </div>
+          ) : (
+            collaborators?.map((collab) => (
+              <div
+                key={collab.ID}
+                className="border border-gray-200 rounded-lg overflow-hidden"
+              >
+                <div
+                  className="flex items-center justify-between p-4 bg-gray-50 cursor-pointer"
+                  onClick={() => toggleUserExpansion(collab.CollaboratorID)}
+                >
+                  <div className="flex items-center gap-3">
+                    <UserCircle className="h-5 w-5 text-gray-500" />
+                    <span className="font-medium">
+                      {collab.CollaboratorName}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">
+                      {restrictionsByCollaborator[collab.CollaboratorID]
+                        ?.length || 0}{" "}
+                      restricted fields
+                    </span>
+                    {expandedUser === collab.CollaboratorID ? (
+                      <ChevronUp className="h-5 w-5 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-gray-500" />
+                    )}
+                  </div>
+                </div>
+
+                {expandedUser === collab.CollaboratorID && (
+                  <div className="p-4 bg-white">
+                    {restrictionsByCollaborator[collab.CollaboratorID]
+                      ?.length ? (
+                      <ul className="space-y-2">
+                        {restrictionsByCollaborator[collab.CollaboratorID].map(
+                          (field) => (
+                            <li
+                              key={field.ID}
+                              className="flex justify-between items-center p-2 hover:bg-gray-50 rounded"
+                            >
+                              <span className="font-medium">{field.Field}</span>
+                              {/* <Button
+                              TODO 
+                                onClick={() =>
+                                  handleRemoveRestriction(
+                                    String(field.ID),
+                                    String(collab.CollaboratorID)
+                                  )
+                                }
+                                size="sm"
+                                variant="outline"
+                                colorScheme="red"
+                              >
+                                <Unlock className="h-4 w-4" />
+                                Remove Restriction
+                              </Button> */}
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        No field restrictions for this collaborator
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 };

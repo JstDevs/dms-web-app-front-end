@@ -24,14 +24,14 @@ const buildDocumentFormData = (
     doc.FileDate ? new Date(doc.FileDate).toISOString().slice(0, 10) : ""
   );
 
-  if (doc.ExpirationDate) {
+  if (doc.Expiration && doc.ExpirationDate) {
     formData.append(
       "expdate",
       new Date(doc.ExpirationDate).toISOString().slice(0, 10)
     );
     formData.append("expiration", "true");
   } else {
-    formData.append("expdate", "");
+    // formData.append("expdate", "");
     formData.append("expiration", "false");
   }
 
@@ -41,7 +41,7 @@ const buildDocumentFormData = (
 
   // Boolean flags
   formData.append("confidential", String(doc.Confidential || false));
-  formData.append("active", String(doc.Active || false));
+  formData.append("active", String(doc.Active || true));
   formData.append("publishing_status", String(doc.publishing_status || false));
 
   return formData;
