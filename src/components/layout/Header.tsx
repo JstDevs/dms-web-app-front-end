@@ -79,7 +79,7 @@ const Header: React.FC = () => {
           )}
 
           {/* Notification Dropdown */}
-          <div className="relative" ref={notificationRef}>
+          {/* <div className="relative" ref={notificationRef}>
             <button
               onClick={() => {
                 setIsNotificationOpen(!isNotificationOpen);
@@ -139,7 +139,7 @@ const Header: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
+          </div> */}
 
           {/* Profile Dropdown */}
           <div className="relative" ref={profileRef}>

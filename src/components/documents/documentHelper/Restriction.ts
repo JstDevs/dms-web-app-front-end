@@ -20,8 +20,9 @@ export const removeRestrictedFields = async (
   restrictionId: string
 ) => {
   try {
-    const response = await axios.get(
-      `/documents/documents/${documentId}/restrictions/${restrictionId}`
+    const response = await axios.delete(
+      `/documents/documents/${documentId}/restrictions/${restrictionId}`,
+      {}
     );
     return response.data;
   } catch (error) {

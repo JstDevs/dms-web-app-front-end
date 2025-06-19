@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Users,
   MessageSquare,
@@ -21,6 +21,28 @@ interface DocumentCollaborationProps {
   document: CurrentDocument | null;
 }
 
+interface Comment {
+  ID: number;
+  DocumentID: number;
+  CollaboratorID: string;
+  CollaboratorName: string;
+  Comment: string;
+  CommentDate: string;
+  CommentType: string;
+  ParentCommentID: string | null;
+  PageNumber: number;
+}
+
+interface Collaborator {
+  ID: number;
+  DocumentID: number;
+  CollaboratorID: string;
+  CollaboratorName: string;
+  PermissionLevel: "READ" | "WRITE" | "COMMENT" | "ADMIN";
+  AddedBy: string;
+  AddedDate: string;
+}
+
 const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
   document,
 }) => {
@@ -35,6 +57,46 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (document) {
+      fetchComments();
+      fetchCollaborators();
+    }
+  }, [document]);
+
+  const fetchComments = async () => {
+    try {
+      const response = await axios.get(
+        `/documents/documents/${document?.document[0].ID}/comments`
+      );
+      if (response.data.success) {
+        setComments(response.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch comments:", error);
+      showMessage("Failed to load comments. Please try again.", true);
+    }
+  };
+
+  const fetchCollaborators = async () => {
+    try {
+      const response = await axios.get(
+        `/documents/documents/${document?.document[0].ID}/collaborators`
+      );
+      if (response.data.success) {
+        setCollaborators(response.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch collaborators:", error);
+      showMessage("Failed to load collaborators. Please try again.", true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const showMessage = (message: string, isError: boolean = false) => {
     if (isError) {
@@ -54,19 +116,19 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
       const response = await axios.post(
         `/documents/documents/${document.document[0].ID}/comments`,
         {
-          collaboratorId: loggedUser?.ID, // You might want to get this from auth context
-          collaboratorName: loggedUser?.UserName, // You might want to get this from auth context
+          collaboratorId: loggedUser?.ID,
+          collaboratorName: loggedUser?.UserName,
           comment: comment.trim(),
           commentType: "general",
           parentCommentId: "",
-          pageNumber: "",
+          pageNumber: 1,
         }
       );
 
       if (response.data.success) {
         setComment("");
         showMessage("Comment added successfully!");
-        // You might want to refresh the document data here
+        fetchComments(); // Refresh comments
       }
     } catch (error: any) {
       console.error("Failed to add comment:", error);
@@ -80,15 +142,15 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
     if (!document) return;
 
     // Check if user is already a collaborator
-    const isAlreadyCollaborator = document.collaborations.some(
-      (c) => c.CollaboratorID === user.ID
+    const isAlreadyCollaborator = collaborators.some(
+      (c) => c.CollaboratorID.toString() == user.ID.toString()
     );
 
     if (isAlreadyCollaborator) {
       showMessage(`${user.UserName} is already a collaborator`, true);
       return;
     }
-    console.log({ user });
+
     setIsAddingCollaborator(true);
     try {
       const response = await axios.post(
@@ -97,14 +159,14 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
           collaboratorId: user.ID.toString(),
           collaboratorName: user.UserName,
           permissionLevel: selectedPermission,
-          addedBy: loggedUser?.UserName, // You might want to get this from auth context TODO: Change this useAuth
+          addedBy: loggedUser?.UserName,
         }
       );
 
       if (response.data.success) {
         setShowUserSelector(false);
         showMessage(`${user.UserName} added as collaborator successfully!`);
-        // You might want to refresh the document data here
+        fetchCollaborators(); // Refresh collaborators
       }
     } catch (error: any) {
       console.error("Failed to add collaborator:", error);
@@ -125,6 +187,14 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
   };
 
   if (!document) return null;
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -160,12 +230,12 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
               <h3 className="text-sm font-semibold text-gray-700">Comments</h3>
             </div>
             <div className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full">
-              {document?.comments?.length || 0} comments
+              {comments.length} comments
             </div>
           </div>
 
           <div className="overflow-y-auto max-h-[calc(100vh-500px)] p-4 space-y-4">
-            {!document.comments || document.comments.length === 0 ? (
+            {comments.length === 0 ? (
               <div className="text-center py-12">
                 <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                   <MessageSquare size={24} className="text-gray-400" />
@@ -176,9 +246,9 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                 </p>
               </div>
             ) : (
-              document.comments.map((comment) => (
+              comments.map((comment) => (
                 <div
-                  key={comment.id}
+                  key={comment.ID}
                   className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200 hover:shadow-sm transition-shadow"
                 >
                   <div className="flex items-start">
@@ -190,14 +260,14 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm font-semibold text-gray-900">
-                          {comment.userName}
+                          {comment.CollaboratorName}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {formatDate(comment.createdAt)}
+                          {formatDate(comment.CommentDate)}
                         </p>
                       </div>
                       <p className="text-sm text-gray-700 leading-relaxed">
-                        {comment.text}
+                        {comment.Comment}
                       </p>
                     </div>
                   </div>
@@ -263,7 +333,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
 
           {/* Collaborator List */}
           <div className="p-4 space-y-3 max-h-64 overflow-y-auto">
-            {document?.collaborations?.map((collaborator) => (
+            {collaborators.map((collaborator) => (
               <div
                 key={collaborator.ID}
                 className="flex items-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
@@ -297,8 +367,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
               </div>
             ))}
 
-            {(!document.collaborations ||
-              document.collaborations.length === 0) && (
+            {collaborators.length === 0 && (
               <div className="text-center py-8">
                 <div className="p-3 bg-gray-100 rounded-full w-12 h-12 mx-auto mb-3 flex items-center justify-center">
                   <Users size={20} className="text-gray-400" />
@@ -368,8 +437,9 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                     users
                       .filter(
                         (user) =>
-                          !document.collaborations.some(
-                            (c) => c.CollaboratorID === user.ID
+                          !collaborators.some(
+                            (c) =>
+                              c.CollaboratorID.toString() == user.ID.toString()
                           )
                       )
                       .map((user) => (
@@ -413,7 +483,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
             </div>
 
             <div className="space-y-3">
-              {document.collaborations.slice(0, 3).map((collaboration) => (
+              {collaborators.slice(0, 5).map((collaboration) => (
                 <div
                   key={collaboration.ID}
                   className="flex items-start text-xs"
@@ -437,8 +507,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                 </div>
               ))}
 
-              {(!document.collaborations ||
-                document.collaborations.length === 0) && (
+              {collaborators.length === 0 && (
                 <p className="text-xs text-gray-500">No recent activity</p>
               )}
             </div>

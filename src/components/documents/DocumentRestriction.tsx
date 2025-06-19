@@ -21,11 +21,13 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
   >(null);
   const [expandedUser, setExpandedUser] = useState<number | null>(null);
 
-  console.log(document, "documentFields");
   const {
     OCRDocumentReadFields: documentFields,
     collaborations: collaborators,
+    restrictions,
+    document: docInfo,
   } = document;
+
   const handleRestrict = async () => {
     if (!selectedCollaboratorId || !selectedFieldId) return;
 
@@ -46,11 +48,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
     };
 
     try {
-      const res = await restrictFields(
-        String(document.document[0].ID),
-        payload
-      );
-      console.log({ res });
+      const res = await restrictFields(String(docInfo[0].ID), payload);
       if (!res.success) throw new Error("Failed to restrict field");
 
       toast.success("Field restricted successfully!");
@@ -66,27 +64,35 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
   const toggleUserExpansion = (userId: number) => {
     setExpandedUser(expandedUser === userId ? null : userId);
   };
-  console.log(documentFields, "documentFields", collaborators);
+
   // Group restrictions by collaborator
   const restrictionsByCollaborator = collaborators?.reduce(
     (acc, collaborator) => {
-      acc[collaborator.CollaboratorID] = documentFields.filter(
-        (field) => field.Restricted
-      );
+      acc[collaborator.CollaboratorID] =
+        restrictions?.filter(
+          (restriction) =>
+            restriction.UserID === String(collaborator.CollaboratorID)
+        ) || [];
       return acc;
     },
-    {} as Record<number, typeof documentFields>
+    {} as Record<number, typeof restrictions>
   );
-  // const handleRemoveRestriction = async (field: string, userId: string) => {
-  //   try {
-  //     const res = await removeRestrictedFields(
-  //       String(document.document.ID),
-  //       field
-  //     );
-  //   } catch (error) {
-  //     console.error("Failed to remove restriction:", error);
-  //   }
-  // };
+
+  const handleRemoveRestriction = async (restrictionId: number) => {
+    try {
+      const res = await removeRestrictedFields(
+        String(docInfo[0].ID),
+        String(restrictionId)
+      );
+      if (!res.success) throw new Error("Failed to remove restriction");
+
+      toast.success("Restriction removed successfully!");
+    } catch (error) {
+      console.error("Failed to remove restriction:", error);
+      toast.error("Failed to remove restriction");
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="p-6 border-b border-gray-200">
@@ -202,27 +208,67 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                       ?.length ? (
                       <ul className="space-y-2">
                         {restrictionsByCollaborator[collab.CollaboratorID].map(
-                          (field) => (
+                          (restriction) => (
                             <li
-                              key={field.ID}
-                              className="flex justify-between items-center p-2 hover:bg-gray-50 rounded"
+                              key={restriction.ID}
+                              className="flex flex-col p-3 hover:bg-gray-50 rounded-lg border border-gray-100"
                             >
-                              <span className="font-medium">{field.Field}</span>
-                              {/* <Button
-                              TODO 
-                                onClick={() =>
-                                  handleRemoveRestriction(
-                                    String(field.ID),
-                                    String(collab.CollaboratorID)
-                                  )
-                                }
-                                size="sm"
-                                variant="outline"
-                                colorScheme="red"
-                              >
-                                <Unlock className="h-4 w-4" />
-                                Remove Restriction
-                              </Button> */}
+                              <div className="flex justify-between items-start">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-gray-900">
+                                      {restriction.Field}
+                                    </span>
+                                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                                      {restriction.LinkID}
+                                    </span>
+                                  </div>
+
+                                  <div className="text-sm text-gray-500">
+                                    <span>
+                                      Restricted on:{" "}
+                                      {new Date(
+                                        restriction.CreatedDate
+                                      ).toLocaleDateString()}
+                                    </span>
+                                    {restriction.Reason && (
+                                      <span className="ml-3">
+                                        Reason: {restriction.Reason}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    onClick={() =>
+                                      handleRemoveRestriction(restriction.ID)
+                                    }
+                                    size="sm"
+                                    variant="outline"
+                                    colorScheme="red"
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Unlock className="h-4 w-4" />
+                                    <span>Remove</span>
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div className="mt-2 flex gap-4 text-xs text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <UserCircle className="h-3 w-3" />
+                                  <span>
+                                    Restricted by: User {restriction.CreatedBy}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Lock className="h-3 w-3" />
+                                  <span>
+                                    Access Level: {restriction.UserRole}
+                                  </span>
+                                </div>
+                              </div>
                             </li>
                           )
                         )}

@@ -49,6 +49,10 @@ export const UsersPage: React.FC = () => {
       toast.error("Passwords do not match");
       return;
     }
+    if (formData.password.length <= 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
     if (
       !formData.password ||
       !formData.confirmPassword ||
@@ -108,6 +112,10 @@ export const UsersPage: React.FC = () => {
     e.preventDefault();
     if (formData.password && formData.password !== formData.confirmPassword) {
       toast.error("Passwords do not match");
+      return;
+    }
+    if (formData.password.length <= 6) {
+      toast.error("Password must be at least 6 characters long");
       return;
     }
     if (!formData.username || accessLevelValue.length === 0) {
@@ -214,6 +222,7 @@ export const UsersPage: React.FC = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, username: e.target.value })
                   }
+                  placeholder="Enter username"
                   required
                 />
 
@@ -263,6 +272,8 @@ export const UsersPage: React.FC = () => {
                     setFormData({ ...formData, password: e.target.value })
                   }
                   required={!isEditing}
+                  placeholder="Password"
+                  min={6}
                 />
                 {(formData.password || !isEditing) && (
                   <Input
@@ -275,6 +286,7 @@ export const UsersPage: React.FC = () => {
                         confirmPassword: e.target.value,
                       })
                     }
+                    min={6}
                     required={!isEditing}
                   />
                 )}

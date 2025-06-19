@@ -61,6 +61,16 @@ export const SubDepartments: React.FC = () => {
       toast.error("Both fields are required");
       return;
     }
+    if (formData.name.trim().length < 3 || formData.code.trim().length < 3) {
+      toast.error("Name and code must be at least 3 characters long");
+      return;
+    }
+    if (formData.name.trim().length > 20 || formData.code.trim().length > 20) {
+      toast.error(
+        "Name and code must not be at greater than 20 characters long"
+      );
+      return;
+    }
     // Check if sub-department already exists
     const isDepartmentExists = subDepartments.some(
       (department) =>
@@ -105,6 +115,16 @@ export const SubDepartments: React.FC = () => {
   const handleEditSubmitInline = async (id: number) => {
     if (!formData.name || !formData.code) {
       toast.error("Both fields are required");
+      return;
+    }
+    if (formData.name.length < 3 || formData.code.length < 3) {
+      toast.error("Name and code must be at least 3 characters long");
+      return;
+    }
+    if (formData.name.trim().length > 20 || formData.code.trim().length > 20) {
+      toast.error(
+        "Name and code must not be at greater than 20 characters long"
+      );
       return;
     }
     // Check if sub-department already exists (excluding current department)
