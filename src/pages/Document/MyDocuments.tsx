@@ -8,11 +8,12 @@ import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchDocuments } from "./utils/uploadAPIs";
+import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
 
 const MyDocuments: React.FC = () => {
   // const { documents } = useDocument();
   const navigate = useNavigate();
-
+  const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   // State for filters
   const [searchTerm, setSearchTerm] = useState("");
   const [department, setDepartment] = useState("");
@@ -42,14 +43,14 @@ const MyDocuments: React.FC = () => {
     loadDocuments();
   }, [selectedRole, currentPage]);
   // Department/subDept options
-  const departments = Array.from(new Set(documents.map((d) => d.DepartmentId)));
-  const subDepartments = Array.from(
-    new Set(
-      documents
-        .filter((d) => (department ? d.DepartmentId === +department : true))
-        .map((d) => d.SubDepartmentId)
-    )
-  );
+  // const departments = Array.from(new Set(documents.map((d) => d.DepartmentId)));
+  // const subDepartments = Array.from(
+  //   new Set(
+  //     documents
+  //       .filter((d) => (department ? d.DepartmentId === +department : true))
+  //       .map((d) => d.SubDepartmentId)
+  //   )
+  // );
 
   // Apply filters whenever any filter changes
   // Filtering logic
@@ -95,14 +96,6 @@ const MyDocuments: React.FC = () => {
               className="py-2 w-full"
             />
             <FiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            {/* {searchTerm && (
-              <button
-                onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <FiX />
-              </button>
-            )} */}
           </div>
 
           <button
@@ -125,23 +118,16 @@ const MyDocuments: React.FC = () => {
                   setDepartment(e.target.value);
                   setSubDepartment(""); // Reset sub-department when department changes
                 }}
-                options={[
-                  { value: "", label: "All Departments" },
-                  ...departments.map((dept) => ({ value: dept, label: dept })),
-                ]}
+                placeholder="All Departments"
+                options={departmentOptions}
               />
 
               <Select
                 label="Sub-Department"
                 value={subDepartment}
                 onChange={(e) => setSubDepartment(e.target.value)}
-                options={[
-                  { value: "", label: "All Sub-Departments" },
-                  ...subDepartments.map((subDept) => ({
-                    value: subDept,
-                    label: subDept,
-                  })),
-                ]}
+                options={subDepartmentOptions}
+                placeholder="All Sub-Departments"
                 disabled={!department} // Only enable when department is selected
               />
             </div>
@@ -166,14 +152,6 @@ const MyDocuments: React.FC = () => {
         <p className="text-sm text-gray-600">
           Showing {filteredDocs.length} of {documents.length} documents
         </p>
-        {filteredDocs.length === 0 && (
-          <button
-            onClick={clearFilters}
-            className="text-sm text-blue-600 hover:text-blue-800"
-          >
-            Clear filters
-          </button>
-        )}
       </div>
 
       {/* Documents Grid */}
@@ -196,12 +174,6 @@ const MyDocuments: React.FC = () => {
           <p className="text-gray-500">
             No documents found matching your criteria
           </p>
-          <button
-            onClick={clearFilters}
-            className="mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
-          >
-            Clear all filters
-          </button>
         </div>
       )}
     </div>

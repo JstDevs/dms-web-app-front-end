@@ -10,6 +10,7 @@ import {
   useUnrecordedDocuments,
 } from "./utils/useUnrecorded";
 import { runOCR } from "./utils/unrecordedHelpers";
+import { useDocument } from "@/contexts/DocumentContext";
 interface FormData {
   department: string;
   subdepartment: string;
@@ -49,6 +50,7 @@ const OCRUnrecordedUI = () => {
   const { templateOptions } = useTemplates();
   const { selectedRole } = useAuth();
   const { unrecordedDocuments, fetchUnrecorded } = useUnrecordedDocuments();
+  const { currentDocument, loading, fetchDocument } = useDocument();
   const handleOCR = async () => {
     const selectedDocument = unrecordedDocuments.find(
       (doc) => doc.FileName === formData.selectedDoc?.FileName
@@ -129,7 +131,17 @@ const OCRUnrecordedUI = () => {
       // previewUrl,
     });
   };
-
+  const handlePreviewDoc = async () => {
+    if (!formData.selectedDoc) return;
+    try {
+      const res = await fetchDocument(formData.selectedDoc.ID.toString());
+      console.log(res, "handlePreviewDoc");
+      toast.success("OCR processing started successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to start OCR");
+    }
+  };
   const isSameAsLastFetch =
     formData.department === formData.lastFetchedValues?.department &&
     formData.subdepartment === formData.lastFetchedValues?.subdepartment &&
@@ -217,52 +229,51 @@ const OCRUnrecordedUI = () => {
           )}
 
           {formData.selectedDoc && (
-            <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
-              onClick={handleOCR}
-              disabled={!formData.selectedDoc}
-            >
-              Start OCR
-            </Button>
+            <div className="flex gap-4 max-sm:flex-col w-full flex-1">
+              <Button
+                className="bg-gray-100 hover:bg-gray-200  px-4 py-2 rounded text-sm flex-1 "
+                onClick={handlePreviewDoc}
+                disabled={!formData.selectedDoc || loading}
+              >
+                {loading ? "Loading..." : "  Preview Doc"}
+              </Button>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm flex-1 "
+                onClick={handleOCR}
+                disabled={!formData.selectedDoc}
+              >
+                Start OCR
+              </Button>
+            </div>
           )}
         </div>
 
         {/* Right Panel - Document Preview */}
         <div className="w-full lg:w-1/2 p-2 sm:p-4 bg-white">
           {/* <div className="w-full h-full flex items-center justify-center relative"> */}
-          {formData.isLoaded && formData.selectedDoc ? (
+          {currentDocument?.document[0]?.filepath && formData.selectedDoc ? (
             <div className="w-full max-h-[60vh] overflow-auto border rounded-md">
               <div
                 className="relative"
                 style={{ width: "100%", minWidth: "100%", height: "100%" }}
               >
-                {formData.selectedDoc.DataType === "pdf" ? (
-                  <iframe
-                    src={formData.previewUrl}
-                    title="PDF Preview"
-                    className="w-full h-full"
-                  />
-                ) : (
-                  <>
-                    <img
-                      ref={imgRef}
-                      src={formData.previewUrl}
-                      alt="Document Preview"
-                      className="block"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        minWidth: "100%",
-                      }}
-                      draggable={false}
-                    />
-                  </>
-                )}
+                <img
+                  ref={imgRef}
+                  src={currentDocument?.document[0]?.filepath || ""}
+                  alt="Document Preview"
+                  className="block"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    minWidth: "100%",
+                  }}
+                  draggable={false}
+                />
               </div>
             </div>
           ) : (
             <p className="text-gray-400 text-center">
-              Select a document to preview
+              Load document to preview
             </p>
           )}
         </div>

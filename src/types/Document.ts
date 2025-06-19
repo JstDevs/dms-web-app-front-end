@@ -69,12 +69,14 @@ export interface ActivityEntry {
 export interface DocumentVersionChanges {
   FileName?: string;
   FileDate?: string;
+  FileDescription?: string;
+  Description?: string;
   Expiration?: boolean;
-  Confidential?: boolean;
   ExpirationDate?: string;
+  Confidential?: boolean;
   Remarks?: string;
+  publishing_status?: string | boolean;
 }
-
 export interface DocumentVersion {
   Changes: string | DocumentVersionChanges;
   ID: number;
@@ -204,6 +206,7 @@ export interface NewDocument {
   CreatedDate: string;
   approvalstatus: string;
   publishing_status: boolean;
+  filepath: string;
 }
 
 export interface CurrentDocument {
@@ -215,11 +218,21 @@ export interface CurrentDocument {
   restrictions: any[];
   OCRDocumentReadFields: OCRDocumentReadField[];
 }
-
+export interface DocumentListType {
+  documents: any[]; // Replace 'any' with your actual document type
+  filteredDocs: any[];
+  currentPage: number;
+  totalPages: number;
+  loading: boolean;
+  error: string | null;
+}
 export interface DocumentContextType {
+  documentList: DocumentListType | null;
   currentDocument: CurrentDocument | null;
   loading: boolean;
   error: string | null;
-  fetchDocument: (id: string) => Promise<void>;
+  fetchDocument: (id: string) => Promise<CurrentDocument>;
+  fetchDocumentList: (userId: number, page?: number) => Promise<void>;
+  filterDocuments: (filterFn: (doc: any) => boolean) => void;
   updateDocument: (updatedDocument: CurrentDocument) => void;
 }

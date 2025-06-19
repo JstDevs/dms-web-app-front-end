@@ -596,6 +596,16 @@ export default function DocumentUpload() {
               <tbody>
                 {filteredDocs.map((docWrapper) => {
                   const doc = docWrapper.newdoc;
+                  const CurrentDepartment =
+                    departmentOptions.find(
+                      (dep) =>
+                        dep.value.toString() == doc.DepartmentId.toString()
+                    )?.label || "N/A";
+                  const CurrentSubDepartment =
+                    subDepartmentOptions.find(
+                      (dep) =>
+                        dep.value.toString() == doc.SubDepartmentId.toString()
+                    )?.label || "N/A";
                   return (
                     <tr key={doc.ID}>
                       <td className="border px-6 py-3">{doc.ID}</td>
@@ -614,9 +624,9 @@ export default function DocumentUpload() {
                           ? new Date(doc.ExpirationDate).toLocaleDateString()
                           : "-"}
                       </td>
-                      <td className="border px-6 py-3">{doc.DepartmentId}</td>
+                      <td className="border px-6 py-3">{CurrentDepartment}</td>
                       <td className="border px-6 py-3">
-                        {doc.SubDepartmentId}
+                        {CurrentSubDepartment}
                       </td>
                       <td className="border px-6 py-3">
                         {doc.Confidential ? "Yes" : "No"}

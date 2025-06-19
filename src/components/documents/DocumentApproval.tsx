@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 // import { Button } from "@chakra-ui/react";
 import axios from "@/api/axios";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DocumentApprovalProps {
   document: CurrentDocument | null;
@@ -24,7 +25,7 @@ interface ApprovalRequest {
   RequestedDate: string;
   ApproverID: string;
   ApproverName: string;
-  Status: "PENDING" | "APPROVED" | "REJECTED";
+  Status: "PENDING" | "1" | "0";
   ApprovalDate: string | null;
   Comments: string | null;
   RejectionReason: string | null;
@@ -41,7 +42,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
     []
   );
   const [loading, setLoading] = useState(true);
-
+  const { user: loggedUser } = useAuth();
   useEffect(() => {
     if (document) {
       fetchApprovalRequests();
@@ -79,10 +80,13 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
 
     setProcessingApproval(requestId);
     try {
-      const response = await axios.post(
-        `/documents/documents/${document.document[0].ID}/approvals/${requestId}/approve`,
+      const response = await axios.put(
+        `/documents/documents/${document.document[0].ID}/approvals/${requestId}`,
         {
-          comment: approvalComment.trim(),
+          status: "1",
+          comments: approvalComment.trim(),
+          rejectionReason: "",
+          approverId: loggedUser?.ID,
         }
       );
 
@@ -109,10 +113,13 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
 
     setProcessingApproval(requestId);
     try {
-      const response = await axios.post(
-        `/documents/documents/${document.document[0].ID}/approvals/${requestId}/reject`,
+      const response = await axios.put(
+        `/documents/documents/${document.document[0].ID}/approvals/${requestId}`,
         {
-          reason: approvalComment.trim(),
+          status: "0",
+          comments: approvalComment.trim(),
+          rejectionReason: "",
+          approverId: loggedUser?.ID,
         }
       );
 
@@ -224,16 +231,12 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
               </span>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                 <CheckCircle className="h-4 w-4 mr-1" />
-                {
-                  approvalRequests.filter((r) => r.Status === "APPROVED").length
-                }{" "}
+                {approvalRequests.filter((r) => r.Status === "1").length}{" "}
                 Approved
               </span>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
                 <XCircle className="h-4 w-4 mr-1" />
-                {
-                  approvalRequests.filter((r) => r.Status === "REJECTED").length
-                }{" "}
+                {approvalRequests.filter((r) => r.Status === "0").length}{" "}
                 Rejected
               </span>
             </div>
@@ -370,7 +373,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
                   <div className="flex items-center gap-3">
                     <div
                       className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                        request.Status === "APPROVED"
+                        request.Status === "1"
                           ? "bg-gradient-to-r from-green-500 to-emerald-500"
                           : "bg-gradient-to-r from-red-500 to-pink-500"
                       }`}
@@ -385,10 +388,8 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
                         Requested: {formatDate(request.RequestedDate)}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {request.Status === "APPROVED"
-                          ? "Approved"
-                          : "Rejected"}
-                        : {formatDate(request.ApprovalDate)}
+                        {request.Status === "1" ? "Approved" : "Rejected"}:{" "}
+                        {formatDate(request.ApprovalDate)}
                       </p>
                     </div>
                   </div>
@@ -407,7 +408,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
                 {(request.Comments || request.RejectionReason) && (
                   <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
                     <p className="text-xs font-medium text-gray-700 mb-1">
-                      {request.Status === "APPROVED"
+                      {request.Status === "1"
                         ? "Comment:"
                         : "Reason for rejection:"}
                     </p>

@@ -12,6 +12,8 @@ import {
   AlertTriangle,
   MessageSquare,
   File,
+  Send,
+  AlignLeft,
 } from "lucide-react";
 import {
   CurrentDocument,
@@ -108,7 +110,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
 
     return (
       <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid gap-4">
           {changes.FileName && (
             <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -131,6 +133,20 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                 <p className="text-gray-900">
                   {new Date(changes.FileDate).toLocaleDateString()}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {changes.FileDescription && (
+            <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+              <div className="p-2 bg-cyan-100 rounded-lg">
+                <FileText size={16} className="text-cyan-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">
+                  File Description
+                </p>
+                <p className="text-gray-900">{changes.FileDescription}</p>
               </div>
             </div>
           )}
@@ -180,7 +196,43 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
               </div>
             </div>
           )}
+
+          {changes.publishing_status !== undefined && (
+            <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <Send size={16} className="text-yellow-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">
+                  Publishing Status
+                </p>
+                <p className="text-gray-900">
+                  {changes.publishing_status === "true"
+                    ? "Published"
+                    : "Not Published"}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
+
+        {changes.Description && (
+          <div className="p-3 bg-white rounded-lg border">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-indigo-100 rounded-lg">
+                <AlignLeft size={16} className="text-indigo-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </p>
+                <p className="text-gray-900 leading-relaxed">
+                  {changes.Description}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {changes.Remarks && (
           <div className="p-3 bg-white rounded-lg border">
@@ -224,8 +276,8 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-2 md:p-6 border border-blue-200">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-medium text-gray-900">
                 {selectedVersion.VersionNumber}
@@ -253,7 +305,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-2 md:p-6 border border-green-200">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-medium text-gray-900">
                 {compareVersion.VersionNumber}
@@ -312,7 +364,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
           )} */}
         </div>
 
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-2 md:p-6 border border-blue-100">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -377,7 +429,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-2 md:p-6 shadow-sm">
           <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
             <Edit3 size={18} className="text-gray-600" />
             Version Changes
@@ -503,7 +555,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-2 md:p-6">
           {!selectedVersion ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="p-4 bg-gray-100 rounded-full mb-4">
