@@ -344,7 +344,7 @@ export const SubDepartments: React.FC = () => {
                           }
                         />
                       ) : (
-                        <span className="font-medium text-blue-700">
+                        <span className="font-medium text-gray-700">
                           {dept.Name}
                         </span>
                       )}
@@ -361,7 +361,7 @@ export const SubDepartments: React.FC = () => {
                           }
                         />
                       ) : (
-                        <span className="text-blue-600">{dept.Code}</span>
+                        <span className="text-gray-600">{dept.Code}</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
