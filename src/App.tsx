@@ -131,8 +131,10 @@ function App() {
 }
 // Add this new component
 function RootRedirect() {
-  const { isAuthenticated } = useAuth();
-  console.log({ isAuthenticated });
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) return null; // or <LoadingSpinner />
+
   if (isAuthenticated) {
     return <Navigate to="/home" replace />;
   } else {
