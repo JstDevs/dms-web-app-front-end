@@ -46,7 +46,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const token = localStorage.getItem("auth_token");
       const storedUser = localStorage.getItem("user");
       const storedRole = localStorage.getItem("selected_role");
-
       if (token && storedUser) {
         try {
           const userData = JSON.parse(storedUser) as User;
@@ -125,7 +124,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsAuthenticated(false);
     toast.success("Logged out successfully");
   };
-
   return (
     <AuthContext.Provider
       value={{

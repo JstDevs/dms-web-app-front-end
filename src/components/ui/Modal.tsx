@@ -45,7 +45,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
         >
           <X size={24} />
         </button>
-        <div className="h-full overflow-hidden rounded-xl p-4">{children}</div>
+        <div className="h-full overflow-y-auto rounded-xl p-4">{children}</div>
       </div>
     </div>
   );

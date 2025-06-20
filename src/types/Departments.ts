@@ -9,6 +9,7 @@ export interface SubDepartment {
   CreatedDate: string;
   ModifyBy: string | null;
   ModifyDate: string | null;
+  DepartmentID: number;
 }
 
 // Department Types
@@ -21,4 +22,5 @@ export interface Department {
   CreatedDate: string;
   ModifyBy: string | null;
   ModifyDate: string | null;
+  SubDepartments?: SubDepartment[];
 }
