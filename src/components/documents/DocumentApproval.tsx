@@ -224,7 +224,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
             <h3 className="text-sm font-medium text-gray-700 mb-1">
               Approval Status
             </h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                 <Clock className="h-4 w-4 mr-1" />
                 {pendingRequests.length} Pending
