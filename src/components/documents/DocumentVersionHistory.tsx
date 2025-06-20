@@ -442,7 +442,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
         <h2 className="text-xl font-semibold text-gray-900">Version History</h2>
         <p className="text-sm text-gray-600 mt-1">
           View and compare previous versions of this document

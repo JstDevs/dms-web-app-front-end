@@ -1,7 +1,7 @@
 import axios from "@/api/axios";
 interface RestrictionPayload {
   Field: string; // Only if needed
-  LinkId: string;
+  LinkID: string;
   UserID: number;
   UserRole: number;
   Reason: string;
@@ -12,6 +12,17 @@ export const fetchRestrictions = async () => {
     return response.data;
   } catch (error) {
     console.error("Error fetching restrictions:", error);
+    throw error;
+  }
+};
+export const fetchDocumentRestrictions = async (documentId: string) => {
+  try {
+    const response = await axios.get(
+      `/documents/documents/${documentId}/restrictions`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching document restrictions:", error);
     throw error;
   }
 };

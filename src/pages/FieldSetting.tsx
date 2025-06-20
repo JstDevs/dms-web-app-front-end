@@ -175,23 +175,29 @@ export const FieldSettingsPanel = forwardRef(
         </div>
 
         {/* Footer */}
-        <div className="flex flex-col sm:flex-row justify-between items-center pt-4 gap-3">
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
-              onClick={handleSave}
-              disabled={fields.every((f) => !f.active)}
-            >
-              Save
-            </Button>
-            <Button
-              className="bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded text-sm w-full"
-              onClick={handleCancel}
-            >
-              Cancel
-            </Button>
+        {fields.length > 0 ? (
+          <div className="flex flex-col sm:flex-row justify-between items-center pt-4 gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
+                onClick={handleSave}
+                disabled={fields.every((f) => !f.active)}
+              >
+                Save
+              </Button>
+              <Button
+                className="bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded text-sm w-full"
+                onClick={handleCancel}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <h2 className="text-lg text-center text-gray-500">
+            No fields available
+          </h2>
+        )}
       </div>
     );
   }

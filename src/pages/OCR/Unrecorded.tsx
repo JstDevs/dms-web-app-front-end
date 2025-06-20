@@ -127,7 +127,7 @@ const OCRUnrecordedUI = () => {
     setFormData({
       ...formData,
       selectedDoc: doc,
-      isLoaded: true,
+      // isLoaded: true,
       // previewUrl,
     });
   };
@@ -136,7 +136,7 @@ const OCRUnrecordedUI = () => {
     try {
       const res = await fetchDocument(formData.selectedDoc.ID.toString());
       console.log(res, "handlePreviewDoc");
-      toast.success("OCR processing started successfully!");
+      // toast.success("OCR processing started successfully!");
     } catch (error) {
       console.error(error);
       toast.error("Failed to start OCR");

@@ -2,6 +2,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
   // Navigate,
 } from "react-router-dom";
 import { UserProvider } from "./contexts/UserContext";
@@ -18,23 +19,13 @@ import DepartmentFiles from "./pages/DepartmentFiles";
 import Team from "./pages/Team";
 import Settings from "./pages/Settings";
 import { HomePage } from "./pages/HomePage";
-// import { DocumentTypesPage } from "./pages/Document/DocumentTypesPage";
-// import { RegionsPage } from "./pages/LocationPages/RegionsPage";
-// import { MunicipalitiesPage } from "./pages/LocationPages/MunicipalitiesPage";
-// import { BarangaysPage } from "./pages/LocationPages/BarangaysPage";
-// import { LGUMaintenancePage } from "./pages/LGUMaintenancePage";
-// import { AccountingPage } from "./pages/AccountingPage";
-// import { RPTPage } from "./pages/RPTPage";
 import { UsersPage } from "./pages/Users/UsersPage";
-// import UserAccessPage from "./pages/Users/Users Access/UsersAccessPage";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
-import { AuthProvider } from "./contexts/AuthContext";
-// import RedirectHandler from "./components/layout/RedirectHandler";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { AllocationPanel } from "./pages/Digitalization/Allocation";
 import { BatchUploadPanel } from "./pages/Digitalization/BatchUpload";
 import { DepartmentsMain } from "./pages/Departments/DepartmentsMain";
 import { SubDepartments } from "./pages/Departments/SubDepartments";
-// import { HandWrittenOCRUploader } from "./pages/OCR/HandWrittenDocs";
 import { TemplateOCR } from "./pages/OCR/Template";
 import UnrecordedOCR from "./pages/OCR/Unrecorded";
 import ChangePassword from "./pages/Settings/ChangePassword";
@@ -53,6 +44,8 @@ function App() {
               <Routes>
                 {/* Public routes */}
                 <Route path="/login" element={<Login />} />
+                {/* Root path handling */}
+                <Route path="/" element={<RootRedirect />} />
                 {/* Protected routes start here */}
                 <Route element={<ProtectedRoute />}>
                   {/* Home Page should not use layout */}
@@ -114,19 +107,6 @@ function App() {
                       path="/users/modules"
                       element={<ModulesManagement />}
                     />
-                    {/* ---------------LOCATIONS--------------- */}
-                    {/* <Route
-                      path="/locations/regions"
-                      element={<RegionsPage />}
-                    />
-                    <Route
-                      path="/locations/municipalities"
-                      element={<MunicipalitiesPage />}
-                    />
-                    <Route
-                      path="/locations/barangays"
-                      element={<BarangaysPage />}
-                    /> */}
                     {/* ------------------DIGITALIZATION----------------- */}
                     <Route
                       path="/digitalization/allocation"
@@ -136,16 +116,11 @@ function App() {
                       path="/digitalization/batch-upload"
                       element={<BatchUploadPanel />}
                     />
-                    {/* ------------------LGU MAINTENANCE----------------- */}
-                    {/* <Route path="/lgu" element={<LGUMaintenancePage />} /> */}
-                    {/* ---------------ACCOUNTING && RPT--------------- */}
-                    {/* <Route path="/accounting" element={<AccountingPage />} />
-                    <Route path="/rpt" element={<RPTPage />} /> */}
                   </Route>
                 </Route>
 
                 {/* Fallback */}
-                <Route path="*" element={<Login />} />
+                <Route path="*" element={<RootRedirect />} />
               </Routes>
             </NotificationProvider>
           </DocumentProvider>
@@ -154,5 +129,16 @@ function App() {
     </Router>
   );
 }
+// Add this new component
+function RootRedirect() {
+  const { isAuthenticated } = useAuth();
+  console.log({ isAuthenticated });
+  if (isAuthenticated) {
+    return <Navigate to="/home" replace />;
+  } else {
+    return <Navigate to="/login" replace />;
+  }
+}
 
+// export default App;
 export default App;
