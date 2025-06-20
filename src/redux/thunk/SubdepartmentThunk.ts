@@ -12,11 +12,11 @@ export const fetchSubDepartments = createAsyncThunk(
 
 export const createSubDepartment = createAsyncThunk(
   "subDepartments/create",
-  async (payload: { name: string; code: string; departmentId: string }) => {
+  async (payload: { name: string; code: string }) => {
     const { data } = await axios.post("/subdepartments/create", {
       Name: payload.name,
       Code: payload.code,
-      DepartmentID: payload.departmentId,
+      // DepartmentID: payload.departmentId,
     });
     return data;
   }
@@ -29,15 +29,15 @@ export const editSubDepartment = createAsyncThunk(
       id,
       name,
       code,
-      departmentId,
-    }: { id: number; name: string; code: string; departmentId: string },
+    }: // departmentId,
+    { id: number; name: string; code: string },
     { rejectWithValue }
   ) => {
     try {
       await axios.post(`/subdepartments/edit/${id}`, {
         Name: name,
         Code: code,
-        DepartmentID: departmentId,
+        // DepartmentID: departmentId,
       });
       return { ID: id, Name: name, Code: code }; // return updated object
     } catch (err: any) {

@@ -14,7 +14,7 @@ import {
   editUserAccess,
   EditUserAccessPayload,
 } from "./userAccessService";
-import { Trash2 } from "lucide-react";
+// import { Trash2 } from "lucide-react";
 import { DeleteDialog } from "@/components/ui/DeleteDialog";
 
 const UserAccessPage = () => {
@@ -37,7 +37,7 @@ const UserAccessPage = () => {
   const [newRoleName, setNewRoleName] = useState("");
 
   const currentRole = roles.find((r) => r.role === selectedRole);
-  console.log({ selectedRole, currentRole, originalRoles });
+  // console.log({ selectedRole, currentRole, originalRoles });
   const handleAddNewRole = () => {
     if (addRole(newRoleName)) {
       setSelectedRole(newRoleName);
@@ -67,9 +67,13 @@ const UserAccessPage = () => {
       })),
     };
     try {
-      await addUserAccess(payload);
-      saveChanges();
-      toast.success("Changes saved successfully!");
+      const res = await addUserAccess(payload);
+      console.log(res.data, "addUserAccess");
+      if (res.success) {
+        saveChanges();
+        currentRole.userAccessID = res.data.id;
+        toast.success("Changes saved successfully!");
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to save changes");
@@ -95,9 +99,9 @@ const UserAccessPage = () => {
         print: perm.print,
       })),
     };
-
+    console.log(currentRole, payload, "EDIT USER ACCESS");
     try {
-      await editUserAccess(payload, currentRole.userAccessID || 0);
+      await editUserAccess(payload, currentRole.userAccessID);
       toast.success("Changes saved successfully!");
     } catch (error) {
       console.error(error);
@@ -134,7 +138,7 @@ const UserAccessPage = () => {
   if (isPermissionsLoading || !isInitialized) {
     return (
       <div className="flex justify-center items-center h-64">
-        Loading permissions...
+        Loading permissions... Add Modules First...!!!
       </div>
     );
   }
