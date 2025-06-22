@@ -192,7 +192,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                   <option value="" hidden>
                     All Users
                   </option>
-                  {uniqueUserNames.map((user) => (
+                  {uniqueUserNames?.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.name}
                     </option>
