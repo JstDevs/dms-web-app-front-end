@@ -33,9 +33,10 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({
       setError(null);
       const document = await fetchDocumentAnalytics(id);
       if (!document) throw new Error("Document not found");
-
-      setCurrentDocument(document.data);
-      return document.data;
+      if (document.success) {
+        setCurrentDocument(document.data);
+        return document.data;
+      }
     } catch (err) {
       setError("Failed to fetch document");
       console.error("Error fetching document:", err);

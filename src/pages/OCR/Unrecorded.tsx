@@ -11,6 +11,7 @@ import {
 } from "./utils/useUnrecorded";
 import { runOCR } from "./utils/unrecordedHelpers";
 import { useDocument } from "@/contexts/DocumentContext";
+import { CurrentDocument } from "@/types/Document";
 interface FormData {
   department: string;
   subdepartment: string;
@@ -50,7 +51,9 @@ const OCRUnrecordedUI = () => {
   const { templateOptions } = useTemplates();
   const { selectedRole } = useAuth();
   const { unrecordedDocuments, fetchUnrecorded } = useUnrecordedDocuments();
-  const { currentDocument, loading, fetchDocument } = useDocument();
+  const [currentUnrecoredDocument, setCurrentUnrecordedDocument] =
+    useState<CurrentDocument | null>(null);
+  const { loading, fetchDocument } = useDocument();
   const handleOCR = async () => {
     const selectedDocument = unrecordedDocuments.find(
       (doc) => doc.FileName === formData.selectedDoc?.FileName
@@ -136,6 +139,7 @@ const OCRUnrecordedUI = () => {
     try {
       const res = await fetchDocument(formData.selectedDoc.ID.toString());
       console.log(res, "handlePreviewDoc");
+      setCurrentUnrecordedDocument(res);
       // toast.success("OCR processing started successfully!");
     } catch (error) {
       console.error(error);
@@ -251,7 +255,8 @@ const OCRUnrecordedUI = () => {
         {/* Right Panel - Document Preview */}
         <div className="w-full lg:w-1/2 p-2 sm:p-4 bg-white">
           {/* <div className="w-full h-full flex items-center justify-center relative"> */}
-          {currentDocument?.document[0]?.filepath && formData.selectedDoc ? (
+          {currentUnrecoredDocument?.document[0]?.filepath &&
+          formData.selectedDoc ? (
             <div className="w-full max-h-[60vh] overflow-auto border rounded-md">
               <div
                 className="relative"
@@ -259,7 +264,7 @@ const OCRUnrecordedUI = () => {
               >
                 <img
                   ref={imgRef}
-                  src={currentDocument?.document[0]?.filepath || ""}
+                  src={currentUnrecoredDocument?.document[0]?.filepath || ""}
                   alt="Document Preview"
                   className="block"
                   style={{
