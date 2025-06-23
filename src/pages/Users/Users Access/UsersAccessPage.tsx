@@ -1,21 +1,21 @@
 // pages/UserAccessPage.tsx
-import { useState } from "react";
-import { FiSearch } from "react-icons/fi";
-import toast from "react-hot-toast";
-import { Button, CloseButton, Dialog, Portal } from "@chakra-ui/react";
-import usePermissions from "./usePermission";
-import useRoles from "./useRoles";
-import RoleDropdown from "./RoleDrop";
-import PermissionsTable from "./PermissionTable";
+import { useState } from 'react';
+import { FiSearch } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { Button, CloseButton, Dialog, Portal } from '@chakra-ui/react';
+import usePermissions from './usePermission';
+import useRoles from './useRoles';
+import RoleDropdown from './RoleDrop';
+import PermissionsTable from './PermissionTable';
 import {
   addUserAccess,
   AddUserAccessPayload,
   deleteUserAccessRole,
   editUserAccess,
   EditUserAccessPayload,
-} from "./userAccessService";
+} from './userAccessService';
 // import { Trash2 } from "lucide-react";
-import { DeleteDialog } from "@/components/ui/DeleteDialog";
+import { DeleteDialog } from '@/components/ui/DeleteDialog';
 
 const UserAccessPage = () => {
   const { permissions, isLoading: isPermissionsLoading } = usePermissions();
@@ -31,31 +31,31 @@ const UserAccessPage = () => {
     hasChanges,
     isInitialized,
   } = useRoles(permissions);
-  const [selectedRole, setSelectedRole] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRole, setSelectedRole] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleName, setNewRoleName] = useState('');
 
   const currentRole = roles.find((r) => r.role === selectedRole);
   // console.log({ selectedRole, currentRole, originalRoles });
   const handleAddNewRole = () => {
     if (addRole(newRoleName)) {
       setSelectedRole(newRoleName);
-      setNewRoleName("");
+      setNewRoleName('');
       setIsDialogOpen(false);
     } else {
-      toast.error("Role name already exists or is invalid");
+      toast.error('Role name already exists or is invalid');
     }
   };
 
   const handleAddNewRoleBackend = async () => {
     if (!currentRole) {
-      toast.error("No role selected");
+      toast.error('No role selected');
       return;
     }
 
     const payload: AddUserAccessPayload = {
-      description: currentRole?.role || "",
+      description: currentRole?.role || '',
       modulePermissions: currentRole?.permissions?.map((perm) => ({
         ID: String(perm.id),
         Description: perm.name,
@@ -68,27 +68,27 @@ const UserAccessPage = () => {
     };
     try {
       const res = await addUserAccess(payload);
-      console.log(res.data, "addUserAccess");
+      console.log(res.data, 'addUserAccess');
       if (res.success) {
         saveChanges();
         currentRole.userAccessID = res.data.id;
-        toast.success("Changes saved successfully!");
+        toast.success('Changes saved successfully!');
       }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save changes");
+      toast.error('Failed to save changes');
     }
   };
   // console.log(roles);
   const handleSaveChanges = async () => {
     if (!currentRole) {
-      toast.error("No role selected");
+      toast.error('No role selected');
       return;
     }
 
     const payload: EditUserAccessPayload = {
-      currentDescription: currentRole?.role || "",
-      description: currentRole?.role || "",
+      currentDescription: currentRole?.role || '',
+      description: currentRole?.role || '',
       modulePermissions: currentRole?.permissions?.map((perm) => ({
         ID: String(perm.id),
         Description: perm.name,
@@ -99,13 +99,16 @@ const UserAccessPage = () => {
         print: perm.print,
       })),
     };
-    console.log(currentRole, payload, "EDIT USER ACCESS");
+    console.log(currentRole, payload, 'EDIT USER ACCESS');
     try {
-      await editUserAccess(payload, currentRole.userAccessID);
-      toast.success("Changes saved successfully!");
+      const res = await editUserAccess(payload, currentRole.userAccessID);
+      if (res.success) {
+        saveChanges(); // THIS WAS MISSING! This updates originalRoles to match current roles
+        toast.success('Changes saved successfully!');
+      }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save changes");
+      toast.error('Failed to save changes');
     }
   };
 
@@ -114,31 +117,43 @@ const UserAccessPage = () => {
   const handleCancel = () => {
     if (isNewRole) {
       removeRole(selectedRole);
-      setSelectedRole("");
+      setSelectedRole('');
       toast.success(`New role "${selectedRole}" removed`);
     } else {
       resetToOriginal();
-      toast.success("Changes reverted");
+      toast.success('Changes reverted');
     }
   };
   // console.log({ selectedRole });
   const handleDelete = async (id: number) => {
     try {
-      await deleteUserAccessRole(id);
+      const res = await deleteUserAccessRole(id);
+
+      if (!res.success) {
+        toast.error('Failed to delete role');
+        return;
+      }
+
       removeRole(selectedRole);
-      setSelectedRole("");
+      setSelectedRole('');
 
       toast.success(`Role "${selectedRole}" deleted successfully!`);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to delete role");
+      toast.error('Failed to delete role');
     }
   };
   // console.log(isPermissionsLoading, !isInitialized);
   if (isPermissionsLoading || !isInitialized) {
     return (
-      <div className="flex justify-center items-center h-64">
-        Loading permissions... Add Modules First...!!!
+      <div className="min-h-[60vh] bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-slate-600 text-lg">Loading permissions...</p>
+          <p className="text-slate-500 text-sm mt-2">
+            Please add modules first if none exist
+          </p>
+        </div>
       </div>
     );
   }
@@ -206,20 +221,20 @@ const UserAccessPage = () => {
             <Button
               className={`px-4 py-2 rounded-md text-sm font-medium text-white focus:outline-none focus:ring-2 ${
                 hasChanges
-                  ? "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
-                  : "bg-gray-300 cursor-not-allowed"
+                  ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                  : 'bg-gray-300 cursor-not-allowed'
               }`}
               onClick={isNewRole ? handleAddNewRoleBackend : handleSaveChanges}
               disabled={!hasChanges}
             >
-              {isNewRole ? "Add Role and Save" : "Save Changes"}
+              {isNewRole ? 'Add Role and Save' : 'Save Changes'}
             </Button>
           </div>
         ) : (
           <div className="flex justify-center items-center h-64">
             <h1 className="text-3xl font-bold text-blue-800">
-              {" "}
-              No role selected{" "}
+              {' '}
+              No role selected{' '}
             </h1>
           </div>
         )}
@@ -229,7 +244,7 @@ const UserAccessPage = () => {
         lazyMount
         open={isDialogOpen}
         onOpenChange={(e) => setIsDialogOpen(e.open)}
-        placement={"center"}
+        placement={'center'}
       >
         <Portal>
           <Dialog.Backdrop />
