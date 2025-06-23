@@ -992,12 +992,13 @@ export const TemplateOCR = () => {
                     >
                       <Eye size={16} />
                     </Button>
-                    <Button
+                    {/* TODO: Add edit button for template  */}
+                    {/* <Button
                       onClick={() => handleEditTemplate(template)}
                       className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2"
                     >
                       <Edit size={16} />
-                    </Button>
+                    </Button> */}
                     <DeleteDialog
                       onConfirm={() => handleDeleteTemplate(template.ID)}
                     >
