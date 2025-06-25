@@ -1,28 +1,60 @@
-import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
-import { UploadCloud, Trash2, ChevronDown } from "lucide-react";
-import { useState, useRef, ChangeEvent, DragEvent } from "react";
-import toast from "react-hot-toast";
-import { performBatchUpload } from "./utils/batchServices";
+import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
+import { UploadCloud, Trash2, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect, ChangeEvent, DragEvent } from 'react';
+import toast from 'react-hot-toast';
+import { performBatchUpload } from './utils/batchServices';
 
 type UploadedFile = {
   id: number;
   name: string;
   type: string;
   size: string;
-  status: "Pending" | "Success";
+  status: 'Pending' | 'Success';
   department: string;
   file: File;
 };
+
 export const BatchUploadPanel = () => {
   // State for selections
-  const [selectedDepartment, setSelectedDepartment] = useState<string>("");
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [selectedSubDepartment, setSelectedSubDepartment] =
-    useState<string>("");
+    useState<string>('');
+  const [subDepartmentOptions, setSubDepartmentOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
 
   // State for uploaded files
   const [files, setFiles] = useState<UploadedFile[]>([]);
-  const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
+  const {
+    departmentOptions,
+    getSubDepartmentOptions,
+    loading: loadingDepartments,
+  } = useNestedDepartmentOptions();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Update sub-departments when department selection changes
+  useEffect(() => {
+    if (selectedDepartment && departmentOptions.length > 0) {
+      const selectedDeptId = departmentOptions.find(
+        (dept) => dept.label === selectedDepartment
+      )?.value;
+
+      if (selectedDeptId) {
+        const subs = getSubDepartmentOptions(Number(selectedDeptId));
+        setSubDepartmentOptions(subs);
+        // Only reset if the current subDept doesn't exist in new options
+        if (!subs.some((sub) => sub.label === selectedSubDepartment)) {
+          setSelectedSubDepartment('');
+        }
+      }
+    } else {
+      setSubDepartmentOptions([]);
+      if (selectedSubDepartment) {
+        // Only reset if there's a value
+        setSelectedSubDepartment('');
+      }
+    }
+  }, [selectedDepartment, departmentOptions]);
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -32,13 +64,13 @@ export const BatchUploadPanel = () => {
         id: Date.now() + index,
         name: file.name,
         type:
-          file.type || file.name.split(".").pop()?.toUpperCase() || "Unknown",
+          file.type || file.name.split('.').pop()?.toUpperCase() || 'Unknown',
         size: `${(file.size / 1024).toFixed(2)} KB`,
-        status: "Pending",
+        status: 'Pending',
         department: selectedDepartment
-          ? departmentOptions.find((d) => d.value === selectedDepartment)
-              ?.label || "Not specified"
-          : "Not specified",
+          ? departmentOptions.find((d) => d.label === selectedDepartment)
+              ?.label || 'Not specified'
+          : 'Not specified',
         file,
       })
     );
@@ -70,22 +102,27 @@ export const BatchUploadPanel = () => {
   const deleteFile = (id: number) => {
     setFiles(files.filter((file) => file.id !== id));
   };
+
   const handleUpload = async () => {
     if (!files || files.length === 0) return;
 
     const formData = new FormData();
     const uploadedFile = files[0]; // type: UploadedFile
-    formData.append("batchupload", uploadedFile.file, uploadedFile.name); // <-- actual File object
+    formData.append('batchupload', uploadedFile.file, uploadedFile.name);
 
     try {
       const data = await performBatchUpload(formData);
-      toast.success("Batch Upload successfully!");
+      toast.success('Batch Upload successfully!');
       console.log(data);
     } catch (error) {
       console.error(error);
-      toast.error("Batch upload failed.");
+      toast.error('Batch upload failed.');
     }
   };
+
+  if (loadingDepartments) {
+    return <div>Loading departments...</div>;
+  }
 
   return (
     <div className="bg-white shadow-md rounded-xl p-6 space-y-6">
@@ -112,7 +149,7 @@ export const BatchUploadPanel = () => {
                 Select Department
               </option>
               {departmentOptions.map((dept) => (
-                <option key={dept.value} value={dept.value}>
+                <option key={dept.value} value={dept.label}>
                   {dept.label}
                 </option>
               ))}
@@ -133,10 +170,12 @@ export const BatchUploadPanel = () => {
               disabled={!selectedDepartment}
             >
               <option value="" hidden>
-                Select Sub-Department
+                {subDepartmentOptions.length === 0
+                  ? 'No sub-departments available'
+                  : 'Select Sub-Department'}
               </option>
               {subDepartmentOptions.map((subDept) => (
-                <option key={subDept.value} value={subDept.value}>
+                <option key={subDept.value} value={subDept.label}>
                   {subDept.label}
                 </option>
               ))}
@@ -144,36 +183,15 @@ export const BatchUploadPanel = () => {
             <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
           </div>
         </div>
-
-        {/* <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            OCR Template
-          </label>
-          <div className="relative">
-            <select
-              value={selectedTemplate}
-              onChange={(e) => setSelectedTemplate(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={!selectedSubDepartment}
-            >
-              <option value="">Select Template</option>
-              {templates.map((template) => (
-                <option key={template.value} value={template.value}>
-                  {template.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
-          </div>
-        </div> */}
       </div>
 
+      {/* Rest of your component remains the same */}
       {/* Drag and Drop Area */}
       <div
         className={`border-2 border-dashed rounded-md p-6 text-center transition cursor-pointer ${
           selectedSubDepartment
-            ? "border-blue-300 bg-blue-50 hover:bg-blue-100"
-            : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+            ? 'border-blue-300 bg-blue-50 hover:bg-blue-100'
+            : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
         }`}
         onClick={selectedSubDepartment ? triggerFileInput : undefined}
         onDrop={handleDrop}
@@ -181,8 +199,8 @@ export const BatchUploadPanel = () => {
       >
         <p className="text-sm">
           {selectedSubDepartment
-            ? "Drag & drop files here or click to upload"
-            : "Please select a template first"}
+            ? 'Drag & drop files here or click to upload'
+            : 'Please select a department and sub-department first'}
         </p>
         <input
           type="file"
@@ -194,21 +212,19 @@ export const BatchUploadPanel = () => {
         />
       </div>
 
-      {/* Upload Button - Now shows count of pending files */}
+      {/* Upload Button */}
       <div className="flex justify-between items-center">
         <button
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm ${
-            files.some((f) => f.status === "Pending")
-              ? "bg-blue-600 text-white hover:bg-blue-700"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            files.some((f) => f.status === 'Pending')
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
-          disabled={!files.some((f) => f.status === "Pending")}
+          disabled={!files.some((f) => f.status === 'Pending')}
           onClick={handleUpload}
         >
           <UploadCloud className="w-4 h-4" />
-          Upload{" "}
-          {/* {files.filter((f) => f.status === "Pending").length > 0 &&
-            `(${files.filter((f) => f.status === "Pending").length})`} */}
+          Upload
         </button>
 
         {files.length > 0 && (
@@ -258,9 +274,9 @@ export const BatchUploadPanel = () => {
                   <td className="px-4 py-2">
                     <span
                       className={`inline-block px-2 py-1 rounded-full text-xs ${
-                        file.status === "Success"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
+                        file.status === 'Success'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-yellow-100 text-yellow-700'
                       }`}
                     >
                       {file.status}
@@ -268,13 +284,6 @@ export const BatchUploadPanel = () => {
                   </td>
                   <td className="px-4 py-2 text-center">
                     <div className="flex justify-center gap-2">
-                      {/* TODO: Preview button for PDF files */}
-                      {/* <button
-                        className="text-blue-600 hover:text-blue-800"
-                        title="Preview"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button> */}
                       <button
                         className="text-red-600 hover:text-red-800"
                         onClick={() => deleteFile(file.id)}

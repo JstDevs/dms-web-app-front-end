@@ -1,22 +1,23 @@
-import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { Plus, Search, Edit, Trash2, Save, X } from "lucide-react";
-import toast from "react-hot-toast";
-import { Button } from "@chakra-ui/react";
-
-import { Input } from "@/components/ui/Input";
-import { DeleteDialog } from "@/components/ui/DeleteDialog";
-import { PaginationControls } from "@/components/ui/PaginationControls";
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Plus, Search, Edit, Trash2, Save, X } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 
 import {
   fetchSubDepartments,
   createSubDepartment,
   deleteSubDepartment,
   editSubDepartment,
-} from "@/redux/thunk/SubdepartmentThunk";
+} from '@/redux/thunk/SubdepartmentThunk';
 
-import { AppDispatch, RootState } from "@/redux/store";
-import { SubDepartment } from "@/types/Departments";
+import { AppDispatch, RootState } from '@/redux/store';
+import { SubDepartment } from '@/types/Departments';
+import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
+import { PaginationControls } from '@/components/ui/PaginationControls';
+import { DeleteDialog } from '@/components/ui/DeleteDialog';
+import { Button } from '@chakra-ui/react';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 
 export const SubDepartments: React.FC = () => {
   // Redux
@@ -25,12 +26,19 @@ export const SubDepartments: React.FC = () => {
     (state: RootState) => state.subDepartments.items
   );
 
+  // Hooks
+  const { departmentOptions } = useDepartmentOptions();
+
   // State
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [currentDepartment, setCurrentDepartment] =
     useState<SubDepartment | null>(null);
-  const [formData, setFormData] = useState({ name: "", code: "" });
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    departmentId: '',
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -40,6 +48,7 @@ export const SubDepartments: React.FC = () => {
       dept?.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       dept?.Code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
   const paginatedDepartments = filteredSubDepartments.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -54,40 +63,57 @@ export const SubDepartments: React.FC = () => {
     setCurrentPage(1);
   }, [searchTerm, itemsPerPage]);
 
+  // Helper function to get department name by ID
+  const getDepartmentName = (departmentId: string) => {
+    const dept = departmentOptions.find((d) => d.value == departmentId);
+    console.log(dept, departmentOptions, departmentId);
+    return dept ? dept.label : 'Unknown Department';
+  };
+
   // Create
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.code) {
-      toast.error("Both fields are required");
+
+    if (!formData.name || !formData.code || !formData.departmentId) {
+      toast.error('All fields are required');
       return;
     }
+
     if (formData.name.trim().length < 3 || formData.code.trim().length < 3) {
-      toast.error("Name and code must be at least 3 characters long");
+      toast.error('Name and code must be at least 3 characters long');
       return;
     }
+
     if (formData.name.trim().length > 20 || formData.code.trim().length > 20) {
-      toast.error(
-        "Name and code must not be at greater than 20 characters long"
-      );
+      toast.error('Name and code must not be greater than 20 characters long');
       return;
     }
+
     // Check if sub-department already exists
     const isDepartmentExists = subDepartments.some(
       (department) =>
         department?.Name?.toLowerCase() === formData.name?.toLowerCase() ||
         department?.Code?.toLowerCase() === formData.code?.toLowerCase()
     );
+
     if (isDepartmentExists) {
-      toast.error("Sub-Department already exists");
+      toast.error('Sub-Department already exists');
       return;
     }
+
     try {
-      await dispatch(createSubDepartment(formData));
+      await dispatch(
+        createSubDepartment({
+          name: formData.name,
+          code: formData.code,
+          departmentId: Number(formData.departmentId),
+        })
+      );
       await dispatch(fetchSubDepartments());
-      toast.success("Sub-Department created successfully!");
+      toast.success('Sub-Department created successfully!');
     } catch (error: any) {
       toast.error(
-        error.response?.data?.message || "Failed to create sub-department"
+        error.response?.data?.message || 'Failed to create sub-department'
       );
     } finally {
       setIsCreating(false);
@@ -100,73 +126,86 @@ export const SubDepartments: React.FC = () => {
     try {
       await dispatch(deleteSubDepartment(id));
       await dispatch(fetchSubDepartments());
-      toast.success("Sub-Department deleted successfully!");
+      toast.success('Sub-Department deleted successfully!');
     } catch (error) {
-      toast.error("Failed to delete sub-department");
+      toast.error('Failed to delete sub-department');
     }
   };
 
   // Reset
   const resetForm = () => {
-    setFormData({ name: "", code: "" });
+    setFormData({ name: '', code: '', departmentId: '' });
     setCurrentDepartment(null);
   };
+
   // Inline Edit
   const handleEditSubmitInline = async (id: number) => {
-    if (!formData.name || !formData.code) {
-      toast.error("Both fields are required");
+    if (!formData.name || !formData.code || !formData.departmentId) {
+      toast.error('All fields are required');
       return;
     }
+
     if (formData.name.length < 3 || formData.code.length < 3) {
-      toast.error("Name and code must be at least 3 characters long");
+      toast.error('Name and code must be at least 3 characters long');
       return;
     }
+
     if (formData.name.trim().length > 20 || formData.code.trim().length > 20) {
-      toast.error(
-        "Name and code must not be at greater than 20 characters long"
-      );
+      toast.error('Name and code must not be greater than 20 characters long');
       return;
     }
+
     // Check if sub-department already exists (excluding current department)
     const isDepartmentExists = subDepartments.some(
       (department) =>
-        department.ID !== id && // Skip the current department
+        department.ID !== id &&
         (department?.Name?.toLowerCase() === formData.name?.toLowerCase() ||
           department?.Code?.toLowerCase() === formData.code?.toLowerCase())
     );
 
     if (isDepartmentExists) {
-      toast.error("Sub-Department name or code already exists");
+      toast.error('Sub-Department name or code already exists');
       return;
     }
+
     try {
       await dispatch(
-        editSubDepartment({ id, name: formData.name, code: formData.code })
+        editSubDepartment({
+          id,
+          name: formData.name,
+          code: formData.code,
+          departmentId: String(formData.departmentId),
+        })
       );
       await dispatch(fetchSubDepartments());
-      toast.success("Department updated!");
+      toast.success('Sub-Department updated!');
     } catch (error) {
-      console.log(error);
-      toast.error("Update failed.");
+      toast.error('Update failed.');
     } finally {
       setCurrentDepartment(null);
-      setFormData({ name: "", code: "" });
+      setFormData({ name: '', code: '', departmentId: '' });
     }
   };
+
   // Cancel
   const cancelEdit = () => {
     setCurrentDepartment(null);
-    setFormData({ name: "", code: "" });
+    setFormData({ name: '', code: '', departmentId: '' });
   };
+
   // ---------------- UI ----------------
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6">
+      <Toaster position="top-right" />
+
       {/* Header */}
       <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
         <div className="flex-1 text-left">
-          <h1 className="text-3xl font-bold text-blue-800">Sub-Department</h1>
+          <h1 className="text-3xl font-bold text-blue-800">
+            Sub-Department Management
+          </h1>
           <p className="mt-2 text-gray-600 truncate">
-            Manage sub-department in the system
+            Manage sub-departments and assign them to departments
           </p>
         </div>
         {!isCreating && (
@@ -185,7 +224,7 @@ export const SubDepartments: React.FC = () => {
 
       {/* Search */}
       <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
-        <h2 className="text-lg font-semibold">Sub-Department</h2>
+        <h2 className="text-lg font-semibold">Sub-Departments</h2>
         <div className="w-full sm:w-64">
           <Input
             placeholder="Search sub-department..."
@@ -199,11 +238,13 @@ export const SubDepartments: React.FC = () => {
 
       {/* Form */}
       {isCreating && (
-        <div className="mb-6 p-4 border rounded-md">
-          {/* <h3 className="text-lg font-semibold">Create Sub-Department Form</h3> */}
+        <div className="mb-6 p-4 border rounded-md bg-gray-50">
+          <h3 className="text-lg font-semibold mb-4 text-blue-800">
+            Create New Sub-Department
+          </h3>
           <form onSubmit={handleCreateSubmit} className="space-y-4">
             <Input
-              label="Name"
+              label="Sub-Department Name"
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
@@ -212,7 +253,7 @@ export const SubDepartments: React.FC = () => {
               placeholder="Enter sub-department name"
             />
             <Input
-              label="Code"
+              label="Sub-Department Code"
               value={formData.code}
               onChange={(e) =>
                 setFormData({ ...formData, code: e.target.value })
@@ -220,6 +261,24 @@ export const SubDepartments: React.FC = () => {
               required
               placeholder="Enter sub-department code"
             />
+
+            <Select
+              label="Parent Department"
+              value={formData.departmentId}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  departmentId: e.target.value.toString(),
+                })
+              }
+              options={departmentOptions.map((opt) => ({
+                value: String(opt.value),
+                label: opt.label,
+              }))}
+              placeholder="Select parent department"
+              required
+            />
+
             <div className="flex justify-end gap-3">
               <Button
                 type="button"
@@ -228,15 +287,15 @@ export const SubDepartments: React.FC = () => {
                   setIsCreating(false);
                   resetForm();
                 }}
-                className="bg-gray-100 hover:bg-gray-200 px-2"
+                className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded text-sm"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
               >
-                Create
+                Create Sub-Department
               </Button>
             </div>
           </form>
@@ -248,13 +307,16 @@ export const SubDepartments: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Name
               </th>
-              <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Code
               </th>
-              <th className="px-6 py-3 text-right text-base font-semibold text-gray-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Department
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -277,7 +339,9 @@ export const SubDepartments: React.FC = () => {
                           }
                         />
                       ) : (
-                        dept.Name
+                        <span className="font-medium text-gray-700">
+                          {dept.Name}
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -292,7 +356,29 @@ export const SubDepartments: React.FC = () => {
                           }
                         />
                       ) : (
-                        dept.Code
+                        <span className="text-gray-600">{dept.Code}</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {isEditingRow ? (
+                        <Select
+                          value={formData.departmentId}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              departmentId: String(e.target.value),
+                            })
+                          }
+                          options={departmentOptions.map((opt) => ({
+                            value: String(opt.value),
+                            label: opt.label,
+                          }))}
+                          placeholder="Select department"
+                        />
+                      ) : (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                          {getDepartmentName(dept?.DepartmentID?.toString())}
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
@@ -303,7 +389,7 @@ export const SubDepartments: React.FC = () => {
                             className="text-green-600 hover:text-green-900"
                             onClick={() => handleEditSubmitInline(dept.ID)}
                           >
-                            <Save className="h-4 w-4" /> Save
+                            <Save className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
@@ -312,7 +398,6 @@ export const SubDepartments: React.FC = () => {
                             onClick={cancelEdit}
                           >
                             <X className="h-4 w-4" />
-                            Cancel
                           </Button>
                         </>
                       ) : (
@@ -327,11 +412,11 @@ export const SubDepartments: React.FC = () => {
                               setFormData({
                                 name: dept.Name,
                                 code: dept.Code,
+                                departmentId: String(dept.DepartmentID),
                               });
                             }}
                           >
                             <Edit className="h-4 w-4" />
-                            Edit
                           </Button>
                           <DeleteDialog
                             key={dept.ID}
@@ -343,7 +428,6 @@ export const SubDepartments: React.FC = () => {
                               className="text-red-600 hover:text-red-900"
                             >
                               <Trash2 className="h-4 w-4" />
-                              Delete
                             </Button>
                           </DeleteDialog>
                         </>
@@ -355,10 +439,18 @@ export const SubDepartments: React.FC = () => {
             ) : (
               <tr>
                 <td
-                  colSpan={3}
-                  className="px-6 py-4 text-center text-sm text-gray-500"
+                  colSpan={4}
+                  className="px-6 py-8 text-center text-sm text-gray-500"
                 >
-                  No sub-department found
+                  <div className="flex flex-col items-center">
+                    <Search className="h-8 w-8 text-gray-300 mb-2" />
+                    <p>No sub-departments found</p>
+                    {searchTerm && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Try adjusting your search terms
+                      </p>
+                    )}
+                  </div>
                 </td>
               </tr>
             )}
