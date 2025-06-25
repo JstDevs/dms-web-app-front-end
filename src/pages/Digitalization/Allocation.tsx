@@ -1,19 +1,20 @@
-import { PlusCircle, Trash2, Pencil, Save, X } from "lucide-react";
-import { useRef, useState } from "react";
-import { FieldSettingsPanel } from "../FieldSetting";
-import { Button } from "@chakra-ui/react";
-import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
-import useAccessLevelRole from "../Users/Users Access/useAccessLevelRole";
-import { useOCRFields } from "../OCR/Fields/useOCRFields";
-import toast from "react-hot-toast";
-import { allocateFieldsToUsers } from "./utils/allocationServices";
+import { PlusCircle, Trash2, Pencil, Save, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { FieldSettingsPanel } from '../FieldSetting';
+import { Button } from '@chakra-ui/react';
+// import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
+import useAccessLevelRole from '../Users/Users Access/useAccessLevelRole';
+import { useOCRFields } from '../OCR/Fields/useOCRFields';
+import toast from 'react-hot-toast';
+import { allocateFieldsToUsers } from './utils/allocationServices';
+import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 type PermissionKey =
-  | "view"
-  | "add"
-  | "edit"
-  | "delete"
-  | "print"
-  | "confidential";
+  | 'view'
+  | 'add'
+  | 'edit'
+  | 'delete'
+  | 'print'
+  | 'confidential';
 
 type UserPermission = {
   username: string;
@@ -26,17 +27,66 @@ type updatedFields = {
   Description: string;
 }[];
 export const AllocationPanel = () => {
-  const [selectedDept, setSelectedDept] = useState("");
-  const [selectedSubDept, setSelectedSubDept] = useState("");
+  const [selectedDept, setSelectedDept] = useState('');
+  const [selectedSubDept, setSelectedSubDept] = useState('');
   const [users, setUsers] = useState<UserPermission[]>([]);
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUsername, setNewUsername] = useState("");
+  const [newUsername, setNewUsername] = useState('');
   const [savedFieldsData, setSavedFieldsData] = useState<updatedFields>([]);
 
-  const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
+  // const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
+  const {
+    departmentOptions,
+    getSubDepartmentOptions,
+    loading: loadingDepartments,
+  } = useNestedDepartmentOptions();
   const { accessOptions } = useAccessLevelRole();
   const { fields, loading, error } = useOCRFields();
   const fieldPanelRef = useRef<any>(null);
+
+  const [subDepartmentOptions, setSubDepartmentOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+
+  // Update sub-departments when department selection changes
+  // useEffect(() => {
+  //   if (selectedDept) {
+  //     const selectedDeptId = departmentOptions.find(
+  //       (dept) => dept.label === selectedDept
+  //     )?.value;
+
+  //     if (selectedDeptId) {
+  //       const subs = getSubDepartmentOptions(Number(selectedDeptId));
+  //       setSubDepartmentOptions(subs);
+  //       setSelectedSubDept(''); // Reset sub-department when department changes
+  //     }
+  //   } else {
+  //     setSubDepartmentOptions([]);
+  //     setSelectedSubDept('');
+  //   }
+  // }, [selectedDept, departmentOptions, getSubDepartmentOptions]);
+  useEffect(() => {
+    if (selectedDept && departmentOptions.length > 0) {
+      const selectedDeptId = departmentOptions.find(
+        (dept) => dept.label === selectedDept
+      )?.value;
+
+      if (selectedDeptId) {
+        const subs = getSubDepartmentOptions(Number(selectedDeptId));
+        setSubDepartmentOptions(subs);
+        // Only reset if the current subDept doesn't exist in new options
+        if (!subs.some((sub) => sub.label === selectedSubDept)) {
+          setSelectedSubDept('');
+        }
+      }
+    } else {
+      setSubDepartmentOptions([]);
+      if (selectedSubDept) {
+        // Only reset if there's a value
+        setSelectedSubDept('');
+      }
+    }
+  }, [selectedDept, departmentOptions]);
   const togglePermission = (username: string, field: PermissionKey) => {
     setUsers((prev) =>
       prev.map((user) =>
@@ -61,7 +111,7 @@ export const AllocationPanel = () => {
         user.username === username ? { ...user, isEditing: false } : user
       )
     );
-    console.log("Saved user:", username, users);
+    console.log('Saved user:', username, users);
   };
 
   const addUser = () => {
@@ -72,7 +122,7 @@ export const AllocationPanel = () => {
 
     // CHECKING IF THE USER ALREADY EXISTS
     if (users.some((u) => u.username === newUserLabel?.label)) {
-      toast.error("User already exists");
+      toast.error('User already exists');
       return;
     }
 
@@ -91,12 +141,12 @@ export const AllocationPanel = () => {
       },
     ]);
 
-    setNewUsername("");
+    setNewUsername('');
     setShowAddUser(false);
   };
 
   const removeUser = (username: string) => {
-    if (username !== "admin") {
+    if (username !== 'admin') {
       setUsers(users.filter((user) => user.username !== username));
     }
   };
@@ -108,16 +158,16 @@ export const AllocationPanel = () => {
       accessOptions?.items as { label: string; value: string }[]
     )?.find((item) => item.label === user.username)?.value;
 
-    const departmentId = departmentOptions?.find(
-      (item: { label: string }) => item.label === selectedDept
+    const departmentId = departmentOptions.find(
+      (item) => item.label === selectedDept
     )?.value;
 
-    const subDepartmentId = subDepartmentOptions?.find(
-      (item: { label: string }) => item.label === selectedSubDept
+    const subDepartmentId = subDepartmentOptions.find(
+      (item) => item.label === selectedSubDept
     )?.value;
 
     if (!userID || !departmentId || !subDepartmentId) {
-      toast.error("Invalid user or department selection.");
+      toast.error('Invalid user or department selection.');
       return;
     }
 
@@ -135,23 +185,23 @@ export const AllocationPanel = () => {
         ID: Number(field.ID),
         Field: field.Field,
         Type: field.Type,
-        Description: field.Description || "",
+        Description: field.Description || '',
       })),
     };
 
     try {
       await allocateFieldsToUsers(payload);
-      toast.success("Allocation successful");
+      toast.success('Allocation successful');
     } catch (error) {
-      console.error("Allocation failed:", error);
-      toast.error("Failed to allocate");
+      console.error('Allocation failed:', error);
+      toast.error('Failed to allocate');
     } finally {
       setSavedFieldsData([]);
       setUsers([]);
-      setSelectedDept("");
-      setSelectedSubDept("");
+      setSelectedDept('');
+      setSelectedSubDept('');
       setShowAddUser(false);
-      setNewUsername("");
+      setNewUsername('');
       // 🔁 Trigger reset in child component
       fieldPanelRef.current?.cancelFields?.();
     }
@@ -191,8 +241,8 @@ export const AllocationPanel = () => {
             onSave={(updatedFields) => {
               setSavedFieldsData(updatedFields);
               // 🔁 Handle save to backend or store here
-              console.log("Received from child:", updatedFields);
-              toast.success("Fields saved successfully");
+              console.log('Received from child:', updatedFields);
+              toast.success('Fields saved successfully');
             }}
             onCancel={(resetFields) => {
               setSavedFieldsData(resetFields);
@@ -209,7 +259,7 @@ export const AllocationPanel = () => {
                 <label className="text-sm text-gray-600 mb-1 block">
                   Department *
                 </label>
-                <select
+                {/* <select
                   value={selectedDept}
                   onChange={(e) => setSelectedDept(e.target.value)}
                   className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
@@ -220,6 +270,23 @@ export const AllocationPanel = () => {
                   {departmentOptions.map((dept) => (
                     <option key={dept.value}>{dept.label}</option>
                   ))}
+                </select> */}
+                <select
+                  value={selectedDept}
+                  onChange={(e) => setSelectedDept(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
+                  disabled={loadingDepartments}
+                >
+                  <option value="" hidden>
+                    {loadingDepartments
+                      ? 'Loading departments...'
+                      : 'Select Department'}
+                  </option>
+                  {departmentOptions.map((dept) => (
+                    <option key={dept.value} value={dept.label}>
+                      {dept.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -227,7 +294,7 @@ export const AllocationPanel = () => {
                 <label className="text-sm text-gray-600 mb-1 block">
                   Sub-Department *
                 </label>
-                <select
+                {/* <select
                   value={selectedSubDept}
                   onChange={(e) => setSelectedSubDept(e.target.value)}
                   className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
@@ -237,6 +304,25 @@ export const AllocationPanel = () => {
                   </option>
                   {subDepartmentOptions.map((sub) => (
                     <option key={sub.value}>{sub.label}</option>
+                  ))}
+                </select> */}
+                <select
+                  value={selectedSubDept}
+                  onChange={(e) => setSelectedSubDept(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
+                  disabled={!selectedDept || subDepartmentOptions.length === 0}
+                >
+                  <option value="" hidden>
+                    {!selectedDept
+                      ? 'Select department first'
+                      : subDepartmentOptions.length === 0
+                      ? 'No sub-departments available'
+                      : 'Select Sub-Department'}
+                  </option>
+                  {subDepartmentOptions.map((sub) => (
+                    <option key={sub.value} value={sub.label}>
+                      {sub.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -281,8 +367,8 @@ export const AllocationPanel = () => {
                 disabled={showAddUser || users.length === 1}
                 className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm ${
                   showAddUser || users.length === 1
-                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
                 <PlusCircle className="w-4 h-4" />
@@ -328,18 +414,18 @@ export const AllocationPanel = () => {
                     <tr
                       key={user.username}
                       className={`bg-white text-gray-700 ${
-                        user.isEditing ? "bg-blue-50" : ""
+                        user.isEditing ? 'bg-blue-50' : ''
                       }`}
                     >
                       <td className="px-4 py-2 font-medium">{user.username}</td>
                       {(
                         [
-                          "view",
-                          "add",
-                          "edit",
-                          "delete",
-                          "print",
-                          "confidential",
+                          'view',
+                          'add',
+                          'edit',
+                          'delete',
+                          'print',
+                          'confidential',
                         ] as PermissionKey[]
                       ).map((field) => (
                         <td key={field} className="text-center">
@@ -350,13 +436,13 @@ export const AllocationPanel = () => {
                               togglePermission(user.username, field)
                             }
                             disabled={
-                              (!user.isEditing && user.username !== "admin") ||
-                              user.username === "admin"
+                              (!user.isEditing && user.username !== 'admin') ||
+                              user.username === 'admin'
                             }
                             className={`h-4 w-4 ${
-                              user.username === "admin"
-                                ? "cursor-not-allowed"
-                                : ""
+                              user.username === 'admin'
+                                ? 'cursor-not-allowed'
+                                : ''
                             }`}
                           />
                         </td>

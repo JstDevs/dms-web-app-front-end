@@ -1,4 +1,4 @@
-import { forwardRef, SelectHTMLAttributes } from "react";
+import { forwardRef, SelectHTMLAttributes } from 'react';
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
@@ -16,14 +16,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       error,
       options,
       fullWidth = true,
-      className = "",
+      className = '',
       placeholder,
       ...props
     },
     ref
   ) => {
     return (
-      <div className={`${fullWidth ? "w-full" : ""} ${className}`}>
+      <div className={`${fullWidth ? 'w-full' : ''} ${className}`}>
         {label && (
           <label
             htmlFor={props.id}
@@ -37,13 +37,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           className={`
             block px-3 py-2 bg-white border rounded-md text-sm shadow-sm
             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-            ${fullWidth ? "w-full" : ""}
-            ${error ? "border-red-500" : "border-gray-300"}
+            ${fullWidth ? 'w-full' : ''}
+            ${error ? 'border-red-500' : 'border-gray-300'}
           `}
           {...props}
         >
           <option value="" hidden>
-            {placeholder || "Select an option"}
+            {placeholder || 'Select an option'}
           </option>
           {options.map((option) => (
             <option
@@ -61,4 +61,4 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   }
 );
 
-Select.displayName = "Select";
+Select.displayName = 'Select';

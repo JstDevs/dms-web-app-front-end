@@ -1,17 +1,18 @@
-import { Select } from "@/components/ui/Select";
-import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
-import { Button } from "@chakra-ui/react";
-import { useRef, useState } from "react";
-import toast from "react-hot-toast";
-import { useTemplates } from "./utils/useTemplates";
-import { useAuth } from "@/contexts/AuthContext";
+import { Select } from '@/components/ui/Select';
+import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
+import { Button } from '@chakra-ui/react';
+import { useRef, useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
+import { useTemplates } from './utils/useTemplates';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   UnrecordedDocument,
   useUnrecordedDocuments,
-} from "./utils/useUnrecorded";
-import { runOCR } from "./utils/unrecordedHelpers";
-import { useDocument } from "@/contexts/DocumentContext";
-import { CurrentDocument } from "@/types/Document";
+} from './utils/useUnrecorded';
+import { runOCR } from './utils/unrecordedHelpers';
+import { useDocument } from '@/contexts/DocumentContext';
+import { CurrentDocument } from '@/types/Document';
+
 interface FormData {
   department: string;
   subdepartment: string;
@@ -21,7 +22,6 @@ interface FormData {
   isLoaded: boolean;
   previewUrl: string;
   lastFetchedValues?: {
-    // Track what was last fetched
     department: string;
     subdepartment: string;
     template: string;
@@ -37,23 +37,55 @@ export interface Rect {
 
 const OCRUnrecordedUI = () => {
   const [formData, setFormData] = useState<FormData>({
-    department: "",
-    subdepartment: "",
-    template: "",
-    accessId: "",
+    department: '',
+    subdepartment: '',
+    template: '',
+    accessId: '',
     selectedDoc: null,
     isLoaded: false,
-    previewUrl: "",
+    previewUrl: '',
   });
   const imgRef = useRef<HTMLImageElement>(null);
 
-  const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
+  const {
+    departmentOptions,
+    getSubDepartmentOptions,
+    loading: loadingDepartments,
+  } = useNestedDepartmentOptions();
+  const [subDepartmentOptions, setSubDepartmentOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
   const { templateOptions } = useTemplates();
   const { selectedRole } = useAuth();
   const { unrecordedDocuments, fetchUnrecorded } = useUnrecordedDocuments();
   const [currentUnrecoredDocument, setCurrentUnrecordedDocument] =
     useState<CurrentDocument | null>(null);
   const { loading, fetchDocument } = useDocument();
+
+  // Update sub-departments when department selection changes
+  useEffect(() => {
+    if (formData.department && departmentOptions.length > 0) {
+      const selectedDeptId = departmentOptions.find(
+        (dept) => dept.value === formData.department
+      )?.value;
+      console.log({ selectedDeptId });
+      if (selectedDeptId) {
+        const subs = getSubDepartmentOptions(Number(selectedDeptId));
+        setSubDepartmentOptions(subs);
+        // Only reset if the current subDept doesn't exist in new options
+        if (!subs.some((sub) => sub.label === formData.subdepartment)) {
+          setFormData((prev) => ({ ...prev, subdepartment: '' }));
+        }
+      }
+    } else {
+      setSubDepartmentOptions([]);
+      if (formData.subdepartment) {
+        // Only reset if there's a value
+        setFormData((prev) => ({ ...prev, subdepartment: '' }));
+      }
+    }
+  }, [formData.department, departmentOptions]);
+
   const handleOCR = async () => {
     const selectedDocument = unrecordedDocuments.find(
       (doc) => doc.FileName === formData.selectedDoc?.FileName
@@ -63,7 +95,7 @@ const OCRUnrecordedUI = () => {
     )?.label;
 
     if (!selectedDocument) {
-      toast.error("No document selected");
+      toast.error('No document selected');
       return;
     }
 
@@ -75,24 +107,23 @@ const OCRUnrecordedUI = () => {
 
     try {
       const res = await runOCR(selectedDocument.ID, payload);
-      console.log(res, "runOCR");
-      // TODO : IF OCR IS SUCCESSFUL THEN REMOVE IT FROM THE LIST....
+      console.log(res, 'runOCR');
       setFormData({ ...formData, selectedDoc: null });
       fetchUnrecorded(
         formData.department,
         formData.subdepartment,
         String(selectedRole?.ID)
       );
-      toast.success("OCR processing started successfully!");
+      toast.success('OCR processing started successfully!');
     } catch (error) {
       console.error(error);
-      toast.error("Failed to start OCR");
+      toast.error('Failed to start OCR');
     }
   };
-  // -------GET ALL UNRECORDED DOCUMENTS-----------
+
   const handleLoad = async () => {
     if (!selectedRole?.ID) {
-      toast.error("Please select a role");
+      toast.error('Please select a role');
       return;
     }
     setFormData({ ...formData, isLoaded: false });
@@ -110,46 +141,43 @@ const OCRUnrecordedUI = () => {
           template: prev.template,
         },
       }));
-      toast.success("Documents loaded successfully");
+      toast.success('Documents loaded successfully');
     } catch (error) {
       console.log(error);
-      toast.error("Failed to load document");
+      toast.error('Failed to load document');
     } finally {
       setFormData({ ...formData, isLoaded: true });
     }
   };
+
   const handleDocSelection = (doc: UnrecordedDocument) => {
-    // if (!doc.DataImage.data || !imgRef.current) return;
-
-    // const byteArray = new Uint8Array(doc.DataImage.data);
-    // const blob = new Blob([byteArray], {
-    //   type: doc.DataType === "pdf" ? "application/pdf" : "image/png", // Adjust MIME as needed
-    // });
-    // const previewUrl = URL.createObjectURL(blob);
-
     setFormData({
       ...formData,
       selectedDoc: doc,
-      // isLoaded: true,
-      // previewUrl,
     });
   };
+
   const handlePreviewDoc = async () => {
     if (!formData.selectedDoc) return;
     try {
       const res = await fetchDocument(formData.selectedDoc.ID.toString());
-      console.log(res, "handlePreviewDoc");
+      console.log(res, 'handlePreviewDoc');
       setCurrentUnrecordedDocument(res);
-      // toast.success("OCR processing started successfully!");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to start OCR");
+      toast.error('Failed to start OCR');
     }
   };
+
   const isSameAsLastFetch =
     formData.department === formData.lastFetchedValues?.department &&
     formData.subdepartment === formData.lastFetchedValues?.subdepartment &&
     formData.template === formData.lastFetchedValues?.template;
+
+  if (loadingDepartments) {
+    return <div>Loading departments...</div>;
+  }
+
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg">
       {/* HEADER */}
@@ -182,8 +210,15 @@ const OCRUnrecordedUI = () => {
               onChange={(e) =>
                 setFormData({ ...formData, subdepartment: e.target.value })
               }
-              placeholder="Select a Sub-Department"
+              placeholder={
+                !formData.department
+                  ? 'Select a Department First'
+                  : subDepartmentOptions.length === 0
+                  ? 'No Sub-Departments Available'
+                  : 'Select a Sub-Department'
+              }
               options={subDepartmentOptions}
+              disabled={!formData.department}
             />
 
             <Select
@@ -210,7 +245,6 @@ const OCRUnrecordedUI = () => {
             </Button>
           </div>
 
-          {/* NOTE: HARD CODED FOR NOW  */}
           {unrecordedDocuments.length > 0 &&
             unrecordedDocuments?.map((doc) => (
               <div
@@ -218,8 +252,8 @@ const OCRUnrecordedUI = () => {
                 onClick={() => handleDocSelection(doc)}
                 className={`cursor-pointer text-sm px-2 py-1 rounded hover:bg-blue-100 ${
                   formData.selectedDoc?.FileName === doc.FileName
-                    ? "bg-blue-200"
-                    : ""
+                    ? 'bg-blue-200'
+                    : ''
                 }`}
               >
                 {doc.FileName}
@@ -239,7 +273,7 @@ const OCRUnrecordedUI = () => {
                 onClick={handlePreviewDoc}
                 disabled={!formData.selectedDoc || loading}
               >
-                {loading ? "Loading..." : "  Preview Doc"}
+                {loading ? 'Loading...' : 'Preview Doc'}
               </Button>
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm flex-1 "
@@ -254,23 +288,22 @@ const OCRUnrecordedUI = () => {
 
         {/* Right Panel - Document Preview */}
         <div className="w-full lg:w-1/2 p-2 sm:p-4 bg-white">
-          {/* <div className="w-full h-full flex items-center justify-center relative"> */}
           {currentUnrecoredDocument?.document[0]?.filepath &&
           formData.selectedDoc ? (
             <div className="w-full max-h-[60vh] overflow-auto border rounded-md">
               <div
                 className="relative"
-                style={{ width: "100%", minWidth: "100%", height: "100%" }}
+                style={{ width: '100%', minWidth: '100%', height: '100%' }}
               >
                 <img
                   ref={imgRef}
-                  src={currentUnrecoredDocument?.document[0]?.filepath || ""}
+                  src={currentUnrecoredDocument?.document[0]?.filepath || ''}
                   alt="Document Preview"
                   className="block"
                   style={{
-                    width: "100%",
-                    height: "100%",
-                    minWidth: "100%",
+                    width: '100%',
+                    height: '100%',
+                    minWidth: '100%',
                   }}
                   draggable={false}
                 />
@@ -282,7 +315,6 @@ const OCRUnrecordedUI = () => {
             </p>
           )}
         </div>
-        {/* </div> */}
       </div>
     </div>
   );
