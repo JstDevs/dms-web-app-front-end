@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   Calendar,
   Lock,
@@ -8,11 +8,11 @@ import {
   CheckCircle,
   AlertCircle,
   Send,
-} from "lucide-react";
-import { Button } from "@chakra-ui/react";
-import axios from "@/api/axios";
-import { useAuth } from "@/contexts/AuthContext";
-import toast from "react-hot-toast";
+} from 'lucide-react';
+import { Button } from '@chakra-ui/react';
+import axios from '@/api/axios';
+import { useAuth } from '@/contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 interface DocumentCardProps {
   document: {
@@ -43,38 +43,38 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
   } = document;
 
   const [isRequesting, setIsRequesting] = useState(false);
-  const [requestError, setRequestError] = useState("");
+  const [requestError, setRequestError] = useState('');
   const [requestSent, setRequestSent] = useState(false);
   const { user: loggedUser } = useAuth();
 
   const handleRequestApproval = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsRequesting(true);
-    setRequestError("");
+    setRequestError('');
 
     try {
       const response = await axios.post(
         `/documents/documents/${ID}/approvals`,
         {
           requestedBy: loggedUser?.ID,
-          approverId: "1",
+          approverId: '1',
           approverName: loggedUser?.UserName,
-          dueDate: "",
-          comments: "Please approve this document",
+          dueDate: '',
+          comments: 'Please approve this document',
         }
       );
 
       if (response.data.success) {
-        toast.success("Approval request sent successfully!");
+        toast.success('Approval request sent successfully!');
         setRequestSent(true);
       } else {
         toast.error(response.data.message);
         setRequestError(response.data.message);
       }
     } catch (error) {
-      console.error("Error requesting approval:", error);
-      setRequestError("Failed to send approval request. Please try again.");
-      toast.error("Failed to send approval request");
+      console.error('Error requesting approval:', error);
+      setRequestError('Failed to send approval request. Please try again.');
+      toast.error('Failed to send approval request');
     } finally {
       setIsRequesting(false);
     }
@@ -136,10 +136,10 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
             <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-              {FileName || "Untitled Document"}
+              {FileName || 'Untitled Document'}
             </h3>
             <p className="text-gray-600 text-sm line-clamp-3 leading-relaxed">
-              {FileDescription || "No description available for this document."}
+              {FileDescription || 'No description available for this document.'}
             </p>
           </div>
         </div>
@@ -153,12 +153,12 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
               <span className="font-medium">Created:</span>
               <span className="ml-2">
                 {FileDate
-                  ? new Date(FileDate).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
+                  ? new Date(FileDate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
                     })
-                  : "No date"}
+                  : 'No date'}
               </span>
             </div>
           </div>
@@ -166,16 +166,16 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
           {Expiration && ExpirationDate && (
             <div
               className={`flex items-center text-sm ${
-                isExpired ? "text-red-600" : "text-gray-500"
+                isExpired ? 'text-red-600' : 'text-gray-500'
               }`}
             >
               <Clock className="w-4 h-4 mr-2 text-gray-400" />
               <span className="font-medium">Expires:</span>
               <span className="ml-2">
-                {new Date(ExpirationDate).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
+                {new Date(ExpirationDate).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
                 })}
               </span>
             </div>
@@ -206,11 +206,11 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
             )}
           </div>
 
-          {requestError && (
+          {/* {requestError && (
             <div className="text-red-500 text-sm mt-2 text-right">
               {requestError}
             </div>
-          )}
+          )} */}
         </div>
       </div>
 

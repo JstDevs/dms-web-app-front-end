@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   MessageSquare,
@@ -10,12 +10,15 @@ import {
   AlertCircle,
   CheckCircle,
   X,
-} from "lucide-react";
-import axios from "@/api/axios";
-import { useUsers } from "@/pages/Users/useUser";
-import { User } from "@/types/User";
-import { CurrentDocument } from "@/types/Document";
-import { useAuth } from "@/contexts/AuthContext";
+  Trash2,
+} from 'lucide-react';
+import axios from '@/api/axios';
+import { useUsers } from '@/pages/Users/useUser';
+import { User } from '@/types/User';
+import { CurrentDocument } from '@/types/Document';
+import { useAuth } from '@/contexts/AuthContext';
+import toast from 'react-hot-toast';
+import { Button } from '@chakra-ui/react';
 
 interface DocumentCollaborationProps {
   document: CurrentDocument | null;
@@ -38,7 +41,7 @@ interface Collaborator {
   DocumentID: number;
   CollaboratorID: string;
   CollaboratorName: string;
-  PermissionLevel: "READ" | "WRITE" | "COMMENT" | "ADMIN";
+  PermissionLevel: 'READ' | 'WRITE' | 'COMMENT' | 'ADMIN';
   AddedBy: string;
   AddedDate: string;
 }
@@ -48,17 +51,23 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
 }) => {
   const { users, loading: usersLoading, error: usersError } = useUsers();
   const { user: loggedUser } = useAuth();
-  const [comment, setComment] = useState("");
+  const [comment, setComment] = useState('');
   const [showUserSelector, setShowUserSelector] = useState(false);
   const [selectedPermission, setSelectedPermission] = useState<
-    "READ" | "WRITE" | "COMMENT" | "ADMIN"
-  >("WRITE");
+    'READ' | 'WRITE' | 'COMMENT' | 'ADMIN'
+  >('WRITE');
   const [isAddingCollaborator, setIsAddingCollaborator] = useState(false);
   const [isAddingComment, setIsAddingComment] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [removingCollaboratorId, setRemovingCollaboratorId] = useState<
+    string | null
+  >(null);
+  const [removingCommentId, setRemovingCommentId] = useState<string | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -77,8 +86,8 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
         setComments(response.data.data);
       }
     } catch (error) {
-      console.error("Failed to fetch comments:", error);
-      showMessage("Failed to load comments. Please try again.", true);
+      console.error('Failed to fetch comments:', error);
+      showMessage('Failed to load comments. Please try again.', true);
     }
   };
 
@@ -91,8 +100,8 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
         setCollaborators(response.data.data);
       }
     } catch (error) {
-      console.error("Failed to fetch collaborators:", error);
-      showMessage("Failed to load collaborators. Please try again.", true);
+      console.error('Failed to fetch collaborators:', error);
+      showMessage('Failed to load collaborators. Please try again.', true);
     } finally {
       setLoading(false);
     }
@@ -101,13 +110,13 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
   const showMessage = (message: string, isError: boolean = false) => {
     if (isError) {
       setErrorMessage(message);
-      setTimeout(() => setErrorMessage(""), 5000);
+      setTimeout(() => setErrorMessage(''), 5000);
     } else {
       setSuccessMessage(message);
-      setTimeout(() => setSuccessMessage(""), 3000);
+      setTimeout(() => setSuccessMessage(''), 3000);
     }
   };
-
+  // -------------ADD COMMENTS--------
   const handleAddComment = async () => {
     if (!comment.trim() || !document) return;
 
@@ -119,25 +128,45 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
           collaboratorId: loggedUser?.ID,
           collaboratorName: loggedUser?.UserName,
           comment: comment.trim(),
-          commentType: "general",
-          parentCommentId: "",
+          commentType: 'general',
+          parentCommentId: '',
           pageNumber: 1,
         }
       );
 
       if (response.data.success) {
-        setComment("");
-        showMessage("Comment added successfully!");
+        setComment('');
+        showMessage('Comment added successfully!');
         fetchComments(); // Refresh comments
       }
     } catch (error: any) {
-      console.error("Failed to add comment:", error);
-      showMessage("Failed to add comment. Please try again.", true);
+      console.error('Failed to add comment:', error);
+      showMessage('Failed to add comment. Please try again.', true);
     } finally {
       setIsAddingComment(false);
     }
   };
 
+  const handleRemoveComment = async (commentId: string) => {
+    if (!document) return;
+
+    setRemovingCommentId(commentId);
+    try {
+      const response = await axios.delete(
+        `/documents/documents/${document.document[0].ID}/comments/${commentId}`
+      );
+
+      if (response.data.success) {
+        showMessage('Comment removed successfully!');
+        fetchComments(); // Refresh comments
+      }
+    } catch (error: any) {
+      console.error('Failed to remove comment:', error);
+      showMessage('Failed to remove comment. Please try again.', true);
+    } finally {
+      setRemovingCommentId(null);
+    }
+  };
   const handleAddCollaborator = async (user: User) => {
     if (!document) return;
 
@@ -169,20 +198,45 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
         fetchCollaborators(); // Refresh collaborators
       }
     } catch (error: any) {
-      console.error("Failed to add collaborator:", error);
-      showMessage("Failed to add collaborator. Please try again.", true);
+      console.error('Failed to add collaborator:', error);
+      showMessage('Failed to add collaborator. Please try again.', true);
     } finally {
       setIsAddingCollaborator(false);
     }
   };
+  const handleRemoveCollaborator = async (collaborator: Collaborator) => {
+    if (!document) return;
 
+    setRemovingCollaboratorId(collaborator.CollaboratorID.toString());
+    try {
+      const response = await axios.delete(
+        `/documents/documents/${document.document[0].ID}/collaborators/${collaborator.CollaboratorID}`,
+        {}
+      );
+
+      if (response.data.success) {
+        showMessage(
+          `${collaborator.CollaboratorName} removed as collaborator successfully!`
+        );
+        toast.success(
+          `${collaborator.CollaboratorName} removed as collaborator successfully!`
+        );
+        fetchCollaborators(); // Refresh collaborators
+      }
+    } catch (error: any) {
+      console.error('Failed to remove collaborator:', error);
+      showMessage('Failed to remove collaborator. Please try again.', true);
+    } finally {
+      setRemovingCollaboratorId(null);
+    }
+  };
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -249,7 +303,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
               comments.map((comment) => (
                 <div
                   key={comment.ID}
-                  className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200 hover:shadow-sm transition-shadow"
+                  className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200 relative hover:shadow-sm transition-shadow"
                 >
                   <div className="flex items-start">
                     <div className="flex-shrink-0 mr-3">
@@ -271,6 +325,20 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                       </p>
                     </div>
                   </div>
+                  {/* Show delete button only for user's own comments or if admin */}
+                  {comment.CollaboratorID == loggedUser?.ID.toString() && (
+                    <Button
+                      onClick={() => handleRemoveComment(comment.ID.toString())}
+                      disabled={removingCommentId == comment.ID.toString()}
+                      className="absolute bottom-2 right-2 text-gray-500 hover:text-red-500 transition-colors duration-300"
+                    >
+                      {removingCommentId == comment.ID.toString() ? (
+                        <Loader2 className="spinner-icon" />
+                      ) : (
+                        <Trash2 className="delete-icon" />
+                      )}
+                    </Button>
+                  )}
                 </div>
               ))
             )}
@@ -304,7 +372,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                     ) : (
                       <Send size={14} />
                     )}
-                    {isAddingComment ? "Adding..." : "Comment"}
+                    {isAddingComment ? 'Adding...' : 'Comment'}
                   </button>
                 </div>
               </div>
@@ -352,18 +420,33 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                 <div className="ml-auto">
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                      collaborator.PermissionLevel === "ADMIN"
-                        ? "bg-red-100 text-red-800"
-                        : collaborator.PermissionLevel === "WRITE"
-                        ? "bg-blue-100 text-blue-800"
-                        : collaborator.PermissionLevel === "COMMENT"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-gray-100 text-gray-800"
+                      collaborator.PermissionLevel === 'ADMIN'
+                        ? 'bg-red-100 text-red-800'
+                        : collaborator.PermissionLevel === 'WRITE'
+                        ? 'bg-blue-100 text-blue-800'
+                        : collaborator.PermissionLevel === 'COMMENT'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-800'
                     }`}
                   >
                     {collaborator.PermissionLevel}
                   </span>
                 </div>
+                <button
+                  onClick={() => handleRemoveCollaborator(collaborator)}
+                  className="text-red-500 hover:text-red-700 p-1 ml-2 rounded-full hover:bg-red-50"
+                  disabled={
+                    removingCollaboratorId ===
+                    collaborator.CollaboratorID.toString()
+                  }
+                >
+                  {removingCollaboratorId ===
+                  collaborator.CollaboratorID.toString() ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={16} />
+                  )}
+                </button>
               </div>
             ))}
 
@@ -497,7 +580,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
                     <p className="text-gray-900">
                       <span className="font-medium">
                         {collaboration.CollaboratorName}
-                      </span>{" "}
+                      </span>{' '}
                       was added as collaborator
                     </p>
                     <p className="text-gray-500">
