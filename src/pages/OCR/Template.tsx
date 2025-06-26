@@ -1,5 +1,5 @@
 import { Select } from '@/components/ui/Select';
-import { Button } from '@chakra-ui/react';
+import { Badge, Button } from '@chakra-ui/react';
 import { useEffect, useRef, useState } from 'react';
 import { Rect } from './Unrecorded';
 import toast from 'react-hot-toast';
@@ -16,9 +16,22 @@ import {
   convertPdfToImage,
 } from './utils/templateHelpers';
 // import { Template } from "./utils/useTemplates";
-import { ArrowLeft, Edit, Eye, Plus, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Building,
+  Calendar,
+  Edit,
+  Eye,
+  FileText,
+  FolderOpen,
+  Image,
+  Plus,
+  Trash2,
+  Users,
+} from 'lucide-react';
 import { DeleteDialog } from '@/components/ui/DeleteDialog';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 // import { PDFDocument } from 'pdf-lib';
 type OCRUnrecordedFields = {
   id: number;
@@ -452,11 +465,29 @@ export const TemplateOCR = () => {
       toast.error('Failed to delete template');
     }
   };
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
 
+  const getFileExtension = (filePath: string) => {
+    return filePath?.split('.').pop()?.toLowerCase() || '';
+  };
+
+  const isImageFile = (filePath: string) => {
+    const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg'];
+    return imageExtensions.includes(getFileExtension(filePath));
+  };
   const renderTemplatesList = () => (
-    <div className="p-2 lg:p-6">
+    <div className="bg-white rounded-lg shadow-md p-2 sm:p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Templates</h2>
+        <header className="text-left flex-1 ">
+          <h1 className="text-3xl font-bold text-blue-800">Templates</h1>
+          <p className="mt-2 text-gray-600">Manage all templates here</p>
+        </header>
         <Button
           onClick={() => setCurrentView('create')}
           className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4 py-2 rounded text-sm"
@@ -467,59 +498,149 @@ export const TemplateOCR = () => {
       </div>
 
       {loading ? (
-        <div className="text-center py-8">Loading templates...</div>
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <span className="ml-4 text-lg text-gray-600">
+            Loading templates...
+          </span>
+        </div>
       ) : (
-        <div className="grid gap-4 ">
-          {templates?.length > 0 ? (
-            templates?.map((template) => (
-              <div
-                key={template.ID}
-                className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{template.name}</h3>
-                    <p className="text-gray-600">{template.header}</p>
-                    <div className="mt-2 text-sm text-gray-500">
-                      <p>Department: {template.Department.Name}</p>
-                      <p>Sub-Department: {template.SubDepartment.Name}</p>
-                      <p>Fields: {template.fields.length}</p>
-                      <p>
-                        Created:{' '}
-                        {new Date(template.createdAt).toLocaleDateString()}
-                      </p>
+        <div className="grid gap-4 lg:gap-6">
+          {templates.map((template) => (
+            <Card
+              key={template.ID}
+              className="group hover:shadow-xl transition-all duration-300 border border-gray-200 shadow-sm hover:-translate-y-1 bg-white"
+            >
+              <div className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-xl font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                        {template.name}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        {isImageFile(template.samplePdfPath) ? (
+                          <Badge className="bg-green-100 text-green-800 border-green-200">
+                            <Image className="mr-1 w-4" />
+                            Image
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                            <FileText className="mr-1 w-4" />
+                            PDF
+                          </Badge>
+                        )}
+                      </div>
                     </div>
+                    <p className="text-gray-600 leading-relaxed mb-4">
+                      {template.header}
+                    </p>
                   </div>
-                  <div className="flex gap-2">
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 shrink-0">
                     <Button
                       onClick={() => handleViewTemplate(template)}
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 w-9 p-0 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                       <Eye size={16} />
                     </Button>
-                    {/* TODO: Add edit button for template  */}
-                    {/* <Button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleEditTemplate(template)}
-                      className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2"
+                      className="h-9 w-9 p-0 hover:bg-green-50 hover:text-green-600 transition-colors"
                     >
                       <Edit size={16} />
-                    </Button> */}
+                    </Button>
                     <DeleteDialog
                       onConfirm={() => handleDeleteTemplate(template.ID)}
                     >
-                      <Button className="bg-red-100 hover:bg-red-200 text-red-700 p-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      >
                         <Trash2 size={16} />
                       </Button>
                     </DeleteDialog>
                   </div>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="text-center py-8 font-semibold text-2xl">
-              No templates found.
-            </div>
-          )}
+
+              <CardContent className="pt-0">
+                {/* Template Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Building size={14} className="text-gray-400" />
+                    <span className="font-medium">Department:</span>
+                    <span className="truncate">{template.Department.Name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Users size={14} className="text-gray-400" />
+                    <span className="font-medium">Sub-Dept:</span>
+                    <span className="truncate">
+                      {template.SubDepartment.Name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <FolderOpen size={14} className="text-gray-400" />
+                    <span className="font-medium">Fields:</span>
+                    <span>{template.fields.length}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar size={14} className="text-gray-400" />
+                    <span className="font-medium">Created:</span>
+                    <span>{formatDate(template.createdAt)}</span>
+                  </div>
+                </div>
+
+                {/* Template Dimensions */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Image className="text-gray-400" />
+                    <span className="font-medium">Dimensions:</span>
+                    <span>
+                      {template.imageWidth} × {template.imageHeight}px
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <FileText size={14} className="text-gray-400" />
+                    <span className="font-medium">Sample:</span>
+                    <span className="truncate">{template.samplePdfPath}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar size={14} className="text-gray-400" />
+                    <span className="font-medium">Updated:</span>
+                    <span>{formatDate(template.updatedAt)}</span>
+                  </div>
+                </div>
+
+                {/* Fields Preview */}
+                <div className="flex flex-wrap gap-2">
+                  {template.fields.slice(0, 4).map((field) => (
+                    <Badge
+                      key={field.id}
+                      variant="outline"
+                      className="text-xs bg-gray-50 text-gray-700 border-gray-200"
+                    >
+                      {field.fieldName}
+                    </Badge>
+                  ))}
+                  {template.fields.length > 4 && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                    >
+                      +{template.fields.length - 4} more
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>
