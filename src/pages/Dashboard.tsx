@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useDocument } from "../contexts/DocumentContext";
-import { Folder, FileText, Users } from "lucide-react";
-import { Button } from "@chakra-ui/react";
-import { useUsers } from "./Users/useUser";
-import { useAuth } from "@/contexts/AuthContext";
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useDocument } from '../contexts/DocumentContext';
+import { Folder, FileText, Users } from 'lucide-react';
+import { Button } from '@chakra-ui/react';
+import { useUsers } from './Users/useUser';
+import { useAuth } from '@/contexts/AuthContext';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 interface Activity {
   ActivityDate: string;
@@ -23,7 +24,8 @@ const Dashboard: React.FC = () => {
   const { selectedRole } = useAuth();
   const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(false);
-
+  const documentsPermissions = useModulePermissions(3); // 1 = MODULE_ID
+  const usersPermissions = useModulePermissions(5); // 1 = MODULE_ID
   useEffect(() => {
     if (selectedRole?.ID) {
       fetchDocumentList(Number(selectedRole.ID), documentList?.currentPage);
@@ -65,7 +67,7 @@ const Dashboard: React.FC = () => {
                           ?.UserName || `User ${activity.CollaboratorID}`,
                     });
                   } catch (e) {
-                    console.error("Error parsing activity details", e);
+                    console.error('Error parsing activity details', e);
                   }
                 });
               }
@@ -84,7 +86,7 @@ const Dashboard: React.FC = () => {
 
         setRecentActivities(sortedActivities);
       } catch (error) {
-        console.error("Failed to fetch activities", error);
+        console.error('Failed to fetch activities', error);
       } finally {
         setLoading(false);
       }
@@ -97,31 +99,33 @@ const Dashboard: React.FC = () => {
 
   const statCards = [
     {
-      title: "Total Documents",
+      title: 'Total Documents',
       count: documentList?.documents.length,
       icon: <Folder className="h-8 w-8 text-green-500" />,
-      color: "border-green-100",
-      path: "/documents/library",
+      color: 'border-green-100',
+      path: '/documents/library',
+      isPermitted: documentsPermissions?.View,
     },
     {
-      title: "Users",
+      title: 'Users',
       count: users.length,
       icon: <Users className="h-8 w-8 text-blue-500" />,
-      color: "border-blue-100",
-      path: "/users/members",
+      color: 'border-blue-100',
+      path: '/users/members',
+      isPermitted: usersPermissions?.View,
     },
   ];
 
   const formatActivityType = (type: string) => {
     switch (type) {
-      case "DOCUMENT_OPENED":
-        return "opened document";
-      case "DOCUMENT_DOWNLOADED":
-        return "downloaded document";
-      case "DOCUMENT_VIEWED":
-        return "viewed document";
+      case 'DOCUMENT_OPENED':
+        return 'opened document';
+      case 'DOCUMENT_DOWNLOADED':
+        return 'downloaded document';
+      case 'DOCUMENT_VIEWED':
+        return 'viewed document';
       default:
-        return type.toLowerCase().replace(/_/g, " ");
+        return type.toLowerCase().replace(/_/g, ' ');
     }
   };
 
@@ -148,7 +152,7 @@ const Dashboard: React.FC = () => {
           <div
             key={index}
             className={`${stat.color} bg-slate-50 rounded-xl border border-gray-200 shadow-lg p-4 flex items-center transition-transform cursor-pointer hover:scale-105`}
-            onClick={() => navigate(stat.path)}
+            onClick={() => stat.isPermitted && navigate(stat.path)}
           >
             <div className="mr-4">{stat.icon}</div>
             <div>
@@ -190,7 +194,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-800">
-                      <span className="text-blue-600">{activity.user}</span>{" "}
+                      <span className="text-blue-600">{activity.user}</span>{' '}
                       {formatActivityType(activity.ActivityType)}
                     </p>
                     <p className="text-sm text-slate-600">

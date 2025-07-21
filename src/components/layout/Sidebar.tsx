@@ -1,80 +1,113 @@
-import React, { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
   Users,
   Settings,
-  Clock,
-  FileCheck,
-  FolderClosed,
-  ChevronDown,
-  ChevronUp,
   Building,
   BookOpenCheck,
   Menu,
   X,
-} from "lucide-react";
-import { cn } from "../../utils/cn";
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '../../utils/cn';
+
+const navItems = [
+  { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+  {
+    name: 'Departments',
+    icon: Building,
+    submenu: [
+      { name: 'Main', path: '/departments/main', moduleId: 1 },
+      { name: 'Sub-Department', path: '/departments/sub', moduleId: 2 },
+    ],
+  },
+  {
+    name: 'Documents',
+    icon: FileText,
+    path: '/documents',
+    submenu: [
+      { name: 'Upload', path: '/documents/upload', moduleId: 3 },
+      { name: 'Library', path: '/documents/library', moduleId: 4 },
+    ],
+  },
+  {
+    name: 'Users Settings',
+    icon: Users,
+    submenu: [
+      { name: 'Users', path: '/users/members', moduleId: 5 },
+      { name: 'User Access', path: '/users/access', moduleId: 6 },
+      // { name: 'Modules', path: '/users/modules' }, // no restriction for this link
+    ],
+  },
+  {
+    name: 'Digitalization Settings',
+    icon: Users,
+    submenu: [
+      { name: 'Allocation', path: '/digitalization/allocation', moduleId: 7 },
+      {
+        name: 'Batch Upload',
+        path: '/digitalization/batch-upload',
+        moduleId: 8,
+      },
+    ],
+  },
+  {
+    name: 'OCR',
+    icon: BookOpenCheck,
+    submenu: [
+      { name: 'Unrecorded', path: '/ocr/unrecorded', moduleId: 9 },
+      { name: 'Template', path: '/ocr/template', moduleId: 10 },
+      { name: 'Fields', path: '/ocr/fields', moduleId: 11 },
+    ],
+  },
+  { name: 'Settings', icon: Settings, path: '/settings', moduleId: 12 },
+];
 
 const Sidebar: React.FC = () => {
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
-
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-
   const [isMobile, setIsMobile] = useState(false);
-  const toggleSubmenu = (name: string) => {
-    setOpenSubmenus((prev) => ({ ...prev, [name]: !prev[name] }));
-  };
 
-  const navItems = [
-    { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-    {
-      name: "Departments",
-      icon: Building,
-      submenu: [
-        { name: "Main", path: "/departments/main" },
-        { name: "Sub-Department", path: "/departments/sub" },
-      ],
-    },
-    {
-      name: "Documents",
-      path: "/documents",
-      icon: FileText,
-      submenu: [
-        { name: "Upload", path: "/documents/upload" },
-        { name: "Library", path: "/documents/library" },
-      ],
-    },
-    {
-      name: "Users Settings",
-      icon: Users,
-      submenu: [
-        { name: "Users", path: "/users/members" },
-        { name: "User Access", path: "/users/access" },
-        { name: "Modules", path: "/users/modules" },
-      ],
-    },
-    {
-      name: "Digitalization Settings",
-      icon: Users,
-      submenu: [
-        { name: "Allocation", path: "/digitalization/allocation" },
-        { name: "Batch Upload", path: "/digitalization/batch-upload" },
-      ],
-    },
-    {
-      name: "OCR",
-      icon: BookOpenCheck,
-      submenu: [
-        { name: "Unrecorded", path: "/ocr/unrecorded" },
-        { name: "Template", path: "/ocr/template" },
-        { name: "Fields", path: "/ocr/fields" },
-      ],
-    },
-    { name: "Settings", icon: Settings, path: "/settings" },
-  ];
+  const { selectedRole } = useAuth();
 
+  const isAdmin = selectedRole?.Description === 'Administration';
+
+  // Permission check is *only* via selectedRole.moduleAccess now!
+  function hasViewPermission(moduleId?: number) {
+    if (isAdmin) return true;
+    if (!moduleId) return true; // Public
+    if (!selectedRole?.moduleAccess) return false;
+    const mod = selectedRole.moduleAccess.find(
+      (m: any) => m.ModuleID === moduleId
+    );
+    if (mod?.View) return true;
+    return false;
+  }
+
+  // Filter navItems according to selectedRole only.
+  const filteredNavItems = React.useMemo(() => {
+    return navItems
+      .map((item) => {
+        if (item.submenu && item.submenu.length > 0) {
+          const filteredSubs = item.submenu.filter((sub) =>
+            hasViewPermission(sub.moduleId)
+          );
+          if (filteredSubs.length > 0) {
+            return { ...item, submenu: filteredSubs };
+          }
+          return null; // Entire section hidden if no visible submenu items
+        }
+        // If no submenu, check permission for item itself
+        if (hasViewPermission(item.moduleId)) return item;
+        return null;
+      })
+      .filter(Boolean);
+  }, [selectedRole]);
+  // console.log(filteredNavItems);
   useEffect(() => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -82,15 +115,18 @@ const Sidebar: React.FC = () => {
         setIsMobileOpen(false);
       }
     };
-
     checkIfMobile();
-    window.addEventListener("resize", checkIfMobile);
-    return () => window.removeEventListener("resize", checkIfMobile);
+    window.addEventListener('resize', checkIfMobile);
+    return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
+
+  const toggleSubmenu = (name: string) => {
+    setOpenSubmenus((prev) => ({ ...prev, [name]: !prev[name] }));
+  };
 
   return (
     <>
-      {/* Mobile Hamburger Button - Only shows on mobile when sidebar is closed */}
+      {/* Mobile Hamburger Button */}
       {isMobile && !isMobileOpen && (
         <button
           onClick={() => setIsMobileOpen(true)}
@@ -103,18 +139,18 @@ const Sidebar: React.FC = () => {
       {/* Sidebar */}
       <div
         className={cn(
-          "bg-blue-900 text-white flex flex-col transition-all duration-300 ease-in-out",
-          "fixed md:relative z-30 h-screen",
-          "left-0 top-0",
-          "w-64",
-          isMobile ? "translate-x-[-100%] md:translate-x-0" : "",
-          isMobileOpen && "translate-x-0"
+          'bg-blue-900 text-white flex flex-col transition-all duration-300 ease-in-out',
+          'fixed md:relative z-30 h-screen',
+          'left-0 top-0',
+          'w-64',
+          isMobile ? 'translate-x-[-100%] md:translate-x-0' : '',
+          isMobileOpen && 'translate-x-0'
         )}
         style={{
-          transition: "transform 0.3s ease-in-out, width 0.3s ease-in-out",
+          transition: 'transform 0.3s ease-in-out, width 0.3s ease-in-out',
         }}
       >
-        {/* Mobile Close Button - Only shows on mobile */}
+        {/* Mobile Close Button */}
         {isMobile && (
           <button
             onClick={() => setIsMobileOpen(false)}
@@ -130,19 +166,19 @@ const Sidebar: React.FC = () => {
 
         <nav className="flex-1 pt-4 pb-4 overflow-y-auto sidebar-custom-scrollbar">
           <ul className="space-y-1 px-2">
-            {navItems.map((item) => (
-              <li key={item.name}>
-                {item.submenu ? (
+            {filteredNavItems.map((item) => (
+              <li key={item?.name}>
+                {item?.submenu ? (
                   <>
                     <button
                       onClick={() => toggleSubmenu(item.name)}
                       className={cn(
-                        "flex items-center w-full px-2 py-2 rounded-md transition-colors text-left",
-                        "text-blue-300 hover:text-white hover:bg-blue-800"
+                        'flex items-center w-full px-2 py-2 rounded-md transition-colors text-left',
+                        'text-blue-300 hover:text-white hover:bg-blue-800'
                       )}
                     >
                       <item.icon
-                        className={cn("flex-shrink-0", "h-5 w-5 mr-3")}
+                        className={cn('flex-shrink-0', 'h-5 w-5 mr-3')}
                       />
                       <span className="flex-1">{item.name}</span>
                       {openSubmenus[item.name] ? (
@@ -159,10 +195,10 @@ const Sidebar: React.FC = () => {
                               to={sub.path}
                               className={({ isActive }) =>
                                 cn(
-                                  "block px-2 py-1 rounded-md text-sm",
+                                  'block px-2 py-1 rounded-md text-sm',
                                   isActive
-                                    ? "bg-blue-800 text-white"
-                                    : "text-blue-300 hover:text-white hover:bg-blue-800"
+                                    ? 'bg-blue-800 text-white'
+                                    : 'text-blue-300 hover:text-white hover:bg-blue-800'
                                 )
                               }
                               onClick={() => isMobile && setIsMobileOpen(false)}
@@ -176,22 +212,23 @@ const Sidebar: React.FC = () => {
                   </>
                 ) : (
                   <NavLink
-                    to={item.path}
+                    to={item?.path || ''}
                     className={({ isActive }) =>
                       cn(
-                        "flex items-center px-2 py-2 rounded-md transition-colors",
+                        'flex items-center px-2 py-2 rounded-md transition-colors',
                         isActive
-                          ? "bg-blue-800 text-white"
-                          : "text-blue-300 hover:text-white hover:bg-blue-800"
+                          ? 'bg-blue-800 text-white'
+                          : 'text-blue-300 hover:text-white hover:bg-blue-800'
                       )
                     }
                     onClick={() => isMobile && setIsMobileOpen(false)}
                   >
-                    <item.icon
-                      className={cn("flex-shrink-0", "h-5 w-5 mr-3")}
-                    />
-
-                    <span>{item.name}</span>
+                    {item?.icon && (
+                      <item.icon
+                        className={cn('flex-shrink-0', 'h-5 w-5 mr-3')}
+                      />
+                    )}
+                    <span>{item?.name}</span>
                   </NavLink>
                 )}
               </li>

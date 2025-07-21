@@ -1,11 +1,13 @@
-import React from "react";
-import { UserCircle, Bell, Lock, Shield } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import React from 'react';
+import { UserCircle, Bell, Lock, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const allocationPermissions = useModulePermissions(12); // 1 = MODULE_ID
   return (
     <div className="animate-fade-in">
       <h1 className="text-3xl font-bold text-blue-800 mb-6">Settings</h1>
@@ -27,7 +29,7 @@ const Settings: React.FC = () => {
                     key={accessLevel.ID}
                     className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-2"
                   >
-                    {" "}
+                    {' '}
                     {accessLevel.Description}
                   </span>
                 ))}
@@ -45,7 +47,9 @@ const Settings: React.FC = () => {
               <div className="space-y-4">
                 <button
                   onClick={() => {
-                    navigate("/settings/change-password");
+                    (allocationPermissions?.Add ||
+                      allocationPermissions?.Edit) &&
+                      navigate('/settings/change-password');
                   }}
                   className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100"
                 >

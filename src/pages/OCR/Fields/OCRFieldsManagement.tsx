@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { FiPlus } from "react-icons/fi";
-import { Button, Dialog, Portal } from "@chakra-ui/react";
-import OCRFieldForm from "./OCRFieldForm";
-import { OCRField } from "./ocrFieldService.ts";
-import { Edit, Trash2 } from "lucide-react";
-import { useOCRFields } from "./useOCRFields.ts";
+import { useState } from 'react';
+import { FiPlus } from 'react-icons/fi';
+import { Button, Dialog, Portal } from '@chakra-ui/react';
+import OCRFieldForm from './OCRFieldForm';
+import { OCRField } from './ocrFieldService.ts';
+import { Edit, Trash2 } from 'lucide-react';
+import { useOCRFields } from './useOCRFields.ts';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions.ts';
 const OCRFieldsManagement = () => {
   const { fields, loading, error, addField, editField, removeField } =
     useOCRFields();
@@ -12,7 +13,7 @@ const OCRFieldsManagement = () => {
   const [currentField, setCurrentField] = useState<OCRField | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<number | null>(null);
-
+  const ocrFieldsPermissions = useModulePermissions(11); // 1 = MODULE_ID
   const handleAddField = () => {
     setCurrentField(null);
     setIsDialogOpen(true);
@@ -62,14 +63,16 @@ const OCRFieldsManagement = () => {
             Manage the fields available for OCR processing
           </p>
         </div>
-        <Button
-          colorScheme="blue"
-          onClick={handleAddField}
-          className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
-        >
-          <FiPlus />
-          Add Field
-        </Button>
+        {ocrFieldsPermissions?.Add && (
+          <Button
+            colorScheme="blue"
+            onClick={handleAddField}
+            className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+          >
+            <FiPlus />
+            Add Field
+          </Button>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -111,23 +114,27 @@ const OCRFieldsManagement = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex justify-end">
                       <div className="flex space-x-3">
-                        <Button
-                          onClick={() => handleEditField(field)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="Edit"
-                          size="sm"
-                        >
-                          <Edit className="h-4 w-4" />
-                          Edit
-                        </Button>
-                        <Button
-                          onClick={() => handleDeleteClick(field.ID)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Delete"
-                          size="sm"
-                        >
-                          <Trash2 className="h-4 w-4" /> Delete
-                        </Button>
+                        {ocrFieldsPermissions?.Edit && (
+                          <Button
+                            onClick={() => handleEditField(field)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Edit"
+                            size="sm"
+                          >
+                            <Edit className="h-4 w-4" />
+                            Edit
+                          </Button>
+                        )}
+                        {ocrFieldsPermissions?.Delete && (
+                          <Button
+                            onClick={() => handleDeleteClick(field.ID)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete"
+                            size="sm"
+                          >
+                            <Trash2 className="h-4 w-4" /> Delete
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -149,7 +156,7 @@ const OCRFieldsManagement = () => {
             <Dialog.Content className="bg-white mx-4 max-w-md w-full">
               <Dialog.Header>
                 <Dialog.Title className="text-xl font-semibold">
-                  {currentField ? "Edit OCR Field" : "Add New OCR Field"}
+                  {currentField ? 'Edit OCR Field' : 'Add New OCR Field'}
                 </Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>

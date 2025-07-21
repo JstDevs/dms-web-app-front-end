@@ -1,30 +1,34 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 // import { useDocument } from "@/contexts/DocumentContext";
-import DocumentCard from "@/components/documents/DocumentCard";
+import DocumentCard from '@/components/documents/DocumentCard';
 // import { Input, Select } from "@/components/ui"; // Assuming you have these UI components
-import { FiSearch, FiFilter, FiX } from "react-icons/fi";
-import { Select } from "@/components/ui/Select";
-import { Input } from "@/components/ui/Input";
-import { useAuth } from "@/contexts/AuthContext";
-import { fetchDocuments } from "./utils/uploadAPIs";
-import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
+import { FiSearch, FiFilter, FiX } from 'react-icons/fi';
+import { Select } from '@/components/ui/Select';
+import { Input } from '@/components/ui/Input';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchDocuments } from './utils/uploadAPIs';
+import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { PaginationControls } from '@/components/ui/PaginationControls';
 
 const MyDocuments: React.FC = () => {
   // const { documents } = useDocument();
   const navigate = useNavigate();
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   // State for filters
-  const [searchTerm, setSearchTerm] = useState("");
-  const [department, setDepartment] = useState("");
-  const [subDepartment, setSubDepartment] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [department, setDepartment] = useState('');
+  const [subDepartment, setSubDepartment] = useState('');
   // TODO CHANGE THIS TS TYPE
   const [documents, setDocuments] = useState<any[]>([]);
   const [filteredDocs, setFilteredDocs] = useState(documents);
   const [showFilters, setShowFilters] = useState(false);
   const { selectedRole } = useAuth(); // assuming user object has user.id
   const [currentPage, setCurrentPage] = useState(1);
+  const [paginationData, setPaginationData] = useState<any>(null);
   // console.log("selectedRole", selectedRole);
+  const myDocumentPermissions = useModulePermissions(4); // 1 = MODULE_ID
   useEffect(() => {
     const loadDocuments = async () => {
       try {
@@ -35,8 +39,9 @@ const MyDocuments: React.FC = () => {
 
         setDocuments(data.documents);
         setFilteredDocs(data.documents);
+        setPaginationData(data.pagination);
       } catch (err) {
-        console.error("Failed to fetch documents", err);
+        console.error('Failed to fetch documents', err);
       }
     };
 
@@ -70,11 +75,19 @@ const MyDocuments: React.FC = () => {
   }, [searchTerm, department, subDepartment, documents]);
 
   const clearFilters = () => {
-    setSearchTerm("");
-    setDepartment("");
-    setSubDepartment("");
+    setSearchTerm('');
+    setDepartment('');
+    setSubDepartment('');
   };
-
+  // if (!myDocumentPermissions.View) {
+  //   return (
+  //     <div className="animate-fade-in">
+  //       <h1 className="text-3xl font-bold text-blue-800 mb-6">
+  //         You do not have permission to view this page
+  //       </h1>
+  //     </div>
+  //   );
+  // }
   return (
     <div className="animate-fade-in">
       <header className="text-left mb-6">
@@ -103,7 +116,7 @@ const MyDocuments: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium"
           >
             <FiFilter />
-            {showFilters ? "Hide Filters" : "Show Filters"}
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
           </button>
         </div>
 
@@ -116,7 +129,7 @@ const MyDocuments: React.FC = () => {
                 value={department}
                 onChange={(e) => {
                   setDepartment(e.target.value);
-                  setSubDepartment(""); // Reset sub-department when department changes
+                  setSubDepartment(''); // Reset sub-department when department changes
                 }}
                 placeholder="All Departments"
                 options={departmentOptions}
@@ -159,12 +172,16 @@ const MyDocuments: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredDocs.map((document) => {
             const doc = document.newdoc;
-            console.log(doc);
+            // console.log(doc);
             return (
               <DocumentCard
                 key={doc.ID}
                 document={doc}
-                onClick={() => navigate(`/documents/${doc.ID}`)}
+                onClick={() =>
+                  (myDocumentPermissions.Edit ||
+                    myDocumentPermissions.Delete) &&
+                  navigate(`/documents/${doc.ID}`)
+                }
               />
             );
           })}
@@ -176,6 +193,13 @@ const MyDocuments: React.FC = () => {
           </p>
         </div>
       )}
+      <PaginationControls
+        currentPage={currentPage}
+        totalItems={paginationData?.totalItems}
+        itemsPerPage={10}
+        onPageChange={setCurrentPage}
+        // onItemsPerPageChange={setItemsPerPage}
+      />
     </div>
   );
 };

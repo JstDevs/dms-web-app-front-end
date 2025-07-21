@@ -1,29 +1,30 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Input } from "../../components/ui/Input";
-import { Search, Edit, Trash2, UserPlus } from "lucide-react";
-import { DeleteDialog } from "../../components/ui/DeleteDialog";
-import { User } from "@/types/User";
-import { PaginationControls } from "@/components/ui/PaginationControls";
-import { Button } from "@chakra-ui/react";
-import { useUsers } from "./useUser";
-import toast from "react-hot-toast";
-import { Portal, Select } from "@chakra-ui/react";
-import useAccessLevelRole from "./Users Access/useAccessLevelRole";
-import { deleteUserSoft, registerUser, updateUser } from "@/api/auth";
+import React, { useEffect, useRef, useState } from 'react';
+import { Input } from '../../components/ui/Input';
+import { Search, Edit, Trash2, UserPlus } from 'lucide-react';
+import { DeleteDialog } from '../../components/ui/DeleteDialog';
+import { User } from '@/types/User';
+import { PaginationControls } from '@/components/ui/PaginationControls';
+import { Button } from '@chakra-ui/react';
+import { useUsers } from './useUser';
+import toast from 'react-hot-toast';
+import { Portal, Select } from '@chakra-ui/react';
+import useAccessLevelRole from './Users Access/useAccessLevelRole';
+import { deleteUserSoft, registerUser, updateUser } from '@/api/auth';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 export const UsersPage: React.FC = () => {
   const { users, loading, error, refetch } = useUsers();
   const { accessOptions } = useAccessLevelRole();
   const [localUsers, setLocalUsers] = useState<User[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [accessLevelValue, setAccessLevelValue] = useState<string[]>([]);
   const [formData, setFormData] = useState({
-    username: "",
-    password: "",
-    confirmPassword: "",
+    username: '',
+    password: '',
+    confirmPassword: '',
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -41,16 +42,17 @@ export const UsersPage: React.FC = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+  const userPagePermissions = useModulePermissions(5); // 1 = MODULE_ID
   // Functions
   // ---------- Create USERS-------------
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error('Passwords do not match');
       return;
     }
     if (formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters long");
+      toast.error('Password must be at least 6 characters long');
       return;
     }
     if (
@@ -59,7 +61,7 @@ export const UsersPage: React.FC = () => {
       !formData.username ||
       accessLevelValue.length === 0
     ) {
-      toast.error("Please fill out all fields");
+      toast.error('Please fill out all fields');
       return;
     }
 
@@ -74,17 +76,17 @@ export const UsersPage: React.FC = () => {
     try {
       await registerUser(payload);
       refetch();
-      toast.success("User created successfully!");
+      toast.success('User created successfully!');
     } catch (error: any) {
       toast.error(error.message);
       console.error(error);
     }
 
-    toast.success("User created successfully");
+    toast.success('User created successfully');
     setFormData({
-      username: "",
-      password: "",
-      confirmPassword: "",
+      username: '',
+      password: '',
+      confirmPassword: '',
     });
     setIsCreating(false);
   };
@@ -93,8 +95,8 @@ export const UsersPage: React.FC = () => {
     setCurrentUser(user);
     setFormData({
       username: user.UserName,
-      password: "",
-      confirmPassword: "",
+      password: '',
+      confirmPassword: '',
     });
 
     const selectedAccessLevel = user.accessList.map((accessLevel) =>
@@ -104,22 +106,22 @@ export const UsersPage: React.FC = () => {
     setIsEditing(true);
     setIsCreating(false);
     setTimeout(() => {
-      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password && formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error('Passwords do not match');
       return;
     }
     if (formData.password && formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters long");
+      toast.error('Password must be at least 6 characters long');
       return;
     }
     if (!formData.username || accessLevelValue.length === 0) {
-      toast.error("Please fill out all fields");
+      toast.error('Please fill out all fields');
       return;
     }
 
@@ -134,15 +136,15 @@ export const UsersPage: React.FC = () => {
     try {
       await updateUser(payload);
       refetch();
-      toast.success("User updated successfully!");
+      toast.success('User updated successfully!');
     } catch (error) {
       console.error(error);
-      toast.error("Failed to update user");
+      toast.error('Failed to update user');
     } finally {
       setFormData({
-        username: "",
-        password: "",
-        confirmPassword: "",
+        username: '',
+        password: '',
+        confirmPassword: '',
       });
       setAccessLevelValue([]);
       setIsEditing(false);
@@ -153,11 +155,11 @@ export const UsersPage: React.FC = () => {
   const handleDelete = async (id: number) => {
     try {
       await deleteUserSoft(id);
-      toast.success("User deleted");
+      toast.success('User deleted');
       setLocalUsers((prev) => prev.filter((user) => user.ID !== id));
     } catch (error) {
       console.log(error);
-      toast.error("Failed to delete user");
+      toast.error('Failed to delete user');
     }
   };
   // console.log({ paginatedDepartments });
@@ -171,15 +173,15 @@ export const UsersPage: React.FC = () => {
           </p>
         </div>
         <div className="w-full sm:w-auto">
-          {!isCreating && !isEditing && (
+          {userPagePermissions?.Add && !isCreating && !isEditing && (
             <Button
               onClick={() => {
                 setIsCreating(true);
                 setIsEditing(false);
                 setFormData({
-                  username: "",
-                  password: "",
-                  confirmPassword: "",
+                  username: '',
+                  password: '',
+                  confirmPassword: '',
                 });
               }}
               className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
@@ -210,7 +212,7 @@ export const UsersPage: React.FC = () => {
           {(isCreating || isEditing) && (
             <div className="mb-6 p-4 border rounded-md" ref={formRef}>
               <h3 className="text-lg font-medium mb-4">
-                {isEditing ? "Edit User" : "Create User"}
+                {isEditing ? 'Edit User' : 'Create User'}
               </h3>
               <form
                 onSubmit={isEditing ? handleEditSubmit : handleCreateSubmit}
@@ -249,7 +251,7 @@ export const UsersPage: React.FC = () => {
                     </Select.Control>
                     <Portal>
                       <Select.Positioner>
-                        <Select.Content border={"medium"}>
+                        <Select.Content border={'medium'}>
                           {accessOptions?.items?.map((accessType: any) => (
                             <Select.Item
                               item={accessType}
@@ -265,7 +267,7 @@ export const UsersPage: React.FC = () => {
                   </Select.Root>
                 )}
                 <Input
-                  label={isEditing ? "New Password (optional)" : "Password"}
+                  label={isEditing ? 'New Password (optional)' : 'Password'}
                   type="password"
                   value={formData.password}
                   onChange={(e) =>
@@ -299,9 +301,9 @@ export const UsersPage: React.FC = () => {
                       setIsEditing(false);
                       setCurrentUser(null);
                       setFormData({
-                        username: "",
-                        password: "",
-                        confirmPassword: "",
+                        username: '',
+                        password: '',
+                        confirmPassword: '',
                       });
                     }}
                     className="bg-gray-100 hover:bg-gray-200 px-2"
@@ -312,7 +314,7 @@ export const UsersPage: React.FC = () => {
                     type="submit"
                     className="bg-blue-600 hover:bg-blue-700 text-white px-2"
                   >
-                    {isEditing ? "Update" : "Create"}
+                    {isEditing ? 'Update' : 'Create'}
                   </Button>
                 </div>
               </form>
@@ -348,41 +350,45 @@ export const UsersPage: React.FC = () => {
                                 key={access.ID}
                                 className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                             ${
-                              access?.Description === "Administrator"
-                                ? "bg-blue-100 text-blue-800"
-                                : access?.Description === "Manager"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
+                              access?.Description === 'Administrator'
+                                ? 'bg-blue-100 text-blue-800'
+                                : access?.Description === 'Manager'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
                             }`}
                               >
-                                {access?.Description || "User"}
+                                {access?.Description || 'User'}
                               </span>
                             ))
-                          : ""}
+                          : ''}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-blue-600 hover:text-blue-900"
-                          onClick={() => handleEditClick(user)}
-                        >
-                          <Edit className="h-4 w-4" />
-                          Edit
-                        </Button>
-                        <DeleteDialog
-                          key={user.ID}
-                          onConfirm={() => handleDelete(user.ID)}
-                        >
+                        {userPagePermissions?.Edit && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-600 hover:text-red-900"
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => handleEditClick(user)}
                           >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
+                            <Edit className="h-4 w-4" />
+                            Edit
                           </Button>
-                        </DeleteDialog>
+                        )}
+                        {userPagePermissions?.Delete && (
+                          <DeleteDialog
+                            key={user.ID}
+                            onConfirm={() => handleDelete(user.ID)}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </Button>
+                          </DeleteDialog>
+                        )}
                       </td>
                     </tr>
                   ))

@@ -32,6 +32,7 @@ import {
 import { DeleteDialog } from '@/components/ui/DeleteDialog';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 // import { PDFDocument } from 'pdf-lib';
 type OCRUnrecordedFields = {
   id: number;
@@ -141,7 +142,7 @@ export const TemplateOCR = () => {
   useEffect(() => {
     loadTemplates();
   }, []);
-
+  const templatePermissions = useModulePermissions(10); // 1 = MODULE_ID
   const loadTemplates = async () => {
     setLoading(true);
     try {
@@ -488,13 +489,15 @@ export const TemplateOCR = () => {
           <h1 className="text-3xl font-bold text-blue-800">Templates</h1>
           <p className="mt-2 text-gray-600">Manage all templates here</p>
         </header>
-        <Button
-          onClick={() => setCurrentView('create')}
-          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4 py-2 rounded text-sm"
-        >
-          <Plus size={16} />
-          Create Template
-        </Button>
+        {templatePermissions?.Add && (
+          <Button
+            onClick={() => setCurrentView('create')}
+            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4 py-2 rounded text-sm"
+          >
+            <Plus size={16} />
+            Create Template
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -547,25 +550,29 @@ export const TemplateOCR = () => {
                     >
                       <Eye size={16} />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditTemplate(template)}
-                      className="h-9 w-9 p-0 hover:bg-green-50 hover:text-green-600 transition-colors"
-                    >
-                      <Edit size={16} />
-                    </Button>
-                    <DeleteDialog
-                      onConfirm={() => handleDeleteTemplate(template.ID)}
-                    >
+                    {templatePermissions?.Edit && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        onClick={() => handleEditTemplate(template)}
+                        className="h-9 w-9 p-0 hover:bg-green-50 hover:text-green-600 transition-colors"
                       >
-                        <Trash2 size={16} />
+                        <Edit size={16} />
                       </Button>
-                    </DeleteDialog>
+                    )}
+                    {templatePermissions?.Delete && (
+                      <DeleteDialog
+                        onConfirm={() => handleDeleteTemplate(template.ID)}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </DeleteDialog>
+                    )}
                   </div>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { UploadCloud, Trash2, ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect, ChangeEvent, DragEvent } from 'react';
 import toast from 'react-hot-toast';
 import { performBatchUpload } from './utils/batchServices';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 type UploadedFile = {
   id: number;
@@ -31,7 +32,7 @@ export const BatchUploadPanel = () => {
     loading: loadingDepartments,
   } = useNestedDepartmentOptions();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const batchUploadPermissions = useModulePermissions(8); // 1 = MODULE_ID
   // Update sub-departments when department selection changes
   useEffect(() => {
     if (selectedDepartment && departmentOptions.length > 0) {
@@ -214,20 +215,22 @@ export const BatchUploadPanel = () => {
 
       {/* Upload Button */}
       <div className="flex justify-between items-center">
-        <button
-          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm ${
-            files.some((f) => f.status === 'Pending')
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-          disabled={!files.some((f) => f.status === 'Pending')}
-          onClick={handleUpload}
-        >
-          <UploadCloud className="w-4 h-4" />
-          Upload
-        </button>
+        {batchUploadPermissions?.Add && (
+          <button
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm ${
+              files.some((f) => f.status === 'Pending')
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            disabled={!files.some((f) => f.status === 'Pending')}
+            onClick={handleUpload}
+          >
+            <UploadCloud className="w-4 h-4" />
+            Upload
+          </button>
+        )}
 
-        {files.length > 0 && (
+        {batchUploadPermissions?.Delete && files.length > 0 && (
           <button
             className="flex items-center gap-2 text-red-600 text-sm hover:underline"
             onClick={() => setFiles([])}
@@ -284,13 +287,15 @@ export const BatchUploadPanel = () => {
                   </td>
                   <td className="px-4 py-2 text-center">
                     <div className="flex justify-center gap-2">
-                      <button
-                        className="text-red-600 hover:text-red-800"
-                        onClick={() => deleteFile(file.id)}
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {batchUploadPermissions?.Delete && (
+                        <button
+                          className="text-red-600 hover:text-red-800"
+                          onClick={() => deleteFile(file.id)}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
