@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDocument } from '../contexts/DocumentContext';
 import { Folder, FileText, Users } from 'lucide-react';
-import { Button } from '@chakra-ui/react';
+// import { Button } from '@chakra-ui/react';
 import { useUsers } from './Users/useUser';
 import { useAuth } from '@/contexts/AuthContext';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
@@ -92,7 +92,7 @@ const Dashboard: React.FC = () => {
       }
     };
 
-    if (users.length && documentList?.documents.length) {
+    if (users.length && documentList?.totalDocuments) {
       fetchActivities();
     }
   }, [documentList, users]);
@@ -100,7 +100,7 @@ const Dashboard: React.FC = () => {
   const statCards = [
     {
       title: 'Total Documents',
-      count: documentList?.documents.length,
+      count: documentList?.totalDocuments,
       icon: <Folder className="h-8 w-8 text-green-500" />,
       color: 'border-green-100',
       path: '/documents/library',

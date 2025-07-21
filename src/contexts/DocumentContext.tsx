@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState } from "react";
-import { fetchDocumentAnalytics } from "@/pages/Document/utils/documentHelpers";
-import { fetchDocuments } from "@/pages/Document/utils/uploadAPIs";
+import React, { createContext, useContext, useState } from 'react';
+import { fetchDocumentAnalytics } from '@/pages/Document/utils/documentHelpers';
+import { fetchDocuments } from '@/pages/Document/utils/uploadAPIs';
 import {
   CurrentDocument,
   DocumentContextType,
   DocumentListType,
-} from "@/types/Document";
+} from '@/types/Document';
 
 const DocumentContext = createContext<DocumentContextType | undefined>(
   undefined
@@ -21,6 +21,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({
     filteredDocs: [],
     currentPage: 1,
     totalPages: 1,
+    totalDocuments: 0,
     loading: false,
     error: null,
   });
@@ -32,14 +33,14 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({
       setLoading(true);
       setError(null);
       const document = await fetchDocumentAnalytics(id);
-      if (!document) throw new Error("Document not found");
+      if (!document) throw new Error('Document not found');
       if (document.success) {
         setCurrentDocument(document.data);
         return document.data;
       }
     } catch (err) {
-      setError("Failed to fetch document");
-      console.error("Error fetching document:", err);
+      setError('Failed to fetch document');
+      console.error('Error fetching document:', err);
     } finally {
       setLoading(false);
     }
@@ -56,16 +57,17 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({
           documents: data.documents,
           filteredDocs: data.documents,
           currentPage: page,
-          totalPages: data.totalPages || 1,
+          totalDocuments: data.pagination.totalItems,
+          totalPages: data.pagination.totalPages || 1,
           loading: false,
         }));
       } catch (err) {
         setDocumentList((prev) => ({
           ...prev,
-          error: "Failed to fetch documents",
+          error: 'Failed to fetch documents',
           loading: false,
         }));
-        console.error("Failed to fetch documents", err);
+        console.error('Failed to fetch documents', err);
       }
     },
     []
@@ -111,7 +113,7 @@ export default DocumentContext;
 export const useDocument = () => {
   const context = useContext(DocumentContext);
   if (!context) {
-    throw new Error("useDocument must be used within a DocumentProvider");
+    throw new Error('useDocument must be used within a DocumentProvider');
   }
   return context;
 };

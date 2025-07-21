@@ -1,10 +1,10 @@
-import { User } from "./User";
+import { User } from './User';
 
 export type DocumentStatus =
-  | "draft"
-  | "pending_approval"
-  | "approved"
-  | "needs_attention";
+  | 'draft'
+  | 'pending_approval'
+  | 'approved'
+  | 'needs_attention';
 
 export interface Version {
   id: string;
@@ -35,7 +35,7 @@ export interface Approver {
 
 export interface ApprovalStep {
   name: string;
-  type: "single" | "all" | "any";
+  type: 'single' | 'all' | 'any';
   active: boolean;
   completed: boolean;
   completedAt: string;
@@ -224,6 +224,7 @@ export interface DocumentListType {
   currentPage: number;
   totalPages: number;
   loading: boolean;
+  totalDocuments: number;
   error: string | null;
 }
 export interface DocumentContextType {
