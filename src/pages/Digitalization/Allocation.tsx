@@ -8,6 +8,7 @@ import { useOCRFields } from '../OCR/Fields/useOCRFields';
 import toast from 'react-hot-toast';
 import { allocateFieldsToUsers } from './utils/allocationServices';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 type PermissionKey =
   | 'view'
   | 'add'
@@ -47,7 +48,7 @@ export const AllocationPanel = () => {
   const [subDepartmentOptions, setSubDepartmentOptions] = useState<
     { value: string; label: string }[]
   >([]);
-
+  const allocationPermissions = useModulePermissions(7); // 1 = MODULE_ID
   // Update sub-departments when department selection changes
   // useEffect(() => {
   //   if (selectedDept) {
@@ -362,18 +363,20 @@ export const AllocationPanel = () => {
             </div>
           ) : (
             <div className="flex gap-2">
-              <Button
-                onClick={() => setShowAddUser(true)}
-                disabled={showAddUser || users.length === 1}
-                className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm ${
-                  showAddUser || users.length === 1
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                <PlusCircle className="w-4 h-4" />
-                Add User
-              </Button>
+              {allocationPermissions?.Add && (
+                <Button
+                  onClick={() => setShowAddUser(true)}
+                  disabled={showAddUser || users.length === 1}
+                  className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm ${
+                    showAddUser || users.length === 1
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Add User
+                </Button>
+              )}
             </div>
           )}
 

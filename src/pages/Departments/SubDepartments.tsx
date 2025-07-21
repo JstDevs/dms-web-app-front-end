@@ -18,6 +18,7 @@ import { DeleteDialog } from '@/components/ui/DeleteDialog';
 import { Button } from '@chakra-ui/react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 export const SubDepartments: React.FC = () => {
   // Redux
@@ -53,7 +54,7 @@ export const SubDepartments: React.FC = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
+  const subDepartmentPermissions = useModulePermissions(2); // 1 = MODULE_ID
   // Effects
   useEffect(() => {
     dispatch(fetchSubDepartments());
@@ -196,8 +197,6 @@ export const SubDepartments: React.FC = () => {
   // ---------------- UI ----------------
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6">
-      <Toaster position="top-right" />
-
       {/* Header */}
       <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
         <div className="flex-1 text-left">
@@ -208,7 +207,7 @@ export const SubDepartments: React.FC = () => {
             Manage sub-departments and assign them to departments
           </p>
         </div>
-        {!isCreating && (
+        {subDepartmentPermissions?.Add && !isCreating && (
           <Button
             onClick={() => {
               setIsCreating(true);
@@ -402,34 +401,38 @@ export const SubDepartments: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-900"
-                            onClick={() => {
-                              setCurrentDepartment(dept);
-                              setIsCreating(false);
-                              setFormData({
-                                name: dept.Name,
-                                code: dept.Code,
-                                departmentId: String(dept.DepartmentID),
-                              });
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <DeleteDialog
-                            key={dept.ID}
-                            onConfirm={() => handleDelete(dept.ID)}
-                          >
+                          {subDepartmentPermissions.Edit && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-red-600 hover:text-red-900"
+                              className="text-blue-600 hover:text-blue-900"
+                              onClick={() => {
+                                setCurrentDepartment(dept);
+                                setIsCreating(false);
+                                setFormData({
+                                  name: dept.Name,
+                                  code: dept.Code,
+                                  departmentId: String(dept.DepartmentID),
+                                });
+                              }}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Edit className="h-4 w-4" />
                             </Button>
-                          </DeleteDialog>
+                          )}
+                          {subDepartmentPermissions.Delete && (
+                            <DeleteDialog
+                              key={dept.ID}
+                              onConfirm={() => handleDelete(dept.ID)}
+                            >
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </DeleteDialog>
+                          )}
                         </>
                       )}
                     </td>

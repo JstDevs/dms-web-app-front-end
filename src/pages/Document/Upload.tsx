@@ -25,6 +25,8 @@ import {
   DocumentUploadProp,
 } from './utils/documentHelpers';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { PaginationControls } from '@/components/ui/PaginationControls';
 interface DocumentWrapper {
   newdoc: DocumentUploadProp;
   isRestricted: boolean;
@@ -35,7 +37,7 @@ export default function DocumentUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [search, setSearch] = useState('');
   const [editId, setEditId] = useState<number | null>(null);
-
+  const [paginationData, setPaginationData] = useState<any>(null);
   const [newDoc, setNewDoc] = useState<Partial<DocumentUploadProp>>({
     FileName: '',
     FileDescription: '',
@@ -78,7 +80,7 @@ export default function DocumentUpload() {
     useNestedDepartmentOptions();
   const { selectedRole } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
-
+  const uploadPermissions = useModulePermissions(3); // 1 = MODULE_ID
   const loadDocuments = async () => {
     try {
       const { data } = await fetchDocuments(
@@ -86,6 +88,7 @@ export default function DocumentUpload() {
         currentPage
       );
       setDocuments(data.documents);
+      setPaginationData(data.pagination);
     } catch (err) {
       console.error('Failed to fetch documents', err);
     }
@@ -93,7 +96,7 @@ export default function DocumentUpload() {
   useEffect(() => {
     loadDocuments();
   }, [selectedRole, currentPage]);
-  console.log({ documents });
+  // console.log({ documents });
   const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
       const file = e.target.files[0];
@@ -103,7 +106,7 @@ export default function DocumentUpload() {
   };
 
   const handleAddDocument = async () => {
-    console.log({ newDoc, selectedFile });
+    // console.log({ newDoc, selectedFile });
     try {
       const formData = buildDocumentFormData(newDoc, selectedFile, true);
       console.log({ formData });
@@ -220,7 +223,7 @@ export default function DocumentUpload() {
       setSelectedFile(null);
     }
   };
-  console.log(newDoc);
+  // console.log(newDoc);
   const handleDelete = async (id: number) => {
     try {
       await deleteDocument(id);
@@ -537,13 +540,15 @@ export default function DocumentUpload() {
 
         {/* Submit Button */}
         <div className="flex justify-center">
-          <Button
-            onClick={handleAddOrUpdate}
-            className="w-full sm:w-2/3 md:w-1/3 px-2 bg-blue-600 text-white hover:bg-blue-700"
-            disabled={!isFormValid()}
-          >
-            {editId ? 'Update' : 'Add'} Document
-          </Button>
+          {uploadPermissions.Add && (
+            <Button
+              onClick={handleAddOrUpdate}
+              className="w-full sm:w-2/3 md:w-1/3 px-2 bg-blue-600 text-white hover:bg-blue-700"
+              disabled={!isFormValid()}
+            >
+              {editId ? 'Update' : 'Add'} Document
+            </Button>
+          )}
         </div>
       </div>
 
@@ -676,25 +681,31 @@ export default function DocumentUpload() {
                       </td>
                       <td className="border px-6 py-3">
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(doc.ID)}
-                            className="w-full sm:flex-1 text-blue-600 hover:text-blue-900"
-                          >
-                            <Edit className="h-4 w-4" />
-                            Edit
-                          </Button>
-                          <DeleteDialog onConfirm={() => handleDelete(doc.ID)}>
+                          {uploadPermissions.Edit && (
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
-                              className="w-full sm:flex-1 text-red-600 hover:text-red-700 "
+                              onClick={() => handleEdit(doc.ID)}
+                              className="w-full sm:flex-1 text-blue-600 hover:text-blue-900"
                             >
-                              <Trash2 className="h-4 w-4" />
-                              Delete
+                              <Edit className="h-4 w-4" />
+                              Edit
                             </Button>
-                          </DeleteDialog>
+                          )}
+                          {uploadPermissions.Delete && (
+                            <DeleteDialog
+                              onConfirm={() => handleDelete(doc.ID)}
+                            >
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full sm:flex-1 text-red-600 hover:text-red-700 "
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </Button>
+                            </DeleteDialog>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -704,6 +715,13 @@ export default function DocumentUpload() {
             </table>
           </div>
         )}
+        <PaginationControls
+          currentPage={currentPage}
+          totalItems={paginationData?.totalItems}
+          itemsPerPage={10}
+          onPageChange={setCurrentPage}
+          // onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
     </div>
   );

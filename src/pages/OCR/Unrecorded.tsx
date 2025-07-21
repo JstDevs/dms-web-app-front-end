@@ -12,6 +12,7 @@ import {
 import { runOCR } from './utils/unrecordedHelpers';
 import { useDocument } from '@/contexts/DocumentContext';
 import { CurrentDocument } from '@/types/Document';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 interface FormData {
   department: string;
@@ -61,7 +62,7 @@ const OCRUnrecordedUI = () => {
   const [currentUnrecoredDocument, setCurrentUnrecordedDocument] =
     useState<CurrentDocument | null>(null);
   const { loading, fetchDocument } = useDocument();
-
+  const unrecordedPermissions = useModulePermissions(9); // 1 = MODULE_ID
   // Update sub-departments when department selection changes
   useEffect(() => {
     if (formData.department && departmentOptions.length > 0) {
@@ -231,18 +232,20 @@ const OCRUnrecordedUI = () => {
               options={templateOptions}
             />
 
-            <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
-              onClick={handleLoad}
-              disabled={
-                !formData.department ||
-                !formData.subdepartment ||
-                !formData.template ||
-                isSameAsLastFetch
-              }
-            >
-              Get Documents
-            </Button>
+            {unrecordedPermissions?.Add && (
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
+                onClick={handleLoad}
+                disabled={
+                  !formData.department ||
+                  !formData.subdepartment ||
+                  !formData.template ||
+                  isSameAsLastFetch
+                }
+              >
+                Get Documents
+              </Button>
+            )}
           </div>
 
           {unrecordedDocuments.length > 0 &&

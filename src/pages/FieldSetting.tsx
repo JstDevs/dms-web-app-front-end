@@ -1,6 +1,7 @@
-import { Button } from "@chakra-ui/react";
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
-import { OCRField } from "./OCR/Fields/ocrFieldService";
+import { Button } from '@chakra-ui/react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { OCRField } from './OCR/Fields/ocrFieldService';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 type FieldSettingsPanelProps = {
   // showFieldsPanel: boolean;
@@ -52,8 +53,8 @@ export const FieldSettingsPanel = forwardRef(
         setFields(
           fieldsInfo.map((f) => ({
             ...f,
-            Type: "text", // default to text
-            Description: "",
+            Type: 'text', // default to text
+            Description: '',
             active: false,
           }))
         );
@@ -104,6 +105,7 @@ export const FieldSettingsPanel = forwardRef(
     useImperativeHandle(ref, () => ({
       cancelFields: handleCancel,
     }));
+    const allocationPermissions = useModulePermissions(7); // 1 = MODULE_ID
     return (
       <div className="bg-white border rounded-xl p-3 sm:p-6 space-y-4 mt-6 shadow-md">
         {/* Dynamic Fields */}
@@ -114,8 +116,8 @@ export const FieldSettingsPanel = forwardRef(
               onClick={() => setSelectedField(index)}
               className={`grid grid-cols-1 sm:grid-cols-5 gap-3 px-3 py-3 rounded-lg cursor-pointer transition-all ${
                 selectedField === index
-                  ? "bg-blue-100 border border-blue-600"
-                  : "bg-gray-50"
+                  ? 'bg-blue-100 border border-blue-600'
+                  : 'bg-gray-50'
               }`}
             >
               {/* Field Label + Toggle */}
@@ -152,9 +154,9 @@ export const FieldSettingsPanel = forwardRef(
                     type="radio"
                     name={`type-${index}`}
                     value="text"
-                    checked={field.Type === "text"}
+                    checked={field.Type === 'text'}
                     disabled={!field.active}
-                    onChange={() => handleTypeChange(index, "text")}
+                    onChange={() => handleTypeChange(index, 'text')}
                   />
                   Text
                 </label>
@@ -163,9 +165,9 @@ export const FieldSettingsPanel = forwardRef(
                     type="radio"
                     name={`type-${index}`}
                     value="date"
-                    checked={field.Type === "date"}
+                    checked={field.Type === 'date'}
                     disabled={!field.active}
-                    onChange={() => handleTypeChange(index, "date")}
+                    onChange={() => handleTypeChange(index, 'date')}
                   />
                   Date
                 </label>
@@ -178,13 +180,15 @@ export const FieldSettingsPanel = forwardRef(
         {fields.length > 0 ? (
           <div className="flex flex-col sm:flex-row justify-between items-center pt-4 gap-3">
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
-                onClick={handleSave}
-                disabled={fields.every((f) => !f.active)}
-              >
-                Save
-              </Button>
+              {allocationPermissions?.Add && (
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
+                  onClick={handleSave}
+                  disabled={fields.every((f) => !f.active)}
+                >
+                  Save
+                </Button>
+              )}
               <Button
                 className="bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded text-sm w-full"
                 onClick={handleCancel}

@@ -27,6 +27,7 @@ import { Button } from '@chakra-ui/react';
 import { Input } from '@/components/ui/Input';
 import { DeleteDialog } from '@/components/ui/DeleteDialog';
 import { PaginationControls } from '@/components/ui/PaginationControls';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 export const DepartmentsMain: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,6 +49,8 @@ export const DepartmentsMain: React.FC = () => {
   const departments = useSelector(
     (state: RootState) => state.departments.items
   );
+
+  const departmentPermissions = useModulePermissions(1); // 1 = MODULE_ID
 
   // Create flattened list for searching and pagination
   const createFlattenedList = () => {
@@ -219,8 +222,6 @@ export const DepartmentsMain: React.FC = () => {
 
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6">
-      <Toaster position="top-right" />
-
       <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
         <div className="text-left flex-1">
           <h1 className="text-3xl font-bold text-blue-800">
@@ -231,7 +232,7 @@ export const DepartmentsMain: React.FC = () => {
           </p>
         </div>
         <div className="w-full sm:w-auto">
-          {!isCreating && (
+          {departmentPermissions.Add && !isCreating && (
             <Button
               onClick={() => {
                 setIsCreating(true);
@@ -443,36 +444,40 @@ export const DepartmentsMain: React.FC = () => {
                               </>
                             ) : (
                               <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-blue-600 hover:text-blue-900"
-                                  onClick={() => {
-                                    setCurrentDepartment(item.data);
-                                    setIsCreating(false);
-                                    setFormData({
-                                      name: item.data.Name,
-                                      code: item.data.Code,
-                                    });
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <DeleteDialog
-                                  onConfirm={() =>
-                                    handleDelete(item.data.ID, true)
-                                  }
-                                  // title="Delete Department"
-                                  // message="Are you sure you want to delete this department? This will also delete all sub-departments under it."
-                                >
+                                {departmentPermissions?.Edit && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-red-600 hover:text-red-900"
+                                    className="text-blue-600 hover:text-blue-900"
+                                    onClick={() => {
+                                      setCurrentDepartment(item.data);
+                                      setIsCreating(false);
+                                      setFormData({
+                                        name: item.data.Name,
+                                        code: item.data.Code,
+                                      });
+                                    }}
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Edit className="h-4 w-4" />
                                   </Button>
-                                </DeleteDialog>
+                                )}
+                                {departmentPermissions?.Delete && (
+                                  <DeleteDialog
+                                    onConfirm={() =>
+                                      handleDelete(item.data.ID, true)
+                                    }
+                                    // title="Delete Department"
+                                    // message="Are you sure you want to delete this department? This will also delete all sub-departments under it."
+                                  >
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-red-600 hover:text-red-900"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </DeleteDialog>
+                                )}
                               </>
                             )}
                           </>

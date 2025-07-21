@@ -16,6 +16,7 @@ import {
 } from './userAccessService';
 // import { Trash2 } from "lucide-react";
 import { DeleteDialog } from '@/components/ui/DeleteDialog';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 const UserAccessPage = () => {
   const { permissions, isLoading: isPermissionsLoading } = usePermissions();
@@ -37,6 +38,7 @@ const UserAccessPage = () => {
   const [newRoleName, setNewRoleName] = useState('');
 
   const currentRole = roles.find((r) => r.role === selectedRole);
+  const userAccessPermissions = useModulePermissions(6); // 1 = MODULE_ID
   // console.log({ selectedRole, currentRole, originalRoles });
   const handleAddNewRole = () => {
     if (addRole(newRoleName)) {
@@ -206,29 +208,35 @@ const UserAccessPage = () => {
             >
               Cancel
             </Button>
-            <DeleteDialog
-              key={selectedRole}
-              onConfirm={() => handleDelete(currentRole?.userAccessID || 0)}
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-red-700 bg-red-600 p-5 "
+            {userAccessPermissions?.Delete && (
+              <DeleteDialog
+                key={selectedRole}
+                onConfirm={() => handleDelete(currentRole?.userAccessID || 0)}
               >
-                Delete Role
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-red-700 bg-red-600 p-5 "
+                >
+                  Delete Role
+                </Button>
+              </DeleteDialog>
+            )}
+            {userAccessPermissions?.Edit && (
+              <Button
+                className={`px-4 py-2 rounded-md text-sm font-medium text-white focus:outline-none focus:ring-2 ${
+                  hasChanges
+                    ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                    : 'bg-gray-300 cursor-not-allowed'
+                }`}
+                onClick={
+                  isNewRole ? handleAddNewRoleBackend : handleSaveChanges
+                }
+                disabled={!hasChanges}
+              >
+                {isNewRole ? 'Add Role and Save' : 'Save Changes'}
               </Button>
-            </DeleteDialog>
-            <Button
-              className={`px-4 py-2 rounded-md text-sm font-medium text-white focus:outline-none focus:ring-2 ${
-                hasChanges
-                  ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-                  : 'bg-gray-300 cursor-not-allowed'
-              }`}
-              onClick={isNewRole ? handleAddNewRoleBackend : handleSaveChanges}
-              disabled={!hasChanges}
-            >
-              {isNewRole ? 'Add Role and Save' : 'Save Changes'}
-            </Button>
+            )}
           </div>
         ) : (
           <div className="flex justify-center items-center h-64">

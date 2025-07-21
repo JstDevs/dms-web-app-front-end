@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PaginationControlsProps {
   currentPage: number;
   totalItems: number;
   itemsPerPage: number;
   onPageChange: (page: number) => void;
-  onItemsPerPageChange: (itemsPerPage: number) => void;
+  onItemsPerPageChange?: (itemsPerPage: number) => void;
 }
 
 const PaginationControls: React.FC<PaginationControlsProps> = ({
@@ -39,8 +39,8 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
     };
 
     handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const handlePrev = () => {
@@ -75,7 +75,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
       }
 
       // Add ellipsis if needed
-      if (start > 2) pages.push("...");
+      if (start > 2) pages.push('...');
 
       // Add middle pages
       for (let i = start; i <= end; i++) {
@@ -83,7 +83,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
       }
 
       // Add ellipsis if needed
-      if (end < totalPages - 1) pages.push("...");
+      if (end < totalPages - 1) pages.push('...');
 
       // Always show last page
       pages.push(totalPages);
@@ -97,19 +97,21 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
       {/* Rows per page selector */}
       <div className="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-start">
         <span className="text-sm text-gray-700 whitespace-nowrap">
-          Rows Per Page:
+          Rows Per Page: {onItemsPerPageChange ? ' ' : ' 10'}
         </span>
-        <select
-          value={itemsPerPage}
-          onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-          className="px-3 py-1.5 border border-blue-200 rounded-md text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {[5, 10, 20, 50].map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        {onItemsPerPageChange && (
+          <select
+            value={itemsPerPage}
+            onChange={(e) => onItemsPerPageChange?.(Number(e.target.value))}
+            className="px-3 py-1.5 border border-blue-200 rounded-md text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {[5, 10, 20, 50].map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Pagination controls */}
@@ -124,15 +126,15 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
 
         {getPageNumbers().map((item, index) => (
           <React.Fragment key={index}>
-            {item === "..." ? (
+            {item === '...' ? (
               <span className="px-2 text-blue-600">...</span>
             ) : (
               <button
                 onClick={() => onPageChange(Number(item))}
                 className={`px-3 py-1 rounded-md border text-sm ${
                   item === currentPage
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-blue-600 border-blue-200 hover:bg-blue-100"
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-100'
                 }`}
               >
                 {item}
