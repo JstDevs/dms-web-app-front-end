@@ -484,10 +484,10 @@ export const TemplateOCR = () => {
   };
   const renderTemplatesList = () => (
     <div className="bg-white rounded-lg shadow-md p-2 sm:p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between sm:items-center max-sm:flex-col  mb-6 flex-wrap gap-4">
         <header className="text-left flex-1 ">
           <h1 className="text-3xl font-bold text-blue-800">Templates</h1>
-          <p className="mt-2 text-gray-600">Manage all templates here</p>
+          <p className="mt-2 text-gray-600 block">Manage all templates here</p>
         </header>
         {templatePermissions?.Add && (
           <Button
@@ -583,13 +583,15 @@ export const TemplateOCR = () => {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Building size={14} className="text-gray-400" />
                     <span className="font-medium">Department:</span>
-                    <span className="truncate">{template.Department.Name}</span>
+                    <span className="truncate">
+                      {template.Department?.Name}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Users size={14} className="text-gray-400" />
                     <span className="font-medium">Sub-Dept:</span>
                     <span className="truncate">
-                      {template.SubDepartment.Name}
+                      {template.SubDepartment?.Name}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">

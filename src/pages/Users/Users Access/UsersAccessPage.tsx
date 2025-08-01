@@ -161,14 +161,14 @@ const UserAccessPage = () => {
   }
   return (
     <div className="flex flex-col bg-white rounded-md shadow-lg">
-      <header className="text-left flex-1 py-4 px-6">
+      <header className="text-left flex-1 py-4 sm:px-6 px-3">
         <h1 className="text-3xl font-bold text-blue-800">User Access</h1>
         <p className="text-gray-600 mt-2">
           Manage user permissions and access levels
         </p>
       </header>
 
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div className="relative w-full md:w-64">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />

@@ -229,7 +229,7 @@ export const AllocationPanel = () => {
 
       <div className="flex flex-col xl:flex-row gap-6">
         {/* Left Panel - Fields Settings */}
-        <div className="w-full xl:w-1/2 border rounded-md p-4 bg-blue-50">
+        <div className="w-full xl:w-1/2 sm:border sm:rounded-md sm:p-4 sm:bg-blue-50">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-blue-800">
               Field Settings
@@ -254,7 +254,7 @@ export const AllocationPanel = () => {
         {/* Right Panel - User Permissions */}
         <div className="w-full xl:w-1/2 space-y-6">
           {/* Department Selection */}
-          <div className="border rounded-md p-4 bg-blue-50 space-y-4">
+          <div className="sm:border sm:rounded-md sm:p-4 sm:bg-blue-50 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">

@@ -53,7 +53,7 @@ const OCRFieldsManagement = () => {
     return <div className="text-center py-8 text-red-500">{error}</div>;
   console.log(fields);
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-white rounded-lg shadow-md p-3 sm:p-6">
       <div className="flex justify-between mb-6 max-sm:flex-col flex-wrap gap-4">
         <div className="text-left flex-1 ">
           <h1 className="text-3xl font-bold text-blue-800">
@@ -142,6 +142,11 @@ const OCRFieldsManagement = () => {
               : null}
           </tbody>
         </table>
+        {fields?.length === 0 && (
+          <h1 className="text-center font-bold text-2xl my-8">
+            No fields found. Add a new field.
+          </h1>
+        )}
       </div>
 
       {/* Add/Edit Dialog */}

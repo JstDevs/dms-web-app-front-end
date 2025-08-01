@@ -146,8 +146,8 @@ export const DepartmentsMain: React.FC = () => {
     try {
       await dispatch(
         createDepartment({ name: formData.name, code: formData.code })
-      );
-      await dispatch(fetchDepartments());
+      ).unwrap();
+      await dispatch(fetchDepartments()).unwrap();
       toast.success('Department created successfully!');
     } catch (error: any) {
       toast.error(
@@ -161,8 +161,8 @@ export const DepartmentsMain: React.FC = () => {
 
   const handleDelete = async (id: number, isDepartment: boolean = true) => {
     try {
-      await dispatch(deleteDepartment(id));
-      await dispatch(fetchDepartments());
+      await dispatch(deleteDepartment(id)).unwrap();
+      await dispatch(fetchDepartments()).unwrap();
       toast.success(
         `${
           isDepartment ? 'Department' : 'Sub-department'
@@ -204,8 +204,8 @@ export const DepartmentsMain: React.FC = () => {
     try {
       await dispatch(
         editDepartment({ id, name: formData.name, code: formData.code })
-      );
-      await dispatch(fetchDepartments());
+      ).unwrap();
+      await dispatch(fetchDepartments()).unwrap();
       toast.success('Department updated!');
     } catch (error) {
       toast.error('Update failed.');
@@ -221,7 +221,7 @@ export const DepartmentsMain: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6">
+    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-3 sm:p-6">
       <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
         <div className="text-left flex-1">
           <h1 className="text-3xl font-bold text-blue-800">

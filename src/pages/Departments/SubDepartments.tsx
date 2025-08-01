@@ -109,8 +109,8 @@ export const SubDepartments: React.FC = () => {
           code: formData.code,
           departmentId: Number(formData.departmentId),
         })
-      );
-      await dispatch(fetchSubDepartments());
+      ).unwrap();
+      await dispatch(fetchSubDepartments()).unwrap();
       toast.success('Sub-Department created successfully!');
     } catch (error: any) {
       toast.error(
@@ -125,8 +125,8 @@ export const SubDepartments: React.FC = () => {
   // Delete
   const handleDelete = async (id: number) => {
     try {
-      await dispatch(deleteSubDepartment(id));
-      await dispatch(fetchSubDepartments());
+      await dispatch(deleteSubDepartment(id)).unwrap();
+      await dispatch(fetchSubDepartments()).unwrap();
       toast.success('Sub-Department deleted successfully!');
     } catch (error) {
       toast.error('Failed to delete sub-department');
@@ -177,8 +177,8 @@ export const SubDepartments: React.FC = () => {
           code: formData.code,
           departmentId: String(formData.departmentId),
         })
-      );
-      await dispatch(fetchSubDepartments());
+      ).unwrap();
+      await dispatch(fetchSubDepartments()).unwrap();
       toast.success('Sub-Department updated!');
     } catch (error) {
       toast.error('Update failed.');
@@ -196,14 +196,14 @@ export const SubDepartments: React.FC = () => {
 
   // ---------------- UI ----------------
   return (
-    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-2 sm:p-6">
+    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-3 sm:p-6">
       {/* Header */}
       <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
         <div className="flex-1 text-left">
           <h1 className="text-3xl font-bold text-blue-800">
             Sub-Department Management
           </h1>
-          <p className="mt-2 text-gray-600 truncate">
+          <p className="mt-2 text-gray-600 sm:truncate">
             Manage sub-departments and assign them to departments
           </p>
         </div>

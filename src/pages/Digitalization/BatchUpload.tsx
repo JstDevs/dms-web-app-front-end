@@ -126,7 +126,7 @@ export const BatchUploadPanel = () => {
   }
 
   return (
-    <div className="bg-white shadow-md rounded-xl p-6 space-y-6">
+    <div className="bg-white shadow-md rounded-xl p-3 sm:p-6 space-y-6">
       <header>
         <h2 className="text-3xl font-bold text-blue-800">Batch Upload</h2>
         <p className="mt-2 text-gray-600">

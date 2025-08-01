@@ -77,17 +77,17 @@ export const UsersPage: React.FC = () => {
       await registerUser(payload);
       refetch();
       toast.success('User created successfully!');
+      // ✅ Reset only on success
+      setFormData({
+        username: '',
+        password: '',
+        confirmPassword: '',
+      });
     } catch (error: any) {
       toast.error(error.message);
       console.error(error);
     }
 
-    toast.success('User created successfully');
-    setFormData({
-      username: '',
-      password: '',
-      confirmPassword: '',
-    });
     setIsCreating(false);
   };
 
@@ -164,7 +164,7 @@ export const UsersPage: React.FC = () => {
   };
   // console.log({ paginatedDepartments });
   return (
-    <div className="flex flex-col bg-white rounded-md shadow-lg p-2 sm:p-6">
+    <div className="flex flex-col bg-white rounded-md shadow-lg p-3 sm:p-6">
       <header className="flex justify-between items-center gap-4 flex-wrap">
         <div className="text-left flex-1">
           <h1 className="text-3xl font-bold text-blue-800">Users</h1>
@@ -219,10 +219,13 @@ export const UsersPage: React.FC = () => {
                 className="space-y-4"
               >
                 <Input
-                  label="Username"
+                  label={'Username (No Spaces Allowed)'}
                   value={formData.username}
                   onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
+                    setFormData({
+                      ...formData,
+                      username: e.target.value.trim(),
+                    })
                   }
                   placeholder="Enter username"
                   required
