@@ -142,13 +142,16 @@ export default function DocumentUpload() {
       //     doc.newdoc.ID === editId ? { ...doc, ...response.data } : doc
       //   )
       // );
+      console.log({ response });
       if (response.status) {
         await loadDocuments();
         toast.success('Document Updated Successfully');
+      } else {
+        toast.error(response.message);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Update document failed:', error);
-      toast.error('Failed to update document');
+      toast.error('Failed to update document ' + error.message);
     } finally {
       resetForm();
     }
