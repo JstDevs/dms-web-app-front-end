@@ -116,6 +116,8 @@ export default function DocumentUpload() {
       if (response.status) {
         toast.success('Document Added Successfully');
         await loadDocuments();
+      } else {
+        toast.error(response.message);
       }
     } catch (error) {
       console.error('Add document failed:', error);
