@@ -11,7 +11,7 @@ import {
   Trash2,
   UploadCloud,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   editDocument,
@@ -74,7 +74,8 @@ export default function DocumentUpload() {
     Date9: null,
     Date10: null,
   });
-
+  // Add a ref at the top of your component
+  const fileInputRef = useRef<HTMLInputElement>(null); // Properly type the ref
   // const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const { departmentOptions, getSubDepartmentOptions, loading } =
     useNestedDepartmentOptions();
@@ -218,7 +219,7 @@ export default function DocumentUpload() {
       Date9: null,
       Date10: null,
     });
-    setSelectedFile(null);
+    handleRemoveFile();
 
     setEditId(null);
   };
@@ -228,7 +229,7 @@ export default function DocumentUpload() {
     if (doc) {
       setNewDoc(doc.newdoc);
       setEditId(id);
-      setSelectedFile(null);
+      handleRemoveFile();
     }
   };
   // console.log(newDoc);
@@ -294,6 +295,13 @@ export default function DocumentUpload() {
     if (!isoString) return '';
     const date = new Date(isoString);
     return date.toISOString().split('T')[0];
+  };
+  // Modify your remove file handler
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''; // Clear the input value
+    }
   };
 
   return (
@@ -486,6 +494,7 @@ export default function DocumentUpload() {
                     type="file"
                     className="hidden"
                     onChange={handleAttach}
+                    ref={fileInputRef}
                     required
                   />
                 </label>
@@ -497,7 +506,7 @@ export default function DocumentUpload() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setSelectedFile(null)}
+                    onClick={handleRemoveFile}
                     className="ml-2 text-red-500 hover:text-red-700"
                   >
                     <DeleteIcon className="w-4 h-4" />
