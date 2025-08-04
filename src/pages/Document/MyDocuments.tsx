@@ -193,13 +193,15 @@ const MyDocuments: React.FC = () => {
           </p>
         </div>
       )}
-      <PaginationControls
-        currentPage={currentPage}
-        totalItems={paginationData?.totalItems}
-        itemsPerPage={10}
-        onPageChange={setCurrentPage}
-        // onItemsPerPageChange={setItemsPerPage}
-      />
+      {!searchTerm && (
+        <PaginationControls
+          currentPage={currentPage}
+          totalItems={paginationData?.totalItems}
+          itemsPerPage={10}
+          onPageChange={setCurrentPage}
+          // onItemsPerPageChange={setItemsPerPage}
+        />
+      )}
     </div>
   );
 };

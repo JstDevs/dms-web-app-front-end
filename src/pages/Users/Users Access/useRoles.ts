@@ -1,7 +1,7 @@
 // hooks/useRoles.ts
-import { useEffect, useState } from "react";
-import { Permission } from "./usePermission";
-import { getAllUserAccess } from "./userAccessService";
+import { useEffect, useState } from 'react';
+import { Permission } from './usePermission';
+import { getAllUserAccess } from './userAccessService';
 
 type UserAccess = {
   role: string;
@@ -29,7 +29,7 @@ const useRoles = (initialPermissions: Permission[]) => {
               (m: any) => m.ModuleID === perm.id
             );
             const isAdmin =
-              roleItem.Description.toLowerCase() === "administrator" ||
+              roleItem.Description.toLowerCase() === 'administrator' ||
               roleItem.ID === 1;
             return {
               ...perm,
@@ -46,7 +46,7 @@ const useRoles = (initialPermissions: Permission[]) => {
         setOriginalRoles(JSON.parse(JSON.stringify(transformed)));
         setIsInitialized(true);
       } catch (err) {
-        console.error("Failed to load user access roles", err);
+        console.error('Failed to load user access roles', err);
       }
     };
 
@@ -127,7 +127,9 @@ const useRoles = (initialPermissions: Permission[]) => {
     return [...originalRoles]; // Return the original roles array
   };
   const removeRole = (roleName: string) => {
+    console.log(roleName, roles);
     setRoles((prev) => prev.filter((role) => role.role !== roleName));
+    setOriginalRoles((prev) => prev.filter((role) => role.role !== roleName));
   };
   const saveChanges = () => {
     setOriginalRoles([...roles]);

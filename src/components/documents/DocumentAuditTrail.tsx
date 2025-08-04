@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { AuditTrail, CurrentDocument } from "@/types/Document";
-import { format } from "date-fns";
+import React, { useState } from 'react';
+import { AuditTrail, CurrentDocument } from '@/types/Document';
+import { format } from 'date-fns';
 import {
   Clock,
   Search,
@@ -8,8 +8,8 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
-} from "lucide-react";
-import { Button } from "@chakra-ui/react";
+} from 'lucide-react';
+import { Button } from '@chakra-ui/react';
 
 interface DocumentAuditTrailProps {
   document: CurrentDocument | null;
@@ -18,13 +18,13 @@ interface DocumentAuditTrailProps {
 const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
   document,
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
-    from: "",
-    to: "",
+    from: '',
+    to: '',
   });
 
   if (!document) return null;
@@ -60,14 +60,43 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
     }
 
     // Date range filter
+    // const actionDate = new Date(entry.ActionDate);
+    // if (dateRange.from && actionDate <= new Date(dateRange.from)) {
+    //   return false;
+    // }
+    // if (dateRange.to && actionDate >= new Date(dateRange.to)) {
+    //   return false;
+    // }
     const actionDate = new Date(entry.ActionDate);
-    if (dateRange.from && actionDate < new Date(dateRange.from)) {
-      return false;
-    }
-    if (dateRange.to && actionDate > new Date(dateRange.to)) {
-      return false;
+    const actionDateOnly = new Date(
+      actionDate.getFullYear(),
+      actionDate.getMonth(),
+      actionDate.getDate()
+    );
+
+    if (dateRange.from) {
+      const fromDate = new Date(dateRange.from);
+      const fromDateOnly = new Date(
+        fromDate.getFullYear(),
+        fromDate.getMonth(),
+        fromDate.getDate()
+      );
+      if (actionDateOnly < fromDateOnly) {
+        return false;
+      }
     }
 
+    if (dateRange.to) {
+      const toDate = new Date(dateRange.to);
+      const toDateOnly = new Date(
+        toDate.getFullYear(),
+        toDate.getMonth(),
+        toDate.getDate() + 1
+      ); // +1 to include the entire day
+      if (actionDateOnly >= toDateOnly) {
+        return false;
+      }
+    }
     return true;
   });
 
@@ -95,7 +124,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
   // Group entries by date
   const entriesByDate: { [date: string]: AuditTrail[] } = {};
   filteredEntries.forEach((entry) => {
-    const date = format(new Date(entry.ActionDate), "yyyy-MM-dd");
+    const date = format(new Date(entry.ActionDate), 'yyyy-MM-dd');
     if (!entriesByDate[date]) {
       entriesByDate[date] = [];
     }
@@ -103,10 +132,10 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
   });
 
   const handleClearFilters = () => {
-    setSearchTerm("");
+    setSearchTerm('');
     setSelectedUser(null);
     setSelectedAction(null);
-    setDateRange({ from: "", to: "" });
+    setDateRange({ from: '', to: '' });
   };
 
   // Format changed fields if they exist
@@ -123,17 +152,17 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
           <span className="text-gray-700">{field}: </span>
           <div className="flex flex-col sm:flex-row sm:items-start gap-1 mt-1">
             <div className="bg-red-50 p-1 rounded text-red-800 line-through">
-              {oldValues[field]?.toString() || "null"}
+              {oldValues[field]?.toString() || 'null'}
             </div>
             <div className="hidden sm:block text-gray-400">→</div>
             <div className="bg-green-50 p-1 rounded text-green-800">
-              {newValues[field]?.toString() || "null"}
+              {newValues[field]?.toString() || 'null'}
             </div>
           </div>
         </div>
       ));
     } catch (e) {
-      console.error("Error parsing changed fields:", e);
+      console.error('Error parsing changed fields:', e);
       return null;
     }
   };
@@ -186,7 +215,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                 <select
                   id="user-filter"
                   className="block w-full pl-3 pr-2 py-2 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
-                  value={selectedUser || ""}
+                  value={selectedUser || ''}
                   onChange={(e) => setSelectedUser(e.target.value || null)}
                 >
                   <option value="" hidden>
@@ -210,7 +239,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                 <select
                   id="action-filter"
                   className="block w-full pl-3 pr-2 py-2 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
-                  value={selectedAction || ""}
+                  value={selectedAction || ''}
                   onChange={(e) => setSelectedAction(e.target.value || null)}
                 >
                   <option value="" hidden>
@@ -281,7 +310,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
             .map((date) => (
               <div key={date} className="mb-8 last:mb-0">
                 <h3 className="text-sm font-medium text-gray-500 mb-4">
-                  {format(new Date(date), "MMMM d, yyyy")}
+                  {format(new Date(date), 'MMMM d, yyyy')}
                 </h3>
 
                 <div className="relative">
@@ -302,21 +331,31 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
                             <p className="text-sm text-gray-900">
                               <span className="font-medium">
                                 {entry.actor.userName}
-                              </span>{" "}
+                              </span>{' '}
                               {entry.Action.toLowerCase()}
                               {entry.Description && (
                                 <span className="text-gray-600">
-                                  {" "}
+                                  {' '}
                                   - {entry.Description}
                                 </span>
                               )}
                             </p>
                             <p className="text-xs text-gray-500 mt-1 flex items-center">
                               <Clock className="h-3 w-3 mr-1" />
-                              {format(
+                              {/* {format(
                                 new Date(entry.ActionDate).toLocaleDateString(),
-                                " dd-MM-yyyy, h:mm a"
-                              )}
+                                'dd-MM-yyyy, h:mm a'
+                              )} */}
+                              {new Date(entry.ActionDate)
+                                .toLocaleString('en-GB', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: true,
+                                })
+                                .replace(',', '')}
                             </p>
                           </div>
 
@@ -347,8 +386,8 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
               selectedAction ||
               dateRange.from ||
               dateRange.to
-                ? "Try adjusting your filters"
-                : "Changes to this document will appear here"}
+                ? 'Try adjusting your filters'
+                : 'Changes to this document will appear here'}
             </p>
           </div>
         )}

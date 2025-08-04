@@ -1,5 +1,5 @@
-import { CurrentDocument } from "@/types/Document";
-import Modal from "../ui/Modal";
+import { CurrentDocument } from '@/types/Document';
+import Modal from '../ui/Modal';
 import {
   Clock,
   Eye,
@@ -8,9 +8,9 @@ import {
   Building,
   Calendar,
   Info,
-} from "lucide-react";
-import { useDepartmentOptions } from "@/hooks/useDepartmentOptions";
-import { useState } from "react";
+} from 'lucide-react';
+import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
+import { useState } from 'react';
 
 const DocumentCurrentView = ({
   document,
@@ -36,8 +36,8 @@ const DocumentCurrentView = ({
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {isViewerOpen && currentDocumentInfo?.filepath ? (
         <Modal isOpen={isViewerOpen} onClose={() => setIsViewerOpen(false)}>
-          <div className="w-full h-full">
-            <img src={currentDocumentInfo?.filepath || ""} alt="" />
+          <div className="w-full h-full flex items-center justify-center">
+            <img src={currentDocumentInfo?.filepath || ''} alt="" />
           </div>
         </Modal>
       ) : (
@@ -62,18 +62,18 @@ const DocumentCurrentView = ({
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Clock className="h-4 w-4" />
                   <span>
-                    Last modified:{" "}
+                    Last modified:{' '}
                     {document?.versions[0].ModificationDate
                       ? new Date(
                           document?.versions[0]?.ModificationDate
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
+                        ).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
                         })
-                      : "—"}
+                      : '—'}
                   </span>
                 </div>
               </div>
@@ -109,7 +109,7 @@ const DocumentCurrentView = ({
                   </h4>
                 </div>
                 <p className="text-gray-900 font-medium">
-                  {currentDocumentInfo?.DataType || "N/A"}
+                  {currentDocumentInfo?.DataType || 'N/A'}
                 </p>
               </div>
 
@@ -119,8 +119,8 @@ const DocumentCurrentView = ({
                   <div
                     className={`h-8 w-8 rounded-lg flex items-center justify-center ${
                       currentDocumentInfo?.Confidential
-                        ? "bg-gradient-to-r from-red-500 to-pink-500"
-                        : "bg-gradient-to-r from-green-500 to-emerald-500"
+                        ? 'bg-gradient-to-r from-red-500 to-pink-500'
+                        : 'bg-gradient-to-r from-green-500 to-emerald-500'
                     }`}
                   >
                     <Shield className="h-4 w-4 text-white" />
@@ -133,11 +133,11 @@ const DocumentCurrentView = ({
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       currentDocumentInfo?.Confidential
-                        ? "bg-red-100 text-red-800"
-                        : "bg-green-100 text-green-800"
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-green-100 text-green-800'
                     }`}
                   >
-                    {currentDocumentInfo?.Confidential ? "Yes" : "No"}
+                    {currentDocumentInfo?.Confidential ? 'Yes' : 'No'}
                   </span>
                 </div>
               </div>
@@ -153,7 +153,7 @@ const DocumentCurrentView = ({
                   </h4>
                 </div>
                 <p className="text-gray-900 font-medium">
-                  {documentsDepartment?.label || "N/A"}
+                  {documentsDepartment?.label || 'N/A'}
                 </p>
               </div>
 
@@ -168,7 +168,7 @@ const DocumentCurrentView = ({
                   </h4>
                 </div>
                 <p className="text-gray-900 font-medium">
-                  {documentsSubDepartment?.label || "N/A"}
+                  {documentsSubDepartment?.label || 'N/A'}
                 </p>
               </div>
 
@@ -185,14 +185,14 @@ const DocumentCurrentView = ({
                 <p className="text-gray-900 font-medium">
                   {currentDocumentInfo?.FileDate
                     ? new Date(currentDocumentInfo.FileDate).toLocaleDateString(
-                        "en-US",
+                        'en-US',
                         {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
                         }
                       )
-                    : "N/A"}
+                    : 'N/A'}
                 </p>
               </div>
 
@@ -208,7 +208,7 @@ const DocumentCurrentView = ({
                 </div>
                 <p className="text-gray-900 font-medium">
                   {currentDocumentInfo?.FileDescription ||
-                    "No description available"}
+                    'No description available'}
                 </p>
               </div>
             </div>

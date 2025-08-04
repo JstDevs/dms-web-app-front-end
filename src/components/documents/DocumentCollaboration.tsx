@@ -151,9 +151,17 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
     if (!document) return;
 
     setRemovingCommentId(commentId);
+    // const payload = { deletedBy: loggedUser?.ID };
+    console.log({ deletedBy: loggedUser?.ID });
     try {
       const response = await axios.delete(
-        `/documents/documents/${document.document[0].ID}/comments/${commentId}`
+        `/documents/documents/${document.document[0].ID}/comments/${commentId}`,
+        // This is how you send body with DELETE in Axios
+        {
+          data: {
+            deletedBy: String(loggedUser?.ID),
+          },
+        }
       );
 
       if (response.data.success) {

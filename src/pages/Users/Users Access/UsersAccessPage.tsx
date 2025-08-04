@@ -49,7 +49,7 @@ const UserAccessPage = () => {
       toast.error('Role name already exists or is invalid');
     }
   };
-
+  console.log(roles);
   const handleAddNewRoleBackend = async () => {
     if (!currentRole) {
       toast.error('No role selected');
@@ -116,6 +116,7 @@ const UserAccessPage = () => {
 
   // Check if current role is new (not in original roles)
   const isNewRole = !originalRoles.some((r) => r.role === selectedRole);
+  console.log(isNewRole, originalRoles, roles);
   const handleCancel = () => {
     if (isNewRole) {
       removeRole(selectedRole);
@@ -135,7 +136,7 @@ const UserAccessPage = () => {
         toast.error('Failed to delete role');
         return;
       }
-
+      console.log(res.data, 'deleteUserAccessRole', selectedRole);
       removeRole(selectedRole);
       setSelectedRole('');
 
