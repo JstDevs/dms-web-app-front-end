@@ -98,10 +98,12 @@ export default function DocumentUpload() {
   }, [selectedRole, currentPage]);
   // console.log({ documents });
   const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log({ e });
     if (e.target.files?.length) {
       const file = e.target.files[0];
+      console.log({ file });
       setSelectedFile(file);
-      setNewDoc((prev) => ({ ...prev, FileName: file.name }));
+      // setNewDoc((prev) => ({ ...prev, FileName: file.name }));
     }
   };
 
@@ -212,6 +214,7 @@ export default function DocumentUpload() {
       Date10: null,
     });
     setSelectedFile(null);
+
     setEditId(null);
   };
 
@@ -281,6 +284,11 @@ export default function DocumentUpload() {
       console.error('Failed to publish document:', error);
       toast.error('Failed to publish document');
     }
+  };
+  const formatDateForInput = (isoString: string) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toISOString().split('T')[0];
   };
 
   return (
@@ -374,7 +382,7 @@ export default function DocumentUpload() {
           {/* File Date */}
           <div className="col-span-1">
             <label className="text-sm sm:text-base">File Date *</label>
-            <Input
+            {/* <Input
               type="date"
               className="w-full"
               value={newDoc.FileDate || ''}
@@ -383,6 +391,17 @@ export default function DocumentUpload() {
               }
               required
               placeholder="Enter file date"
+            /> */}
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FileDate || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FileDate: date ? date.toISOString() : undefined,
+                });
+              }}
             />
           </div>
 
@@ -527,9 +546,18 @@ export default function DocumentUpload() {
               <Input
                 type="date"
                 className="w-full"
-                value={newDoc.ExpirationDate || ''}
+                value={
+                  newDoc.ExpirationDate
+                    ? newDoc.ExpirationDate.split('T')[0]
+                    : ''
+                }
                 onChange={(e) =>
-                  setNewDoc({ ...newDoc, ExpirationDate: e.target.value })
+                  setNewDoc({
+                    ...newDoc,
+                    ExpirationDate: e.target.value
+                      ? `${e.target.value}T00:00:00.000Z`
+                      : undefined,
+                  })
                 }
                 required={newDoc.Expiration}
                 placeholder="Enter expiration date"
@@ -539,7 +567,14 @@ export default function DocumentUpload() {
         </div>
 
         {/* Submit Button */}
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-4 max-sm:flex-col">
+          <Button
+            onClick={resetForm}
+            className="w-full sm:w-2/3 md:w-1/3 px-2 bg-gray-200 text-black hover:bg-gray-300"
+            // disabled={!isFormValid()}
+          >
+            Cancel
+          </Button>
           {uploadPermissions.Add && (
             <Button
               onClick={handleAddOrUpdate}
