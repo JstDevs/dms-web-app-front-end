@@ -193,9 +193,12 @@ export const AllocationPanel = () => {
     try {
       await allocateFieldsToUsers(payload);
       toast.success('Allocation successful');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Allocation failed:', error);
-      toast.error('Failed to allocate');
+      toast.error(
+        'Failed to allocate : ' + error?.response?.data?.error ||
+          'Please try again.'
+      );
     } finally {
       setSavedFieldsData([]);
       setUsers([]);

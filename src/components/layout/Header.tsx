@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Bell, UserCircle } from "lucide-react";
-import { useNotification } from "@/contexts/NotificationContext";
-import { useAuth } from "@/contexts/AuthContext";
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Bell, UserCircle } from 'lucide-react';
+import { useNotification } from '@/contexts/NotificationContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Header: React.FC = () => {
   const { logout, user, selectedRole, setSelectedRole } = useAuth();
@@ -11,7 +11,6 @@ const Header: React.FC = () => {
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  // const [selectedRole, setSelectedRole] = useState<any>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -20,7 +19,7 @@ const Header: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate('/login');
   };
 
   useEffect(() => {
@@ -37,9 +36,9 @@ const Header: React.FC = () => {
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
   const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -63,7 +62,7 @@ const Header: React.FC = () => {
           {/* ✅ Role Selector */}
           {user && user?.accessList?.length > 1 && (
             <select
-              value={selectedRole?.ID || ""}
+              value={selectedRole?.ID || ''}
               onChange={handleRoleChange}
               className="text-sm border border-gray-300 rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >

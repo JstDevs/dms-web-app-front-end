@@ -250,6 +250,40 @@ export const TemplateOCR = () => {
   const handleMouseUp = () => {
     setIsDragging(false);
   };
+  // Add these new handlers alongside your existing mouse handlers
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!imgRef.current || currentView === 'view') return;
+
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = imgRef.current.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    setStartPoint({ x, y });
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDragging || !startPoint || !imgRef.current) return;
+
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = imgRef.current.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    setSelectionArea({
+      x: Math.min(startPoint.x, x),
+      y: Math.min(startPoint.y, y),
+      width: Math.abs(x - startPoint.x),
+      height: Math.abs(y - startPoint.y),
+    });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
 
   const handleSaveField = () => {
     if (!selectionArea || !selectedField) {
@@ -947,10 +981,14 @@ export const TemplateOCR = () => {
                 cursor: currentView === 'view' ? 'default' : 'crosshair',
                 width: 'fit-content', // Changed from 100%
                 minWidth: '100%',
+                touchAction: 'none', // Prevent default touch behaviors
               }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               {/* Image */}
               {pdfImage || formData.imageURL ? (
