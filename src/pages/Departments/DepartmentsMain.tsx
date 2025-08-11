@@ -316,10 +316,10 @@ export const DepartmentsMain: React.FC = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
+                  Code
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Code
+                  Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
@@ -346,6 +346,23 @@ export const DepartmentsMain: React.FC = () => {
                         !isDepartment ? 'bg-blue-50' : ''
                       }`}
                     >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {isDepartment && isEditingRow ? (
+                          <Input
+                            value={formData.code}
+                            onChange={(e) =>
+                              setFormData({ ...formData, code: e.target.value })
+                            }
+                            className="min-w-24"
+                          />
+                        ) : (
+                          <span
+                            className={!isDepartment ? 'text-blue-600' : ''}
+                          >
+                            {item.data.Code}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center">
                           {isDepartment && hasSubDepartments && (
@@ -390,23 +407,7 @@ export const DepartmentsMain: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {isDepartment && isEditingRow ? (
-                          <Input
-                            value={formData.code}
-                            onChange={(e) =>
-                              setFormData({ ...formData, code: e.target.value })
-                            }
-                            className="min-w-24"
-                          />
-                        ) : (
-                          <span
-                            className={!isDepartment ? 'text-blue-600' : ''}
-                          >
-                            {item.data.Code}
-                          </span>
-                        )}
-                      </td>
+
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span
                           className={`px-2 py-1 text-xs font-semibold rounded-full ${

@@ -307,10 +307,10 @@ export const SubDepartments: React.FC = () => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
+                Code
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Code
+                Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Department
@@ -326,6 +326,21 @@ export const SubDepartments: React.FC = () => {
                 const isEditingRow = currentDepartment?.ID === dept.ID;
                 return (
                   <tr key={dept.ID} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {isEditingRow ? (
+                        <Input
+                          value={formData.code}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              code: e.target.value,
+                            })
+                          }
+                        />
+                      ) : (
+                        <span className="text-gray-600">{dept.Code}</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {isEditingRow ? (
                         <Input
@@ -343,21 +358,7 @@ export const SubDepartments: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {isEditingRow ? (
-                        <Input
-                          value={formData.code}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              code: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        <span className="text-gray-600">{dept.Code}</span>
-                      )}
-                    </td>
+
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {isEditingRow ? (
                         <Select
