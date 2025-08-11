@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { allocateFieldsToUsers } from './utils/allocationServices';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { useUsers } from '../Users/useUser';
 type PermissionKey =
   | 'view'
   | 'add'
@@ -32,7 +33,7 @@ export const AllocationPanel = () => {
   const [selectedSubDept, setSelectedSubDept] = useState('');
   const [users, setUsers] = useState<UserPermission[]>([]);
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
+  const [newUserID, setNewUserID] = useState('');
   const [savedFieldsData, setSavedFieldsData] = useState<updatedFields>([]);
 
   // const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
@@ -42,6 +43,7 @@ export const AllocationPanel = () => {
     loading: loadingDepartments,
   } = useNestedDepartmentOptions();
   const { accessOptions } = useAccessLevelRole();
+  const { users: usersList } = useUsers();
   const { fields, loading, error } = useOCRFields();
   const fieldPanelRef = useRef<any>(null);
 
@@ -68,15 +70,15 @@ export const AllocationPanel = () => {
   // }, [selectedDept, departmentOptions, getSubDepartmentOptions]);
   useEffect(() => {
     if (selectedDept && departmentOptions.length > 0) {
-      const selectedDeptId = departmentOptions.find(
-        (dept) => dept.label === selectedDept
-      )?.value;
+      // const selectedDeptId = departmentOptions.find(
+      //   (dept) => dept.label === selectedDept
+      // )?.value;
 
-      if (selectedDeptId) {
-        const subs = getSubDepartmentOptions(Number(selectedDeptId));
+      if (selectedDept) {
+        const subs = getSubDepartmentOptions(Number(selectedDept));
         setSubDepartmentOptions(subs);
         // Only reset if the current subDept doesn't exist in new options
-        if (!subs.some((sub) => sub.label === selectedSubDept)) {
+        if (!subs.some((sub) => sub.value === selectedSubDept)) {
           setSelectedSubDept('');
         }
       }
@@ -117,21 +119,23 @@ export const AllocationPanel = () => {
 
   const addUser = () => {
     // FINDING THE SELECTED ACCESS LEVEL
-    const newUserLabel = accessOptions?.items?.find(
-      (item: any) => item.value === newUsername
-    ) as { value: string; label: string };
-
+    // const newUserLabel = accessOptions?.items?.find(
+    //   (item: any) => item.value === newUsername
+    // ) as { value: string; label: string };
+    const newUserLabel = usersList?.find(
+      (item: any) => Number(item.ID) === Number(newUserID)
+    );
     // CHECKING IF THE USER ALREADY EXISTS
-    if (users.some((u) => u.username === newUserLabel?.label)) {
+    if (users.some((u) => u.username === newUserLabel?.UserName)) {
       toast.error('User already exists');
       return;
     }
-
+    console.log({ usersList });
     // ADDING THE NEW USER
     setUsers([
       ...users,
       {
-        username: newUserLabel?.label,
+        username: newUserLabel?.UserName || '',
         view: true,
         add: false,
         edit: false,
@@ -142,7 +146,7 @@ export const AllocationPanel = () => {
       },
     ]);
 
-    setNewUsername('');
+    setNewUserID('');
     setShowAddUser(false);
   };
 
@@ -155,26 +159,18 @@ export const AllocationPanel = () => {
   const handleAllocation = async () => {
     const user = users[0];
 
-    const userID = (
-      accessOptions?.items as { label: string; value: string }[]
-    )?.find((item) => item.label === user.username)?.value;
+    const userID = (usersList || [])?.find(
+      (item) => item.UserName === user.username
+    )?.ID;
 
-    const departmentId = departmentOptions.find(
-      (item) => item.label === selectedDept
-    )?.value;
-
-    const subDepartmentId = subDepartmentOptions.find(
-      (item) => item.label === selectedSubDept
-    )?.value;
-
-    if (!userID || !departmentId || !subDepartmentId) {
+    if (!userID || !selectedDept || !selectedSubDept) {
       toast.error('Invalid user or department selection.');
       return;
     }
 
     const payload = {
-      depid: Number(departmentId),
-      subdepid: Number(subDepartmentId),
+      depid: Number(selectedDept),
+      subdepid: Number(selectedSubDept),
       userid: Number(userID),
       View: user.view,
       Add: user.add,
@@ -205,7 +201,7 @@ export const AllocationPanel = () => {
       setSelectedDept('');
       setSelectedSubDept('');
       setShowAddUser(false);
-      setNewUsername('');
+      setNewUserID('');
       // 🔁 Trigger reset in child component
       fieldPanelRef.current?.cancelFields?.();
     }
@@ -217,7 +213,11 @@ export const AllocationPanel = () => {
   if (error) {
     return <div>Error: {error}</div>;
   }
-
+  console.log({ selectedDept });
+  const userOptions = usersList?.map((user) => ({
+    label: user.UserName,
+    value: user.ID,
+  }));
   return (
     <div className="bg-white shadow-md rounded-xl p-3 md:p-6 space-y-6">
       {/* Header */}
@@ -287,7 +287,7 @@ export const AllocationPanel = () => {
                       : 'Select Department'}
                   </option>
                   {departmentOptions.map((dept) => (
-                    <option key={dept.value} value={dept.label}>
+                    <option key={dept.value} value={dept.value}>
                       {dept.label}
                     </option>
                   ))}
@@ -324,7 +324,7 @@ export const AllocationPanel = () => {
                       : 'Select Sub-Department'}
                   </option>
                   {subDepartmentOptions.map((sub) => (
-                    <option key={sub.value} value={sub.label}>
+                    <option key={sub.value} value={sub.value}>
                       {sub.label}
                     </option>
                   ))}
@@ -337,14 +337,14 @@ export const AllocationPanel = () => {
           {showAddUser ? (
             <div className="flex items-center gap-2 p-4 bg-gray-50 rounded-md sm:flex-nowrap flex-wrap">
               <select
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
+                value={newUserID}
+                onChange={(e) => setNewUserID(e.target.value)}
                 className="flex-1 px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
               >
                 <option value="" hidden>
                   Select user to add
                 </option>
-                {accessOptions?.items.map((user: any) => (
+                {userOptions?.map((user: any) => (
                   <option key={user.value} value={user.value}>
                     {user.label}
                   </option>
