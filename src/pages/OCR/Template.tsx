@@ -450,6 +450,7 @@ export const TemplateOCR = () => {
       const previewImage = await loadTemplateFile(template);
 
       setSelectedTemplate(template);
+      // TODO CHANGE SUBDEPARTMENT ID
       setFormData({
         department: String(template.departmentId),
         subdepartment: String(template.subDepartmentId),

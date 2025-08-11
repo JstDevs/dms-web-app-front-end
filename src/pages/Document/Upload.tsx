@@ -174,10 +174,11 @@ export default function DocumentUpload() {
       return;
     }
 
-    if (editId) {
-      await handleUpdateDocument();
-    } else {
-      await handleAddDocument();
+    try {
+      editId ? await handleUpdateDocument() : await handleAddDocument();
+    } catch (error) {
+      console.error('Failed to add or update document:', error);
+      toast.error('Failed to add or update document');
     }
   };
 
@@ -589,6 +590,7 @@ export default function DocumentUpload() {
           >
             Cancel
           </Button>
+          {/* // TODO ADD PROGRESS BAR HERE */}
           {uploadPermissions.Add && (
             <Button
               onClick={handleAddOrUpdate}

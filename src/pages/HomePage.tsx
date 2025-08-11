@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText,
   Upload,
@@ -15,67 +15,67 @@ import {
   FolderOpen,
   X,
   Menu,
-} from "lucide-react";
-import { Link } from "react-router-dom";
-import { Button, CardDescription } from "@chakra-ui/react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Button, CardDescription } from '@chakra-ui/react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 const modules = [
   {
     id: 1,
-    title: "Document Management",
+    title: 'Document Management',
     description:
-      "Upload, organize, and manage all your documents in one secure location.",
+      'Upload, organize, and manage all your documents in one secure location.',
     icon: FileText,
-    color: "bg-blue-50 text-blue-600",
-    features: ["File Organization", "Version Control", "Metadata Management"],
-    path: "/documents/upload",
+    color: 'bg-blue-50 text-blue-600',
+    features: ['File Organization', 'Version Control', 'Metadata Management'],
+    path: '/documents/upload',
   },
-  {
-    id: 2,
-    title: "File Upload & Storage",
-    description:
-      "Drag and drop files with advanced upload capabilities and cloud storage.",
-    icon: Upload,
-    color: "bg-indigo-50 text-indigo-600",
-    features: ["Bulk Upload", "Cloud Storage", "File Compression"],
-  },
-  {
-    id: 3,
-    title: "Search & Discovery",
-    description:
-      "Powerful search engine to find documents instantly using AI-powered indexing.",
-    icon: Search,
-    color: "bg-sky-50 text-sky-600",
-    features: ["Full-Text Search", "AI Tagging", "Smart Filters"],
-  },
+  // {
+  //   id: 2,
+  //   title: "File Upload & Storage",
+  //   description:
+  //     "Drag and drop files with advanced upload capabilities and cloud storage.",
+  //   icon: Upload,
+  //   color: "bg-indigo-50 text-indigo-600",
+  //   features: ["Bulk Upload", "Cloud Storage", "File Compression"],
+  // },
+  // {
+  //   id: 3,
+  //   title: "Search & Discovery",
+  //   description:
+  //     "Powerful search engine to find documents instantly using AI-powered indexing.",
+  //   icon: Search,
+  //   color: "bg-sky-50 text-sky-600",
+  //   features: ["Full-Text Search", "AI Tagging", "Smart Filters"],
+  // },
   {
     id: 4,
-    title: "Security & Compliance",
+    title: 'Security & Compliance',
     description:
-      "Enterprise-grade security with role-based access and compliance tracking.",
+      'Enterprise-grade security with role-based access and compliance tracking.',
     icon: Shield,
-    color: "bg-blue-50 text-blue-700",
-    features: ["Role-Based Access", "Audit Trails", "Encryption"],
-    path: "/settings",
+    color: 'bg-blue-50 text-blue-700',
+    features: ['Role-Based Access', 'Audit Trails', 'Encryption'],
+    path: '/settings',
   },
-  {
-    id: 5,
-    title: "Team Collaboration",
-    description:
-      "Share documents securely and collaborate with team members in real-time.",
-    icon: Users,
-    color: "bg-indigo-50 text-indigo-700",
-    features: ["Real-time Sharing", "Comments", "Team Workspaces"],
-  },
-  {
-    id: 6,
-    title: "Archive Management",
-    description:
-      "Automated archiving with retention policies and compliance management.",
-    icon: Archive,
-    color: "bg-slate-50 text-slate-600",
-    features: ["Auto-Archive", "Retention Policies", "Legal Hold"],
-  },
+  // {
+  //   id: 5,
+  //   title: "Team Collaboration",
+  //   description:
+  //     "Share documents securely and collaborate with team members in real-time.",
+  //   icon: Users,
+  //   color: "bg-indigo-50 text-indigo-700",
+  //   features: ["Real-time Sharing", "Comments", "Team Workspaces"],
+  // },
+  // {
+  //   id: 6,
+  //   title: "Archive Management",
+  //   description:
+  //     "Automated archiving with retention policies and compliance management.",
+  //   icon: Archive,
+  //   color: "bg-slate-50 text-slate-600",
+  //   features: ["Auto-Archive", "Retention Policies", "Legal Hold"],
+  // },
 ];
 
 export const HomePage: React.FC = () => {
@@ -226,7 +226,7 @@ export const HomePage: React.FC = () => {
                   </div>
                   <Button
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 group-hover:shadow-lg"
-                    onClick={() => handleModuleClick(module.path || "#")}
+                    onClick={() => handleModuleClick(module.path || '#')}
                   >
                     Open Module
                   </Button>
