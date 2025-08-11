@@ -1,6 +1,6 @@
-import { User } from "@/types/User";
-import axios from "@/api/axios";
-import { removeToken, removeUserFromStorage } from "@/utils/token";
+import { User } from '@/types/User';
+import axios from '@/api/axios';
+import { removeToken, removeUserFromStorage } from '@/utils/token';
 
 interface LoginResponse {
   token: string;
@@ -30,7 +30,7 @@ export async function fetchLogin(
   userName: string,
   password: string
 ): Promise<LoginResponse> {
-  const { data } = await axios.post<LoginResponse>("/auth/login", {
+  const { data } = await axios.post<LoginResponse>('/auth/login', {
     userName,
     password,
   });
@@ -47,7 +47,7 @@ export async function changePassword(
   newPassword: string
 ): Promise<{ message: string }> {
   try {
-    const { data } = await axios.post("/auth/change-password", {
+    const { data } = await axios.post('/auth/change-password', {
       currentPassword,
       newPassword,
       confirmNewPassword: newPassword,
@@ -57,7 +57,7 @@ export async function changePassword(
     const message =
       error.response?.data?.message ||
       error.message ||
-      "Password change failed";
+      'Password change failed';
     throw new Error(message);
   }
 }
@@ -67,13 +67,13 @@ export async function registerUser(
   user: RegisterUserPayload
 ): Promise<{ message: string }> {
   try {
-    const { data } = await axios.post("/auth/register", user);
+    const { data } = await axios.post('/auth/register', user);
     return data;
   } catch (error: any) {
     const message =
       error.response?.data?.message ||
       error.message ||
-      "User registration failed";
+      'User registration failed';
     throw new Error(message);
   }
 }
@@ -83,13 +83,13 @@ export async function updateUser(
   user: UpdateUserPayload
 ): Promise<{ message: string }> {
   try {
-    const { data } = await axios.post("/users/edit", user);
+    const { data } = await axios.post('/users/edit', user);
     return data;
   } catch (error: any) {
     const message =
       error.response?.data?.message ||
       error.message ||
-      "User registration failed";
+      'User registration failed';
     throw new Error(message);
   }
 }
@@ -97,5 +97,5 @@ export async function updateUser(
 // -----------------DELETE USER (SOFT)-----------------
 
 export async function deleteUserSoft(id: number) {
-  await axios.get(`/users/delete/${id}`);
+  await axios.delete(`/users/delete/${id}`);
 }
