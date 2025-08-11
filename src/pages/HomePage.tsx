@@ -55,7 +55,7 @@ const modules = [
       'Enterprise-grade security with role-based access and compliance tracking.',
     icon: Shield,
     color: 'bg-blue-50 text-blue-700',
-    features: ['Role-Based Access', 'Audit Trails', 'Encryptions'],
+    features: ['Role-Based Access', 'Audit Trails', 'Encryption'],
     path: '/settings',
   },
   // {
