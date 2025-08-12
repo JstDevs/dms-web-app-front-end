@@ -635,6 +635,9 @@ export default function DocumentUpload() {
                     File Name
                   </th>
                   <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Link ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Description
                   </th>
                   <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
@@ -647,10 +650,10 @@ export default function DocumentUpload() {
                     Expiration Date
                   </th>
                   <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                    Department Id
+                    Department
                   </th>
                   <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                    Sub-Department Id
+                    Sub-Department
                   </th>
                   <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Confidential
@@ -691,6 +694,7 @@ export default function DocumentUpload() {
                     <tr key={doc.ID}>
                       <td className="border px-6 py-3">{doc.ID}</td>
                       <td className="border px-6 py-3">{doc.FileName}</td>
+                      <td className="border px-6 py-3">{doc.LinkID}</td>
                       <td className="border px-6 py-3">
                         {doc.Description || '-'}
                       </td>

@@ -1,8 +1,8 @@
-import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState, AppDispatch } from "@/redux/store";
-import { fetchDepartments } from "@/redux/thunk/DepartmentThunk";
-import { fetchSubDepartments } from "@/redux/thunk/SubdepartmentThunk";
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '@/redux/store';
+import { fetchDepartments } from '@/redux/thunk/DepartmentThunk';
+import { fetchSubDepartments } from '@/redux/thunk/SubdepartmentThunk';
 // import { fetchSubDepartments } from "@/redux/thunk/SubDepartmentThunk"; // replace with your actual thunk
 
 export const useDepartmentOptions = () => {
@@ -16,12 +16,8 @@ export const useDepartmentOptions = () => {
   );
 
   useEffect(() => {
-    if (departments.length === 0) {
-      dispatch(fetchDepartments());
-    }
-    if (subDepartments.length === 0) {
-      dispatch(fetchSubDepartments());
-    }
+    dispatch(fetchDepartments());
+    dispatch(fetchSubDepartments());
   }, [dispatch, departments.length, subDepartments.length]);
 
   const departmentOptions = departments.map((dept) => ({

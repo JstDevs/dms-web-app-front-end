@@ -1,4 +1,4 @@
-import axios from "@/api/axios";
+import axios from '@/api/axios';
 
 export interface OCRField {
   ID: number;
@@ -10,10 +10,14 @@ export interface OCRField {
 export const performBatchUpload = async (
   formData: FormData
 ): Promise<OCRField[]> => {
-  const response = await axios.post("/batchupload/process-excel", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  const response = await axios.post(
+    '/batchupload/processexcelsheet',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
   return response.data.data;
 };
