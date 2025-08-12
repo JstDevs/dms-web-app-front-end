@@ -320,7 +320,9 @@ export default function DocumentUpload() {
         <div className="grid sm:grid-cols-2 gap-4 text-black">
           {/* Department */}
           <div className="col-span-1">
-            <label className="text-sm sm:text-base">Department *</label>
+            <label className="text-sm sm:text-base">
+              Department <span className="text-red-500">*</span>{' '}
+            </label>
             {/* <Select
               placeholder="Select a department"
               value={newDoc.DepartmentId?.toString() || ""}
@@ -347,7 +349,9 @@ export default function DocumentUpload() {
 
           {/* Sub-Department */}
           <div className="col-span-1">
-            <label className="text-sm sm:text-base">Sub-Department *</label>
+            <label className="text-sm sm:text-base">
+              Sub-Department <span className="text-red-500">*</span>{' '}
+            </label>
             {/* <Select
               placeholder="Select a sub-department"
               value={newDoc.SubDepartmentId?.toString() || ''}
@@ -381,7 +385,9 @@ export default function DocumentUpload() {
 
           {/* File Description */}
           <div className="col-span-1">
-            <label className="text-sm sm:text-base">File Description *</label>
+            <label className="text-sm sm:text-base">
+              File Description <span className="text-red-500">*</span>{' '}
+            </label>
             <Input
               className="w-full"
               value={newDoc.FileDescription || ''}
@@ -395,7 +401,9 @@ export default function DocumentUpload() {
 
           {/* File Date */}
           <div className="col-span-1">
-            <label className="text-sm sm:text-base">File Date *</label>
+            <label className="text-sm sm:text-base">
+              File Date <span className="text-red-500">*</span>{' '}
+            </label>
             {/* <Input
               type="date"
               className="w-full"
@@ -421,7 +429,9 @@ export default function DocumentUpload() {
 
           {/* File Name */}
           <div className="col-span-1">
-            <label className="text-sm sm:text-base">File Name *</label>
+            <label className="text-sm sm:text-base">
+              File Name <span className="text-red-500">*</span>{' '}
+            </label>
             <Input
               className="w-full"
               value={newDoc.FileName || ''}
@@ -462,7 +472,9 @@ export default function DocumentUpload() {
           {/* Attachment */}
           {editId ? null : (
             <div className="col-span-1 sm:col-span-2">
-              <label className="text-sm sm:text-base">Attachment *</label>
+              <label className="text-sm sm:text-base">
+                Attachment <span className="text-red-500">*</span>{' '}
+              </label>
               <div className="mt-1">
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -557,7 +569,9 @@ export default function DocumentUpload() {
           {/* Expiration Date - Conditionally rendered */}
           {newDoc.Expiration && (
             <div className="col-span-1">
-              <label className="text-sm sm:text-base">Expiration Date *</label>
+              <label className="text-sm sm:text-base">
+                Expiration Date <span className="text-red-500">*</span>{' '}
+              </label>
               <Input
                 type="date"
                 className="w-full"
