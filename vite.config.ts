@@ -11,9 +11,9 @@ export default defineConfig({
     port: 4173, // or your preferred port
     host: true, // allow external access
     allowedHosts: [
-      // 'staging-canvas.testthelink.online',
-      'canvas.testthelink.online',
       'staging-portal.testthelink.online',
+      'canvas.testthelink.online',
+      'staging-canvas.testthelink.online',
     ], // allow specific hosts
   },
 });
