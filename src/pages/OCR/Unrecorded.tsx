@@ -115,6 +115,7 @@ const OCRUnrecordedUI = () => {
         formData.subdepartment,
         String(selectedRole?.ID)
       );
+
       toast.success('OCR processing started successfully!');
     } catch (error) {
       console.error(error);
@@ -142,7 +143,8 @@ const OCRUnrecordedUI = () => {
           template: prev.template,
         },
       }));
-      toast.success('Documents loaded successfully');
+      unrecordedDocuments.length > 0 &&
+        toast.success('Documents loaded successfully');
     } catch (error) {
       console.log(error);
       toast.error('Failed to load document');
