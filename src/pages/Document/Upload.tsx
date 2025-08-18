@@ -470,48 +470,86 @@ export default function DocumentUpload() {
           </div>
 
           {/* Attachment */}
-          {editId ? null : (
+          {!editId && (
             <div className="col-span-1 sm:col-span-2">
               <label className="text-sm sm:text-base">
-                Attachment <span className="text-red-500">*</span>{' '}
+                Attachment <span className="text-red-500">*</span>
               </label>
-              <div className="mt-1">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <svg
-                      className="w-8 h-8 mb-4 text-gray-500"
-                      aria-hidden="true"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 20 16"
-                    >
-                      <path
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
-                      />
-                    </svg>
-                    <p className="mb-2 text-sm text-gray-500">
-                      <span className="font-semibold">Click to upload</span> or
-                      drag and drop
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {selectedFile
-                        ? selectedFile.name
-                        : 'PDF, DOCX, XLSX up to 10MB'}
-                    </p>
-                  </div>
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={handleAttach}
-                    ref={fileInputRef}
-                    required
-                  />
-                </label>
+              <div
+                className={`mt-1 border-2 border-dashed rounded-lg cursor-pointer h-32 flex items-center justify-center transition-colors ${
+                  selectedFile
+                    ? 'border-blue-500'
+                    : 'border-gray-300 hover:border-blue-500'
+                }`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.add(
+                    'border-blue-500',
+                    'bg-blue-50'
+                  );
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.remove(
+                    'border-blue-500',
+                    'bg-blue-50'
+                  );
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.remove(
+                    'border-blue-500',
+                    'bg-blue-50'
+                  );
+
+                  if (e.dataTransfer.files?.length) {
+                    const file = e.dataTransfer.files[0];
+                    setSelectedFile(file);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.files = e.dataTransfer.files; // keep input in sync
+                    }
+                  }
+                }}
+                onClick={() => fileInputRef.current?.click()} // allow click to trigger file dialog
+              >
+                <div className="flex flex-col items-center justify-center">
+                  <svg
+                    className="w-8 h-8 mb-4 text-gray-500"
+                    aria-hidden="true"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 20 16"
+                  >
+                    <path
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
+                    />
+                  </svg>
+                  <p className="mb-2 text-sm text-gray-500">
+                    <span className="font-semibold">Click to upload</span> or
+                    drag and drop
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {selectedFile
+                      ? selectedFile.name
+                      : 'PDF, DOCX, XLSX up to 10MB'}
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleAttach}
+                  required
+                />
               </div>
+
               {selectedFile && (
                 <div className="flex items-center mt-2">
                   <span className="text-sm text-blue-600">
