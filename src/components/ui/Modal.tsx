@@ -1,6 +1,6 @@
 // components/common/Modal.tsx
-import React, { useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import React, { useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -22,11 +22,11 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
     };
 
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen, onClose]);
 
@@ -45,7 +45,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
         >
           <X size={24} />
         </button>
-        <div className="h-full overflow-y-auto rounded-xl p-4">{children}</div>
+        <div className="h-full overflow-y-auto rounded-xl p-4 flex items-center justify-center">
+          {children}
+        </div>
       </div>
     </div>
   );
