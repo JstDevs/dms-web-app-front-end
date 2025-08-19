@@ -1,15 +1,15 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeftCircle, Eye, EyeOff } from "lucide-react";
-import toast from "react-hot-toast";
-import { changePassword } from "@/api/auth";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeftCircle, Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { changePassword } from '@/api/auth';
 
 const ChangePassword: React.FC = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
 
   const [showPassword, setShowPassword] = useState({
@@ -25,7 +25,7 @@ const ChangePassword: React.FC = () => {
     }));
   };
 
-  const togglePassword = (field: "current" | "new" | "confirm") => {
+  const togglePassword = (field: 'current' | 'new' | 'confirm') => {
     setShowPassword((prev) => ({
       ...prev,
       [field]: !prev[field],
@@ -36,34 +36,34 @@ const ChangePassword: React.FC = () => {
     e.preventDefault();
 
     if (!form.currentPassword || !form.newPassword || !form.confirmPassword) {
-      toast.error("Please fill out all fields");
+      toast.error('Please fill out all fields');
       return;
     }
 
     if (form.newPassword !== form.confirmPassword) {
-      toast.error("New passwords do not match");
+      toast.error('New passwords do not match');
       return;
     }
 
     try {
       await changePassword(form.currentPassword, form.newPassword);
-      toast.success("Password updated successfully!");
-      navigate("/settings");
+      toast.success('Password updated successfully!');
+      navigate('/settings');
     } catch (error: any) {
       toast.error(error.message);
     } finally {
       setForm({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
       });
     }
   };
 
   const renderPasswordInput = (
     label: string,
-    name: "currentPassword" | "newPassword" | "confirmPassword",
-    showKey: "current" | "new" | "confirm"
+    name: 'currentPassword' | 'newPassword' | 'confirmPassword',
+    showKey: 'current' | 'new' | 'confirm'
   ) => (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -71,10 +71,13 @@ const ChangePassword: React.FC = () => {
       </label>
       <div className="relative">
         <input
-          type={showPassword[showKey] ? "text" : "password"}
+          type={showPassword[showKey] ? 'text' : 'password'}
           name={name}
           value={form[name]}
           onChange={handleChange}
+          placeholder={`${
+            label !== 'Confirm New Password' ? 'Enter' : ''
+          } ${label}`}
           className="block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 pr-10"
         />
         <button
@@ -91,7 +94,7 @@ const ChangePassword: React.FC = () => {
   return (
     <div className="p-6 max-w-3xl mx-auto animate-fade-in bg-white rounded-lg shadow-sm border border-gray-100">
       <button
-        onClick={() => navigate("/settings")}
+        onClick={() => navigate('/settings')}
         className="flex items-center text-blue-600 hover:text-blue-800 mb-6 transition"
       >
         <ArrowLeftCircle className="h-5 w-5 mr-2" />
@@ -101,12 +104,12 @@ const ChangePassword: React.FC = () => {
       <h1 className="text-3xl font-bold text-blue-800 mb-4">Change Password</h1>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-        {renderPasswordInput("Current Password", "currentPassword", "current")}
-        {renderPasswordInput("New Password", "newPassword", "new")}
+        {renderPasswordInput('Current Password', 'currentPassword', 'current')}
+        {renderPasswordInput('New Password', 'newPassword', 'new')}
         {renderPasswordInput(
-          "Confirm New Password",
-          "confirmPassword",
-          "confirm"
+          'Confirm New Password',
+          'confirmPassword',
+          'confirm'
         )}
 
         <button

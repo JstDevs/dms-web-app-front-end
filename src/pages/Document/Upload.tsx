@@ -7,7 +7,9 @@ import {
   // BookCheck,
   DeleteIcon,
   Edit,
+  FileIcon,
   Search,
+  Trash,
   Trash2,
   UploadCloud,
 } from 'lucide-react';
@@ -32,12 +34,20 @@ interface DocumentWrapper {
   isRestricted: boolean;
   restrictions: any[]; // or define a proper type for restrictions
 }
+const allowedTypes = [
+  'image/png',
+  'image/jpeg',
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+];
 export default function DocumentUpload() {
   const [documents, setDocuments] = useState<DocumentWrapper[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [search, setSearch] = useState('');
   const [editId, setEditId] = useState<number | null>(null);
   const [paginationData, setPaginationData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [newDoc, setNewDoc] = useState<Partial<DocumentUploadProp>>({
     FileName: '',
     FileDescription: '',
@@ -75,7 +85,7 @@ export default function DocumentUpload() {
     Date10: null,
   });
   // Add a ref at the top of your component
-  const fileInputRef = useRef<HTMLInputElement>(null); // Properly type the ref
+  const fileInputRef = useRef<HTMLInputElement | null>(null); // Properly type the ref
   // const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const { departmentOptions, getSubDepartmentOptions, loading } =
     useNestedDepartmentOptions();
@@ -99,17 +109,32 @@ export default function DocumentUpload() {
   }, [selectedRole, currentPage]);
   // console.log({ documents });
   const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log({ e });
     if (e.target.files?.length) {
       const file = e.target.files[0];
-      console.log({ file });
+
+      // Validate type
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(
+          '❌ Invalid file type. Only PNG, JPEG, PDF, DOCX, XLSX are allowed.'
+        );
+        e.target.value = ''; // reset input
+        return;
+      }
+
+      // Validate size (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('❌ File is too large. Max size is 10MB.');
+        e.target.value = ''; // reset input
+        return;
+      }
+
       setSelectedFile(file);
-      // setNewDoc((prev) => ({ ...prev, FileName: file.name }));
     }
   };
 
   const handleAddDocument = async () => {
     // console.log({ newDoc, selectedFile });
+    setIsLoading(true);
     try {
       const formData = buildDocumentFormData(newDoc, selectedFile, true);
       console.log({ formData });
@@ -125,12 +150,13 @@ export default function DocumentUpload() {
       toast.error('Failed to add document');
     } finally {
       resetForm();
+      setIsLoading(false);
     }
   };
 
   const handleUpdateDocument = async () => {
     if (!editId) return;
-
+    setIsLoading(true);
     try {
       const formData = buildDocumentFormData(
         newDoc,
@@ -140,12 +166,6 @@ export default function DocumentUpload() {
       );
       const response = await editDocument(formData);
 
-      // setDocuments((prev) =>
-      //   prev.map((doc) =>
-      //     doc.newdoc.ID === editId ? { ...doc, ...response.data } : doc
-      //   )
-      // );
-      console.log({ response });
       if (response.status) {
         await loadDocuments();
         toast.success('Document Updated Successfully');
@@ -157,6 +177,7 @@ export default function DocumentUpload() {
       toast.error('Failed to update document ' + error.message);
     } finally {
       resetForm();
+      setIsLoading(false);
     }
   };
 
@@ -323,14 +344,7 @@ export default function DocumentUpload() {
             <label className="text-sm sm:text-base">
               Department <span className="text-red-500">*</span>{' '}
             </label>
-            {/* <Select
-              placeholder="Select a department"
-              value={newDoc.DepartmentId?.toString() || ""}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, DepartmentId: Number(e.target.value) })
-              }
-              options={departmentOptions}
-            /> */}
+
             <Select
               placeholder="Select a department"
               value={newDoc.DepartmentId?.toString() || ''}
@@ -352,17 +366,7 @@ export default function DocumentUpload() {
             <label className="text-sm sm:text-base">
               Sub-Department <span className="text-red-500">*</span>{' '}
             </label>
-            {/* <Select
-              placeholder="Select a sub-department"
-              value={newDoc.SubDepartmentId?.toString() || ''}
-              onChange={(e) =>
-                setNewDoc({
-                  ...newDoc,
-                  SubDepartmentId: Number(e.target.value),
-                })
-              }
-              options={subDepartmentOptions}
-            /> */}
+
             <Select
               placeholder={
                 !newDoc.DepartmentId
@@ -404,16 +408,6 @@ export default function DocumentUpload() {
             <label className="text-sm sm:text-base">
               File Date <span className="text-red-500">*</span>{' '}
             </label>
-            {/* <Input
-              type="date"
-              className="w-full"
-              value={newDoc.FileDate || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FileDate: e.target.value })
-              }
-              required
-              placeholder="Enter file date"
-            /> */}
             <Input
               type="date"
               value={formatDateForInput(newDoc.FileDate || '')}
@@ -475,93 +469,129 @@ export default function DocumentUpload() {
               <label className="text-sm sm:text-base">
                 Attachment <span className="text-red-500">*</span>
               </label>
-              <div
-                className={`mt-1 border-2 border-dashed rounded-lg cursor-pointer h-32 flex items-center justify-center transition-colors ${
-                  selectedFile
-                    ? 'border-blue-500'
-                    : 'border-gray-300 hover:border-blue-500'
-                }`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  e.currentTarget.classList.add(
-                    'border-blue-500',
-                    'bg-blue-50'
-                  );
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  e.currentTarget.classList.remove(
-                    'border-blue-500',
-                    'bg-blue-50'
-                  );
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  e.currentTarget.classList.remove(
-                    'border-blue-500',
-                    'bg-blue-50'
-                  );
+              {!selectedFile ? (
+                // Dropzone UI
+                <div
+                  className={`mt-1 border-2 border-dashed rounded-lg cursor-pointer h-32 flex items-center justify-center transition-colors ${
+                    selectedFile
+                      ? 'border-blue-500'
+                      : 'border-gray-300 hover:border-blue-500'
+                  }`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.add(
+                      'border-blue-500',
+                      'bg-blue-50'
+                    );
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.remove(
+                      'border-blue-500',
+                      'bg-blue-50'
+                    );
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.remove(
+                      'border-blue-500',
+                      'bg-blue-50'
+                    );
 
-                  if (e.dataTransfer.files?.length) {
-                    const file = e.dataTransfer.files[0];
-                    setSelectedFile(file);
-                    if (fileInputRef.current) {
-                      fileInputRef.current.files = e.dataTransfer.files; // keep input in sync
+                    if (e.dataTransfer.files?.length) {
+                      const file = e.dataTransfer.files[0];
+                      setSelectedFile(file);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.files = e.dataTransfer.files; // keep input in sync
+                      }
                     }
-                  }
-                }}
-                onClick={() => fileInputRef.current?.click()} // allow click to trigger file dialog
-              >
-                <div className="flex flex-col items-center justify-center">
-                  <svg
-                    className="w-8 h-8 mb-4 text-gray-500"
-                    aria-hidden="true"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 20 16"
-                  >
-                    <path
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
-                    />
-                  </svg>
-                  <p className="mb-2 text-sm text-gray-500">
-                    <span className="font-semibold">Click to upload</span> or
-                    drag and drop
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {selectedFile
-                      ? selectedFile.name
-                      : 'PDF, DOCX, XLSX up to 10MB'}
-                  </p>
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="flex flex-col items-center justify-center">
+                    <svg
+                      className="w-8 h-8 mb-4 text-gray-500"
+                      aria-hidden="true"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 20 16"
+                    >
+                      <path
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
+                      />
+                    </svg>
+                    <p className="mb-2 text-sm text-gray-500">
+                      <span className="font-semibold">Click to upload</span> or
+                      drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      PNG, JPEG, PDF, DOCX, XLSX up to 10MB
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleAttach}
+                    required
+                  />
                 </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  ref={fileInputRef}
-                  onChange={handleAttach}
-                  required
-                />
-              </div>
+              ) : (
+                // File Preview UI
+                <div className="flex flex-col gap-3 mt-2 border rounded-lg p-3 bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-blue-600">
+                      <FileIcon className="w-5 h-5 text-blue-500" />
+                      <span>{selectedFile.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveFile}
+                      className="ml-2 text-red-400 hover:text-red-800"
+                    >
+                      <Trash className="w-5 h-5" />
+                    </button>
+                  </div>
 
-              {selectedFile && (
-                <div className="flex items-center mt-2">
-                  <span className="text-sm text-blue-600">
-                    {selectedFile.name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleRemoveFile}
-                    className="ml-2 text-red-500 hover:text-red-700"
-                  >
-                    <DeleteIcon className="w-4 h-4" />
-                  </button>
+                  {/* Conditional Preview */}
+                  {selectedFile.type.startsWith('image/') && (
+                    <img
+                      src={URL.createObjectURL(selectedFile)}
+                      alt="Preview"
+                      className="w-64 h-64 object-cover rounded-lg shadow-sm border"
+                    />
+                  )}
+
+                  {selectedFile.type === 'application/pdf' && (
+                    <iframe
+                      src={URL.createObjectURL(selectedFile)}
+                      title="PDF Preview"
+                      className="w-full h-64 border rounded-lg"
+                    />
+                  )}
+
+                  {selectedFile.type.includes('word') ||
+                  selectedFile.name.endsWith('.docx') ? (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <FileIcon className="w-5 h-5 mr-2 text-blue-500" />
+                      DOCX file preview not supported — file ready for upload
+                    </div>
+                  ) : null}
+
+                  {selectedFile.type.includes('excel') ||
+                  selectedFile.name.endsWith('.xlsx') ? (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <FileIcon className="w-5 h-5 mr-2 text-green-500" />
+                      XLSX file preview not supported — file ready for upload
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -647,9 +677,13 @@ export default function DocumentUpload() {
             <Button
               onClick={handleAddOrUpdate}
               className="w-full sm:w-2/3 md:w-1/3 px-2 bg-blue-600 text-white hover:bg-blue-700"
-              disabled={!isFormValid()}
+              disabled={!isFormValid() || isLoading}
             >
-              {editId ? 'Update' : 'Add'} Document
+              {isLoading
+                ? 'Uploading...'
+                : editId
+                ? 'Update Document'
+                : 'Add Document'}
             </Button>
           )}
         </div>

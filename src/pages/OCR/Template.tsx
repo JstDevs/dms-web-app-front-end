@@ -147,7 +147,7 @@ export const TemplateOCR = () => {
     setLoading(true);
     try {
       const templatesData = await fetchTemplates();
-      console.log(templatesData);
+      // console.log(templatesData);
       if (templatesData.length > 0) {
         setTemplates(templatesData);
       } else {
@@ -446,6 +446,7 @@ export const TemplateOCR = () => {
   };
 
   const handleEditTemplate = async (template: Template) => {
+    console.log({ template });
     try {
       const previewImage = await loadTemplateFile(template);
 
@@ -724,16 +725,6 @@ export const TemplateOCR = () => {
       {/* Top Row - Department, Sub-Department, Load Button */}
       <div className="flex flex-col gap-2 sm:flex-row p-2 sm:p-4">
         <div className="flex-1">
-          {/* <Select
-            label="Department"
-            value={formData.department}
-            onChange={(e: any) =>
-              setFormData({ ...formData, department: e.target.value })
-            }
-            placeholder="Select a Department"
-            options={departmentOptions}
-            disabled={currentView === 'view'}
-          /> */}
           <Select
             label="Department"
             value={formData.department}
@@ -746,16 +737,6 @@ export const TemplateOCR = () => {
           />
         </div>
         <div className="flex-1">
-          {/* <Select
-            label="Sub-Department"
-            value={formData.subdepartment}
-            onChange={(e: any) =>
-              setFormData({ ...formData, subdepartment: e.target.value })
-            }
-            placeholder="Select a Sub-Department"
-            options={subDepartmentOptions}
-            disabled={currentView === 'view'}
-          /> */}
           <Select
             label="Sub-Department"
             value={formData.subdepartment}

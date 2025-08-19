@@ -22,7 +22,7 @@ const Settings: React.FC = () => {
               <h2 className="text-xl font-medium text-gray-900">
                 {user?.UserName}
               </h2>
-              <p className="text-sm text-gray-500">{user?.UserAccessID}</p>
+              {/* <p className="text-sm text-gray-500">{user?.UserAccessID}</p> */}
               <div className="flex gap-2 ">
                 {user?.accessList?.map((accessLevel) => (
                   <span
