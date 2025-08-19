@@ -27,9 +27,20 @@ interface DocumentCardProps {
     approvalstatus: boolean;
   };
   onClick: () => void;
+  permissions: {
+    View?: boolean;
+    Add?: boolean;
+    Edit?: boolean;
+    Delete?: boolean;
+    Print?: boolean;
+  };
 }
 
-const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
+const DocumentCard: React.FC<DocumentCardProps> = ({
+  document,
+  onClick,
+  permissions,
+}) => {
   const {
     FileName,
     FileDescription,
@@ -185,18 +196,22 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
         {/* Actions - pushed to bottom with mt-auto */}
         <div className="mt-auto pt-4 border-t border-gray-100">
           <div className="flex justify-end">
-            {!approvalstatus && !requestSent && (
-              <Button
-                onClick={handleRequestApproval}
-                loading={isRequesting}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
-                loadingText="Sending..."
-              >
-                <Send className="w-4 h-4" />
-                Request Approval
-              </Button>
-            )}
+            {!approvalstatus &&
+              !requestSent &&
+              permissions.Add &&
+              permissions.Edit &&
+              permissions.Delete && (
+                <Button
+                  onClick={handleRequestApproval}
+                  loading={isRequesting}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
+                  loadingText="Sending..."
+                >
+                  <Send className="w-4 h-4" />
+                  Request Approval
+                </Button>
+              )}
 
             {requestSent && (
               <div className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 rounded-lg">

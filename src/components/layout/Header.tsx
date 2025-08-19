@@ -48,9 +48,9 @@ const Header: React.FC = () => {
     const fullRole = user?.accessList.find((role) => role.ID === selectedId);
     if (fullRole) {
       setSelectedRole(fullRole);
+      navigate(`/dashboard`);
     }
   };
-  // console.log({ selectedRole });
 
   return (
     <header className="bg-white border-b border-gray-200 z-10">

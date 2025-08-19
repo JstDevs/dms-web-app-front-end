@@ -177,11 +177,8 @@ const MyDocuments: React.FC = () => {
               <DocumentCard
                 key={doc.ID}
                 document={doc}
-                onClick={() =>
-                  (myDocumentPermissions.Edit ||
-                    myDocumentPermissions.Delete) &&
-                  navigate(`/documents/${doc.ID}`)
-                }
+                onClick={() => navigate(`/documents/${doc.ID}`)}
+                permissions={myDocumentPermissions}
               />
             );
           })}
