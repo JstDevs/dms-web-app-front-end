@@ -36,9 +36,7 @@ const DocumentCurrentView = ({
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {isViewerOpen && currentDocumentInfo?.filepath ? (
         <Modal isOpen={isViewerOpen} onClose={() => setIsViewerOpen(false)}>
-          {/* <div className="w-full h-full flex items-center justify-center"> */}
           <img src={currentDocumentInfo?.filepath || ''} alt="" />
-          {/* </div> */}
         </Modal>
       ) : (
         <>

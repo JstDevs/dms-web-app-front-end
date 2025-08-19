@@ -11,9 +11,12 @@ import { Portal, Select } from '@chakra-ui/react';
 import useAccessLevelRole from './Users Access/useAccessLevelRole';
 import { deleteUserSoft, registerUser, updateUser } from '@/api/auth';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { useAuth } from '@/contexts/AuthContext';
+import axios from '@/api/axios';
 
 export const UsersPage: React.FC = () => {
   const { users, loading, error, refetch } = useUsers();
+  const { user, updateUserInContext } = useAuth();
   const { accessOptions } = useAccessLevelRole();
   const [localUsers, setLocalUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,7 +78,7 @@ export const UsersPage: React.FC = () => {
 
     try {
       await registerUser(payload);
-      refetch();
+      await refetch();
       toast.success('User created successfully!');
       // ✅ Reset only on success
       setFormData({
@@ -135,7 +138,19 @@ export const UsersPage: React.FC = () => {
 
     try {
       await updateUser(payload);
-      refetch();
+      await refetch();
+      // ✅ if editing the logged-in user, update context
+
+      // ✅ get the freshly updated list of users from API
+      const updatedUser = (await axios.get('/users')).data.users.find(
+        (u: User) => u.ID === currentUser?.ID
+      );
+
+      // ✅ if this was the logged-in user, update AuthContext
+      if (updatedUser && updatedUser.ID === user?.ID) {
+        updateUserInContext(updatedUser);
+      }
+      // localStorage.setItem('user', JSON.stringify(currentUser));
       toast.success('User updated successfully!');
     } catch (error) {
       console.error(error);

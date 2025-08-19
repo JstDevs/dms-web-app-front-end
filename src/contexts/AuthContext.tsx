@@ -1,15 +1,15 @@
-import { fetchLogin } from "@/api/auth";
-import { User } from "@/types/User";
-import { setToken, setUserInStorage } from "@/utils/token";
+import { fetchLogin } from '@/api/auth';
+import { User } from '@/types/User';
+import { setToken, setUserInStorage } from '@/utils/token';
 import {
   createContext,
   useContext,
   useState,
   useEffect,
   ReactNode,
-} from "react";
-import toast from "react-hot-toast";
-import { Role } from "./ContextTypes";
+} from 'react';
+import toast from 'react-hot-toast';
+import { Role } from './ContextTypes';
 
 interface AuthContextType {
   user: User | null;
@@ -20,6 +20,7 @@ interface AuthContextType {
   logout: () => void;
   error: string | null;
   isLoading: boolean;
+  updateUserInContext: (updatedUser: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,16 +37,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [selectedRole, setSelectedRoleState] = useState<Role | null>(null);
 
   const setSelectedRole = (role: Role) => {
-    localStorage.setItem("selected_role", JSON.stringify(role) || "");
+    localStorage.setItem('selected_role', JSON.stringify(role) || '');
     setSelectedRoleState(role);
   };
-
+  const updateUserInContext = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
   // ✅ Combined: Auth check + Role restoration + Role defaulting
   useEffect(() => {
     const checkAuth = () => {
-      const token = localStorage.getItem("auth_token");
-      const storedUser = localStorage.getItem("user");
-      const storedRole = localStorage.getItem("selected_role");
+      const token = localStorage.getItem('auth_token');
+      const storedUser = localStorage.getItem('user');
+      const storedRole = localStorage.getItem('selected_role');
       if (token && storedUser) {
         try {
           const userData = JSON.parse(storedUser) as User;
@@ -67,9 +71,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             }
           }
         } catch (err) {
-          localStorage.removeItem("auth_token");
-          localStorage.removeItem("user");
-          localStorage.removeItem("selected_role");
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('selected_role');
           setUser(null);
           setIsAuthenticated(false);
         }
@@ -78,8 +82,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     checkAuth();
-    window.addEventListener("storage", checkAuth);
-    return () => window.removeEventListener("storage", checkAuth);
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
   const login = async (userName: string, password: string) => {
@@ -108,7 +112,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return null;
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Login failed";
+      const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
       toast.error(errorMessage);
       throw err;
@@ -116,13 +120,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("selected_role");
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('selected_role');
     setUser(null);
     setSelectedRoleState(null);
     setIsAuthenticated(false);
-    toast.success("Logged out successfully");
+    toast.success('Logged out successfully');
   };
   return (
     <AuthContext.Provider
@@ -135,6 +139,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         logout,
         error,
         isLoading: loading,
+        updateUserInContext,
       }}
     >
       {children}
@@ -145,7 +150,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
