@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   Lock,
   Unlock,
@@ -10,14 +10,15 @@ import {
   Plus,
   Eye,
   EyeOff,
-} from "lucide-react";
-import { CurrentDocument } from "@/types/Document";
+} from 'lucide-react';
+import { CurrentDocument } from '@/types/Document';
 import {
   restrictFields,
   removeRestrictedFields,
   fetchDocumentRestrictions,
-} from "./documentHelper/Restriction";
-import { useAuth } from "@/contexts/AuthContext";
+} from './documentHelper/Restriction';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDocument } from '@/contexts/DocumentContext';
 
 interface FieldRestrictionProps {
   document: CurrentDocument | null;
@@ -41,17 +42,17 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
   const [selectedCollaboratorId, setSelectedCollaboratorId] = useState<
     number | null
   >(null);
-  const [restrictionReason, setRestrictionReason] = useState("");
+  const [restrictionReason, setRestrictionReason] = useState('');
   const [processingRestriction, setProcessingRestriction] = useState<
     number | null
   >(null);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [restrictions, setRestrictions] = useState<RestrictionRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedUser, setExpandedUser] = useState<number | null>(null);
-  const { user: loggedUser } = useAuth();
-
+  // const { user: loggedUser } = useAuth();
+  const { fetchDocument } = useDocument();
   useEffect(() => {
     if (document) {
       fetchRestrictions();
@@ -70,13 +71,14 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
           CollaboratorName:
             document?.collaborations?.find(
               (collab) => collab.CollaboratorID === parseInt(restriction.UserID)
-            )?.CollaboratorName || "Unknown User",
+            )?.CollaboratorName || 'Unknown User',
         }));
         setRestrictions(restrictionsWithNames);
+        // await fetchDocument(String(document?.document[0].ID));
       }
     } catch (error) {
-      console.error("Failed to fetch restrictions:", error);
-      showMessage("Failed to load field restrictions. Please try again.", true);
+      console.error('Failed to fetch restrictions:', error);
+      showMessage('Failed to load field restrictions. Please try again.', true);
     } finally {
       setLoading(false);
     }
@@ -85,10 +87,10 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
   const showMessage = (message: string, isError: boolean = false) => {
     if (isError) {
       setErrorMessage(message);
-      setTimeout(() => setErrorMessage(""), 5000);
+      setTimeout(() => setErrorMessage(''), 5000);
     } else {
       setSuccessMessage(message);
-      setTimeout(() => setSuccessMessage(""), 3000);
+      setTimeout(() => setSuccessMessage(''), 3000);
     }
   };
 
@@ -96,7 +98,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
     if (!document || !selectedFieldId || !selectedCollaboratorId) return;
 
     if (!restrictionReason.trim()) {
-      showMessage("Please provide a reason for the restriction.", true);
+      showMessage('Please provide a reason for the restriction.', true);
       return;
     }
 
@@ -112,8 +114,8 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
     setProcessingRestriction(-1); // Using -1 for new restriction
     try {
       const payload = {
-        LinkID: selectedField.LinkId || "",
-        Field: selectedField.Field || "",
+        LinkID: selectedField.LinkId || '',
+        Field: selectedField.Field || '',
         UserID: selectedCollaborator.CollaboratorID,
         UserRole: 1,
         Reason: restrictionReason.trim(),
@@ -130,12 +132,14 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
         );
         setSelectedFieldId(null);
         setSelectedCollaboratorId(null);
-        setRestrictionReason("");
-        fetchRestrictions(); // Refresh the data
+        setRestrictionReason('');
+
+        await fetchRestrictions(); // Refresh the data
+        await fetchDocument(String(document?.document[0].ID)); // Refresh Document Image
       }
     } catch (error: any) {
-      console.error("Failed to add restriction:", error);
-      showMessage("Failed to add restriction. Please try again.", true);
+      console.error('Failed to add restriction:', error);
+      showMessage('Failed to add restriction. Please try again.', true);
     } finally {
       setProcessingRestriction(null);
     }
@@ -152,24 +156,25 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
       );
 
       if (response.success) {
-        showMessage("Field restriction removed successfully!");
-        fetchRestrictions(); // Refresh the data
+        showMessage('Field restriction removed successfully!');
+        await fetchRestrictions(); // Refresh the data
+        await fetchDocument(String(document?.document[0].ID)); // Refresh Document Image
       }
     } catch (error: any) {
-      console.error("Failed to remove restriction:", error);
-      showMessage("Failed to remove restriction. Please try again.", true);
+      console.error('Failed to remove restriction:', error);
+      showMessage('Failed to remove restriction. Please try again.', true);
     } finally {
       setProcessingRestriction(null);
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -254,7 +259,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                 Document Field
               </label>
               <select
-                value={selectedFieldId || ""}
+                value={selectedFieldId || ''}
                 onChange={(e) =>
                   setSelectedFieldId(Number(e.target.value) || null)
                 }
@@ -276,7 +281,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                 Collaborator
               </label>
               <select
-                value={selectedCollaboratorId || ""}
+                value={selectedCollaboratorId || ''}
                 onChange={(e) =>
                   setSelectedCollaboratorId(Number(e.target.value) || null)
                 }
@@ -325,8 +330,8 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
               <Lock size={16} />
             )}
             {processingRestriction === -1
-              ? "Adding Restriction..."
-              : "Add Restriction"}
+              ? 'Adding Restriction...'
+              : 'Add Restriction'}
           </button>
         </div>
       </div>
@@ -363,8 +368,8 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                   <div
                     className={`flex items-center justify-between p-4 cursor-pointer transition-colors ${
                       collaboratorRestrictions.length > 0
-                        ? "bg-red-50 hover:bg-red-100"
-                        : "bg-gray-50 hover:bg-gray-100"
+                        ? 'bg-red-50 hover:bg-red-100'
+                        : 'bg-gray-50 hover:bg-gray-100'
                     }`}
                     onClick={() =>
                       setExpandedUser(isExpanded ? null : collab.CollaboratorID)
@@ -374,8 +379,8 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                       <div
                         className={`h-10 w-10 rounded-full flex items-center justify-center ${
                           collaboratorRestrictions.length > 0
-                            ? "bg-gradient-to-r from-red-500 to-pink-500"
-                            : "bg-gradient-to-r from-gray-500 to-gray-600"
+                            ? 'bg-gradient-to-r from-red-500 to-pink-500'
+                            : 'bg-gradient-to-r from-gray-500 to-gray-600'
                         }`}
                       >
                         <UserCircle className="h-6 w-6 text-white" />
@@ -389,9 +394,9 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                             ? `${
                                 collaboratorRestrictions.length
                               } restricted field${
-                                collaboratorRestrictions.length !== 1 ? "s" : ""
+                                collaboratorRestrictions.length !== 1 ? 's' : ''
                               }`
-                            : "No restrictions"}
+                            : 'No restrictions'}
                         </p>
                       </div>
                     </div>
@@ -446,12 +451,12 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                                     <p className="text-sm text-gray-600">
                                       <span className="font-medium">
                                         Reason:
-                                      </span>{" "}
+                                      </span>{' '}
                                       {restriction.Reason}
                                     </p>
                                   )}
                                   <p className="text-xs text-gray-500 mt-1">
-                                    Restricted on{" "}
+                                    Restricted on{' '}
                                     {formatDate(restriction.CreatedDate)} by
                                     User {restriction.CreatedBy}
                                   </p>
@@ -475,8 +480,8 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                                     <Unlock size={14} />
                                   )}
                                   {processingRestriction === restriction.ID
-                                    ? "Removing..."
-                                    : "Remove"}
+                                    ? 'Removing...'
+                                    : 'Remove'}
                                 </button>
                               </div>
                             </div>

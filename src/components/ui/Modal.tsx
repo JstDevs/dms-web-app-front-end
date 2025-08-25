@@ -36,7 +36,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div
         ref={modalRef}
-        className="bg-transparent rounded-xl max-w-4xl w-full h-[90vh] relative"
+        className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] relative overflow-y-auto p-4"
       >
         <button
           onClick={onClose}
@@ -45,9 +45,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
         >
           <X size={24} />
         </button>
-        <div className="h-full overflow-y-auto rounded-xl p-4 flex items-center justify-center">
-          {children}
-        </div>
+
+        {/* Content */}
+        <div className="flex justify-center">{children}</div>
       </div>
     </div>
   );

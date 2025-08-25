@@ -124,10 +124,10 @@ export const DepartmentsMain: React.FC = () => {
       toast.error('Both fields are required');
       return;
     }
-    // if (formData.name.trim().length < 1 || formData.code.trim().length < 1) {
-    //   toast.error('Name and code must be at least 1 characters long');
-    //   return;
-    // }
+    if (formData.name.trim().length < 2 || formData.code.trim().length < 2) {
+      toast.error('Name and code must be at least 2 characters long');
+      return;
+    }
     // if (formData.name.trim().length > 200 || formData.code.trim().length > 200) {
     //   toast.error('Name and code must not be greater than 200 characters long');
     //   return;
@@ -180,14 +180,14 @@ export const DepartmentsMain: React.FC = () => {
       toast.error('Both fields are required');
       return;
     }
-    if (formData.name.trim().length < 3 || formData.code.trim().length < 3) {
-      toast.error('Name and code must be at least 3 characters long');
+    if (formData.name.trim().length < 2 || formData.code.trim().length < 2) {
+      toast.error('Name and code must be at least 2 characters long');
       return;
     }
-    if (formData.name.trim().length > 20 || formData.code.trim().length > 20) {
-      toast.error('Name and code must not be greater than 20 characters long');
-      return;
-    }
+    // if (formData.name.trim().length > 20 || formData.code.trim().length > 20) {
+    //   toast.error('Name and code must not be greater than 20 characters long');
+    //   return;
+    // }
 
     const isDepartmentExists = departments.some(
       (department) =>
