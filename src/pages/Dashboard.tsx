@@ -51,7 +51,7 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       try {
         const { data } = await axios.get(`documents/activities-dashboard`);
-        console.log({ data });
+        // console.log({ data });
 
         if (!data?.success) throw new Error('Failed to fetch activities');
 
@@ -168,7 +168,7 @@ const Dashboard: React.FC = () => {
           </div>
         ) : recentActivities.length > 0 ? (
           <div className="space-y-4">
-            {recentActivities.map((activity, index) => (
+            {recentActivities.map((activity) => (
               <div
                 key={activity.ID}
                 className="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0"
