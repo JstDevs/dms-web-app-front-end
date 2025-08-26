@@ -6,26 +6,40 @@ import { Folder, FileText, Users } from 'lucide-react';
 import { useUsers } from './Users/useUser';
 import { useAuth } from '@/contexts/AuthContext';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import axios from '@/api/axios';
 
 interface Activity {
-  ActivityDate: string;
-  ActivityDetails: string;
-  ActivityType: string;
-  CollaboratorID: number;
+  ID: number;
   DocumentID: number;
-  FileName?: string;
-  user?: string;
+  LinkID: string;
+  Action: string;
+  ActionBy: number;
+  ActionDate: string;
+  IPAddress: string;
+  UserAgent: string;
+  actor: {
+    id: number;
+    userName: string;
+  };
+  documentNew: {
+    ID: number;
+    FileName: string;
+    FileDescription: string;
+    DataType: string;
+    Confidential: boolean;
+  };
 }
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { users } = useUsers();
-  const { documentList, fetchDocumentList, fetchDocument } = useDocument();
+  const { documentList, fetchDocumentList } = useDocument();
   const { selectedRole } = useAuth();
   const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(false);
-  const documentsPermissions = useModulePermissions(3); // 1 = MODULE_ID
-  const usersPermissions = useModulePermissions(5); // 1 = MODULE_ID
+  const documentsPermissions = useModulePermissions(3);
+  const usersPermissions = useModulePermissions(5);
+
   useEffect(() => {
     if (selectedRole?.ID) {
       fetchDocumentList(Number(selectedRole.ID), documentList?.currentPage);
@@ -34,53 +48,22 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const fetchActivities = async () => {
-      if (!documentList?.documents.length) return;
-
       setLoading(true);
       try {
-        // Get document IDs
-        console.log({ documentList });
-        const documentIds = documentList?.documents?.map(
-          (doc) => doc.newdoc.ID
-        );
+        const { data } = await axios.get(`documents/activities-dashboard`);
+        console.log({ data });
 
-        // Fetch all documents to get their collaborations
-        const documentsData = await Promise.all(
-          documentIds.map((id) => fetchDocument(id.toString()))
-        );
+        if (!data?.success) throw new Error('Failed to fetch activities');
 
-        // Extract and flatten all activities
-        let allActivities: Activity[] = [];
-        console.log({ documentsData });
-        documentsData.forEach((doc) => {
-          if (doc.collaborations && doc.collaborations.length > 0) {
-            doc.collaborations.forEach((collab) => {
-              if (collab.Activities && collab.Activities.length > 0) {
-                collab.Activities.forEach((activity) => {
-                  try {
-                    const details = JSON.parse(activity.ActivityDetails);
-                    allActivities.push({
-                      ...activity,
-                      FileName: details.FileName,
-                      user:
-                        users.find((u) => u.ID === activity.CollaboratorID)
-                          ?.UserName || `User ${activity.CollaboratorID}`,
-                    });
-                  } catch (e) {
-                    console.error('Error parsing activity details', e);
-                  }
-                });
-              }
-            });
-          }
-        });
+        // Get the audit trails from the new API response
+        const auditTrails = data?.data?.auditTrails || [];
 
         // Sort by date (newest first) and take top 10
-        const sortedActivities = allActivities
+        const sortedActivities = auditTrails
           .sort(
-            (a, b) =>
-              new Date(b.ActivityDate).getTime() -
-              new Date(a.ActivityDate).getTime()
+            (a: Activity, b: Activity) =>
+              new Date(b.ActionDate).getTime() -
+              new Date(a.ActionDate).getTime()
           )
           .slice(0, 10);
 
@@ -92,10 +75,8 @@ const Dashboard: React.FC = () => {
       }
     };
 
-    if (users.length && documentList?.totalDocuments) {
-      fetchActivities();
-    }
-  }, [documentList, users]);
+    fetchActivities();
+  }, []);
 
   const statCards = [
     {
@@ -116,16 +97,20 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  const formatActivityType = (type: string) => {
-    switch (type) {
-      case 'DOCUMENT_OPENED':
-        return 'opened document';
-      case 'DOCUMENT_DOWNLOADED':
-        return 'downloaded document';
-      case 'DOCUMENT_VIEWED':
+  const formatActivityType = (action: string) => {
+    switch (action) {
+      case 'VIEWED':
         return 'viewed document';
+      case 'DOWNLOADED':
+        return 'downloaded document';
+      case 'CREATED':
+        return 'created document';
+      case 'UPDATED':
+        return 'updated document';
+      case 'DELETED':
+        return 'deleted document';
       default:
-        return type.toLowerCase().replace(/_/g, ' ');
+        return action.toLowerCase().replace(/_/g, ' ');
     }
   };
 
@@ -185,7 +170,7 @@ const Dashboard: React.FC = () => {
           <div className="space-y-4">
             {recentActivities.map((activity, index) => (
               <div
-                key={index}
+                key={activity.ID}
                 className="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0"
               >
                 <div className="flex items-center space-x-4">
@@ -194,16 +179,23 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-800">
-                      <span className="text-blue-600">{activity.user}</span>{' '}
-                      {formatActivityType(activity.ActivityType)}
+                      <span className="text-blue-600">
+                        {activity.actor.userName}
+                      </span>{' '}
+                      {formatActivityType(activity.Action)}
                     </p>
                     <p className="text-sm text-slate-600">
-                      {activity.FileName}
+                      {activity.documentNew.FileName}
+                      {activity.documentNew.Confidential && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                          Confidential
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
                 <div className="text-xs text-slate-500">
-                  {formatTimeAgo(activity.ActivityDate)}
+                  {formatTimeAgo(activity.ActionDate)}
                 </div>
               </div>
             ))}
