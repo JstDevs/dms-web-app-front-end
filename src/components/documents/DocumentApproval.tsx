@@ -83,7 +83,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
       const response = await axios.put(
         `/documents/documents/${document.document[0].ID}/approvals/${requestId}`,
         {
-          status: '1',
+          status: 'APPROVED',
           comments: approvalComment.trim(),
           rejectionReason: '',
           approverId: loggedUser?.ID,
@@ -116,7 +116,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
       const response = await axios.put(
         `/documents/documents/${document.document[0].ID}/approvals/${requestId}`,
         {
-          status: '0',
+          status: 'REJECTED',
           comments: approvalComment.trim(),
           rejectionReason: '',
           approverId: loggedUser?.ID,
