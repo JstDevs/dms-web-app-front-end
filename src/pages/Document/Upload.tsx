@@ -38,8 +38,8 @@ const allowedTypes = [
   'image/png',
   'image/jpeg',
   'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  // 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  // 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
 ];
 export default function DocumentUpload() {
   const [documents, setDocuments] = useState<DocumentWrapper[]>([]);
@@ -114,9 +114,7 @@ export default function DocumentUpload() {
 
       // Validate type
       if (!allowedTypes.includes(file.type)) {
-        toast.error(
-          '❌ Invalid file type. Only PNG, JPEG, PDF, DOCX, XLSX are allowed.'
-        );
+        toast.error('❌ Invalid file type. Only PNG, JPEG, PDF are allowed.');
         e.target.value = ''; // reset input
         return;
       }
@@ -532,7 +530,7 @@ export default function DocumentUpload() {
                       drag and drop
                     </p>
                     <p className="text-xs text-gray-500">
-                      PNG, JPEG, PDF, DOCX, XLSX up to 10MB
+                      PNG, JPEG, PDF up to 10MB
                     </p>
                   </div>
                   <input
@@ -576,22 +574,6 @@ export default function DocumentUpload() {
                       className="w-full h-64 border rounded-lg"
                     />
                   )}
-
-                  {selectedFile.type.includes('word') ||
-                  selectedFile.name.endsWith('.docx') ? (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <FileIcon className="w-5 h-5 mr-2 text-blue-500" />
-                      DOCX file preview not supported — file ready for upload
-                    </div>
-                  ) : null}
-
-                  {selectedFile.type.includes('excel') ||
-                  selectedFile.name.endsWith('.xlsx') ? (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <FileIcon className="w-5 h-5 mr-2 text-green-500" />
-                      XLSX file preview not supported — file ready for upload
-                    </div>
-                  ) : null}
                 </div>
               )}
             </div>
