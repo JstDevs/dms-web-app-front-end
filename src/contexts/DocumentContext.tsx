@@ -29,6 +29,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
 
   const fetchDocument = React.useCallback(async (id: string) => {
+    setCurrentDocument(null);
     try {
       setLoading(true);
       setError(null);
