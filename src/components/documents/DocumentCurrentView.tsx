@@ -8,6 +8,7 @@ import {
   Building,
   Calendar,
   Info,
+  Download,
 } from 'lucide-react';
 import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
 import { useState } from 'react';
@@ -30,8 +31,29 @@ const DocumentCurrentView = ({
       subDepartment.value === String(currentDocumentInfo?.SubDepartmentId)
   );
 
-  if (!document || !currentDocumentInfo) return null;
+  const handleDownload = async () => {
+    if (currentDocumentInfo?.filepath) {
+      try {
+        const response = await fetch(currentDocumentInfo.filepath);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
 
+        const link = window.document.createElement('a');
+        link.href = url;
+        link.download = currentDocumentInfo?.FileName || 'document';
+        window.document.body.appendChild(link);
+        link.click();
+        window.document.body.removeChild(link);
+
+        // Clean up the blob URL
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Download failed:', error);
+      }
+    }
+  };
+
+  if (!document || !currentDocumentInfo) return null;
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {isViewerOpen && currentDocumentInfo?.filepath ? (
@@ -82,7 +104,15 @@ const DocumentCurrentView = ({
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                 >
                   <Eye className="h-4 w-4" />
-                  View Document
+                  View
+                </button>
+                <button
+                  onClick={handleDownload}
+                  disabled={!currentDocumentInfo?.filepath}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
                 </button>
               </div>
             </div>
