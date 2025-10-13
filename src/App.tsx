@@ -4,35 +4,36 @@ import {
   Route,
   Navigate,
   // Navigate,
-} from "react-router-dom";
-import { UserProvider } from "./contexts/UserContext";
-import { DocumentProvider } from "./contexts/DocumentContext";
-import { NotificationProvider } from "./contexts/NotificationContext";
-import Layout from "./components/layout/Layout";
-import Dashboard from "./pages/Dashboard";
-import DocumentView from "./pages/Document/DocumentView";
-import Login from "./pages/Login";
-import MyDocuments from "./pages/Document/MyDocuments";
-import PendingApprovals from "./pages/PendingApprovals";
-import RecentActivity from "./pages/RecentActivity";
-import DepartmentFiles from "./pages/DepartmentFiles";
-import Team from "./pages/Team";
-import Settings from "./pages/Settings";
-import { HomePage } from "./pages/HomePage";
-import { UsersPage } from "./pages/Users/UsersPage";
-import { ProtectedRoute } from "./components/layout/ProtectedRoute";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { AllocationPanel } from "./pages/Digitalization/Allocation";
-import { BatchUploadPanel } from "./pages/Digitalization/BatchUpload";
-import { DepartmentsMain } from "./pages/Departments/DepartmentsMain";
-import { SubDepartments } from "./pages/Departments/SubDepartments";
-import { TemplateOCR } from "./pages/OCR/Template";
-import UnrecordedOCR from "./pages/OCR/Unrecorded";
-import ChangePassword from "./pages/Settings/ChangePassword";
-import DocumentUpload from "./pages/Document/Upload";
-import ModulesManagement from "./pages/Users/ModulesManagement";
-import UserAccessPage from "./pages/Users/Users Access/UsersAccessPage";
-import OCRFieldsManagement from "./pages/OCR/Fields/OCRFieldsManagement";
+} from 'react-router-dom';
+import { UserProvider } from './contexts/UserContext';
+import { DocumentProvider } from './contexts/DocumentContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import Layout from './components/layout/Layout';
+import Dashboard from './pages/Dashboard';
+import DocumentView from './pages/Document/DocumentView';
+import Login from './pages/Login';
+import MyDocuments from './pages/Document/MyDocuments';
+import PendingApprovals from './pages/PendingApprovals';
+import RecentActivity from './pages/RecentActivity';
+import DepartmentFiles from './pages/DepartmentFiles';
+import Team from './pages/Team';
+import Settings from './pages/Settings';
+import { HomePage } from './pages/HomePage';
+import { UsersPage } from './pages/Users/UsersPage';
+import { ProtectedRoute } from './components/layout/ProtectedRoute';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AllocationPanel } from './pages/Digitalization/Allocation';
+import { BatchUploadPanel } from './pages/Digitalization/BatchUpload';
+import { DepartmentsMain } from './pages/Departments/DepartmentsMain';
+import { SubDepartments } from './pages/Departments/SubDepartments';
+import { TemplateOCR } from './pages/OCR/Template';
+import UnrecordedOCR from './pages/OCR/Unrecorded';
+import ChangePassword from './pages/Settings/ChangePassword';
+import DocumentUpload from './pages/Document/Upload';
+import ModulesManagement from './pages/Users/ModulesManagement';
+import UserAccessPage from './pages/Users/Users Access/UsersAccessPage';
+import OCRFieldsManagement from './pages/OCR/Fields/OCRFieldsManagement';
+import ApprovalMatrix from './components/ApprovalMatrix';
 
 function App() {
   return (
@@ -115,6 +116,11 @@ function App() {
                     <Route
                       path="/digitalization/batch-upload"
                       element={<BatchUploadPanel />}
+                    />
+                    {/* ------------------Matrix----------------- */}
+                    <Route
+                      path="/approval-matrix"
+                      element={<ApprovalMatrix />}
                     />
                   </Route>
                 </Route>

@@ -11,6 +11,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Grid3x3,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '../../utils/cn';
@@ -65,6 +66,7 @@ const navItems = [
     ],
   },
   { name: 'Settings', icon: Settings, path: '/settings', moduleId: 12 },
+  { name: 'Approval Matrix', icon: Grid3x3, path: '/approval-matrix' },
 ];
 
 const Sidebar: React.FC = () => {

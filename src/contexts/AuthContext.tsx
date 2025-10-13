@@ -37,19 +37,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [selectedRole, setSelectedRoleState] = useState<Role | null>(null);
 
   const setSelectedRole = (role: Role) => {
-    localStorage.setItem('selected_role', JSON.stringify(role) || '');
+    sessionStorage.setItem('selected_role', JSON.stringify(role) || '');
     setSelectedRoleState(role);
   };
   const updateUserInContext = (updatedUser: User) => {
     setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
+    sessionStorage.setItem('user', JSON.stringify(updatedUser));
   };
   // ✅ Combined: Auth check + Role restoration + Role defaulting
   useEffect(() => {
     const checkAuth = () => {
-      const token = localStorage.getItem('auth_token');
-      const storedUser = localStorage.getItem('user');
-      const storedRole = localStorage.getItem('selected_role');
+      const token = sessionStorage.getItem('auth_token');
+      const storedUser = sessionStorage.getItem('user');
+      const storedRole = sessionStorage.getItem('selected_role');
       if (token && storedUser) {
         try {
           const userData = JSON.parse(storedUser) as User;
@@ -71,9 +71,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             }
           }
         } catch (err) {
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('user');
-          localStorage.removeItem('selected_role');
+          sessionStorage.removeItem('auth_token');
+          sessionStorage.removeItem('user');
+          sessionStorage.removeItem('selected_role');
           setUser(null);
           setIsAuthenticated(false);
         }
@@ -120,9 +120,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('selected_role');
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('selected_role');
     setUser(null);
     setSelectedRoleState(null);
     setIsAuthenticated(false);

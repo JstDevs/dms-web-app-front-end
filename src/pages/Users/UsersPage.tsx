@@ -165,7 +165,7 @@ export const UsersPage: React.FC = () => {
       if (updatedUser && updatedUser.ID === user?.ID) {
         updateUserInContext(updatedUser);
       }
-      // localStorage.setItem('user', JSON.stringify(currentUser));
+      // sessionStorage.setItem('user', JSON.stringify(currentUser));
       toast.success('User updated successfully!');
     } catch (error) {
       console.error(error);
