@@ -16,57 +16,24 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '../../utils/cn';
 
-const navItems = [
-  // { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-  // {
-  //   name: 'Departments',
-  //   icon: Building,
-  //   submenu: [
-  //     { name: 'Main', path: '/departments/main', moduleId: 1 },
-  //     { name: 'Sub-Department', path: '/departments/sub', moduleId: 2 },
-  //   ],
-  // },
-  // {
-  //   name: 'Documents',
-  //   icon: FileText,
-  //   path: '/documents',
-  //   submenu: [
-  //     { name: 'Upload', path: '/documents/upload', moduleId: 3 },
-  //     { name: 'Library', path: '/documents/library', moduleId: 4 },
-  //   ],
-  // },
-  // {
-  //   name: 'Users Settings',
-  //   icon: Users,
-  //   submenu: [
-  //     { name: 'Users', path: '/users/members', moduleId: 5 },
-  //     { name: 'User Access', path: '/users/access', moduleId: 6 },
-  //     // { name: 'Modules', path: '/users/modules' }, // no restriction for this link
-  //   ],
-  // },
-  // {
-  //   name: 'Digitalization Settings',
-  //   icon: Users,
-  //   submenu: [
-  //     { name: 'Allocation', path: '/digitalization/allocation', moduleId: 7 },
-  //     {
-  //       name: 'Batch Upload',
-  //       path: '/digitalization/batch-upload',
-  //       moduleId: 8,
-  //     },
-  //   ],
-  // },
-  // {
-  //   name: 'OCR',
-  //   icon: BookOpenCheck,
-  //   submenu: [
-  //     { name: 'Unrecorded', path: '/ocr/unrecorded', moduleId: 9 },
-  //     { name: 'Template', path: '/ocr/template', moduleId: 10 },
-  //     { name: 'Fields', path: '/ocr/fields', moduleId: 11 },
-  //   ],
-  // },
-  // { name: 'Settings', icon: Settings, path: '/settings', moduleId: 12 },
-  // { name: 'Approval Matrix', icon: Grid3x3, path: '/approval-matrix' },
+// Define proper types for nav items
+interface NavSubmenu {
+  name: string;
+  path: string;
+  moduleId?: number;
+  icon?: any;
+  submenu?: NavSubmenu[];
+}
+
+interface NavItem {
+  name: string;
+  icon: any;
+  path?: string;
+  moduleId?: number;
+  submenu?: NavSubmenu[];
+}
+
+const navItems: NavItem[] = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   {
     name: 'Documents',
@@ -175,7 +142,7 @@ const Sidebar: React.FC = () => {
       })
       .filter(Boolean);
   }, [selectedRole]);
-  // console.log(filteredNavItems);
+
   useEffect(() => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -257,27 +224,6 @@ const Sidebar: React.FC = () => {
                     </button>
                     {openSubmenus[item.name] && (
                       <ul className="ml-8 space-y-1 mt-1">
-                        {/* old submenu rendering */}
-                        {/* {item.submenu.map((sub) => (
-                          <li key={sub.name}>
-                            <NavLink
-                              to={sub.path}
-                              className={({ isActive }) =>
-                                cn(
-                                  'block px-2 py-1 rounded-md text-sm',
-                                  isActive
-                                    ? 'bg-blue-800 text-white'
-                                    : 'text-blue-300 hover:text-white hover:bg-blue-800'
-                                )
-                              }
-                              onClick={() => isMobile && setIsMobileOpen(false)}
-                            >
-                              {sub.name}
-                            </NavLink>
-                          </li>
-                        ))} */}
-
-                        {/* new submenu rendering */}
                         {item.submenu.map((sub) => (
                           <SubMenuItem
                             key={sub.name}
@@ -335,14 +281,13 @@ const Sidebar: React.FC = () => {
   );
 };
 
-// added for nested submenu
 const SubMenuItem = ({
   item,
   level = 1,
   isMobile,
   setIsMobileOpen,
 }: {
-  item: any;
+  item: NavSubmenu;
   level?: number;
   isMobile: boolean;
   setIsMobileOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -365,7 +310,7 @@ const SubMenuItem = ({
           </button>
           {open && (
             <ul className={cn(`ml-${level * 4} space-y-1 mt-1`)}>
-              {item.submenu.map((child: any) => (
+              {item.submenu.map((child) => (
                 <SubMenuItem
                   key={child.name}
                   item={child}
@@ -396,6 +341,5 @@ const SubMenuItem = ({
     </li>
   );
 };
-
 
 export default Sidebar;

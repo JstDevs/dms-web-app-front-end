@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDocument } from '../contexts/DocumentContext';
 import { Folder, FileText, BarChart3, RotateCcw } from 'lucide-react'; // Added RotateCcw for reset button
 // import { Button } from '@chakra-ui/react'; // Uncomment if using Chakra UI buttons
@@ -39,13 +39,12 @@ const Dashboard: React.FC = () => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
-  // Mock data for pie chart
-  const documentTypeData = [
-    { name: 'PDF', value: 45 },
-    { name: 'Word', value: 30 },
-    { name: 'Excel', value: 15 },
-    { name: 'Others', value: 10 },
-  ];
+  // Dynamic state for charts and quick stats
+  const [documentTypeData, setDocumentTypeData] = useState<{ name: string; value: number }[]>([]);
+  const [uploadsCount, setUploadsCount] = useState<number>(0);
+  const [downloadsCount, setDownloadsCount] = useState<number>(0);
+  const [activeUsersCount, setActiveUsersCount] = useState<number>(0);
+  const [confidentialDocsCount, setConfidentialDocsCount] = useState<number>(0);
 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
@@ -61,21 +60,48 @@ const Dashboard: React.FC = () => {
     const fetchActivities = async () => {
       setLoading(true);
       try {
-        const { data } = await axios.get(`documents/activities-dashboard`, {
-          params: {
-            // Note: If startDate and endDate are present, the backend should ideally prioritize them over 'year'.
-            year: selectedYear, // Kept for general filtering if dates aren't set
-            startDate: startDate || undefined, // Send only if not empty string
-            endDate: endDate || undefined, // Send only if not empty string
-          },
+        // Normalize date params to match potential backend expectations
+        const hasRange = Boolean(startDate && endDate);
+        const startAt = startDate ? new Date(startDate + 'T00:00:00.000Z').toISOString() : undefined;
+        const endAt = endDate ? new Date(endDate + 'T23:59:59.999Z').toISOString() : undefined;
+
+        const paramsWhenRange = hasRange
+          ? {
+              // common aliases
+              startDate: startDate,
+              endDate: endDate,
+              start_date: startDate,
+              end_date: endDate,
+              from: startDate,
+              to: endDate,
+              startAt,
+              endAt,
+            }
+          : { year: selectedYear };
+
+        const { data } = await axios.get(`/documents/activities-dashboard`, {
+          params: paramsWhenRange,
         });
         
         if (!data?.success) throw new Error('Failed to fetch activities');
 
         const auditTrails = data?.data?.auditTrails || [];
 
+        // Client-side date filtering (inclusive) to ensure UI reflects selected range
+        const startBound = startDate ? new Date(startDate + 'T00:00:00') : null;
+        const endBound = endDate ? new Date(endDate + 'T23:59:59.999') : null;
+        const withinRange = (d: string) => {
+          const ts = new Date(d);
+          if (startBound && ts < startBound) return false;
+          if (endBound && ts > endBound) return false;
+          return true;
+        };
+        const filteredActivities: Activity[] = startBound || endBound
+          ? auditTrails.filter((a: Activity) => withinRange(a.ActionDate))
+          : auditTrails;
+
         // Sort by date (newest first) and take top 10
-        const sortedActivities = auditTrails
+        const sortedActivities = filteredActivities
           .sort(
             (a: Activity, b: Activity) =>
               new Date(b.ActionDate).getTime() -
@@ -84,6 +110,53 @@ const Dashboard: React.FC = () => {
           .slice(0, 10);
 
         setRecentActivities(sortedActivities);
+
+        // --- Aggregate dynamic stats from all fetched activities (not just the top 10) ---
+        const allActivities: Activity[] = filteredActivities;
+
+        // File types by DataType or derive from FileName
+        const typeCounter: Record<string, number> = {};
+        for (const act of allActivities) {
+          const rawType = (act.documentNew?.DataType || '').toLowerCase();
+          let typeKey = '';
+          if (rawType) {
+            typeKey = rawType;
+          } else if (act.documentNew?.FileName) {
+            const match = act.documentNew.FileName.split('.').pop();
+            typeKey = (match || 'others').toLowerCase();
+          } else {
+            typeKey = 'others';
+          }
+          const pretty =
+            typeKey === 'pdf' ? 'PDF' :
+            typeKey === 'doc' || typeKey === 'docx' ? 'Word' :
+            typeKey === 'xls' || typeKey === 'xlsx' ? 'Excel' :
+            typeKey.toUpperCase();
+          typeCounter[pretty] = (typeCounter[pretty] || 0) + 1;
+        }
+        const typeData = Object.entries(typeCounter)
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 8); // cap to avoid overly long legends
+        setDocumentTypeData(typeData);
+
+        // Uploads/Downloads counts
+        const uploads = allActivities.filter(a => a.Action === 'CREATED').length;
+        const downloads = allActivities.filter(a => a.Action === 'DOWNLOADED').length;
+        setUploadsCount(uploads);
+        setDownloadsCount(downloads);
+
+        // Active users by unique actor
+        const uniqueUsers = new Set(allActivities.map(a => a.actor?.userName || a.actor?.id));
+        setActiveUsersCount(uniqueUsers.size);
+
+        // Confidential documents count (unique documents marked confidential)
+        const confidentialSet = new Set(
+          allActivities
+            .filter(a => a.documentNew?.Confidential)
+            .map(a => a.documentNew?.ID)
+        );
+        setConfidentialDocsCount(confidentialSet.size);
       } catch (error) {
         console.error('Failed to fetch activities', error);
       } finally {
@@ -94,6 +167,15 @@ const Dashboard: React.FC = () => {
     fetchActivities();
   }, [selectedYear, startDate, endDate]); // Dependencies now include startDate and endDate
 
+  // Compute total pages from loaded documents
+  const totalPagesFromDocuments = useMemo(() => {
+    const docs = documentList?.documents || [];
+    return docs.reduce((sum: number, doc: any) => {
+      const pageCount = typeof doc?.PageCount === 'number' ? doc.PageCount : 0;
+      return sum + (pageCount || 0);
+    }, 0);
+  }, [documentList?.documents]);
+
   const statCards = [
     {
       title: 'Total Documents',
@@ -103,7 +185,7 @@ const Dashboard: React.FC = () => {
     },
     {
       title: 'Pages',
-      count: 0, // Placeholder - fetch real data if possible
+      count: totalPagesFromDocuments,
       icon: <FileText className="h-8 w-8 text-purple-500" />,
       color: 'border-purple-100',
     },
@@ -208,7 +290,7 @@ const Dashboard: React.FC = () => {
 
       {/* --- Dashboard Analytics Section --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Pie Chart - File Types */}
+        {/* Pie Chart - File Types (Dynamic) */}
         <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-6">
           <div className="flex items-center mb-4">
             <BarChart3 className="h-5 w-5 text-blue-600 mr-2" />
@@ -223,8 +305,7 @@ const Dashboard: React.FC = () => {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                // FIX: Used a custom component for label to prevent rendering problems with object types, though your original was mostly fine.
-                label={({ name, value }) => `${name}: ${value}%`} 
+                label={({ name, value }) => `${name}: ${value}`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -233,7 +314,7 @@ const Dashboard: React.FC = () => {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => [`${value}%`, 'Value']} />
+              <Tooltip formatter={(value) => [`${value}`, 'Count']} />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -247,19 +328,19 @@ const Dashboard: React.FC = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-gray-100">
               <span className="text-gray-700">Total Uploads</span>
-              <span className="text-2xl font-bold text-blue-600">24</span>
+              <span className="text-2xl font-bold text-blue-600">{uploadsCount}</span>
             </div>
             <div className="flex justify-between items-center pb-3 border-b border-gray-100">
               <span className="text-gray-700">Total Downloads</span>
-              <span className="text-2xl font-bold text-green-600">18</span>
+              <span className="text-2xl font-bold text-green-600">{downloadsCount}</span>
             </div>
             <div className="flex justify-between items-center pb-3 border-b border-gray-100">
               <span className="text-gray-700">Active Users</span>
-              <span className="text-2xl font-bold text-purple-600">12</span>
+              <span className="text-2xl font-bold text-purple-600">{activeUsersCount}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-700">Confidential Docs</span>
-              <span className="text-2xl font-bold text-red-600">8</span>
+              <span className="text-2xl font-bold text-red-600">{confidentialDocsCount}</span>
             </div>
           </div>
         </div>
