@@ -30,24 +30,25 @@ const modules = [
     features: ['File Organization', 'Version Control', 'Metadata Management'],
     path: '/documents/upload',
   },
-  // {
-  //   id: 2,
-  //   title: "File Upload & Storage",
-  //   description:
-  //     "Drag and drop files with advanced upload capabilities and cloud storage.",
-  //   icon: Upload,
-  //   color: "bg-indigo-50 text-indigo-600",
-  //   features: ["Bulk Upload", "Cloud Storage", "File Compression"],
-  // },
-  // {
-  //   id: 3,
-  //   title: "Search & Discovery",
-  //   description:
-  //     "Powerful search engine to find documents instantly using AI-powered indexing.",
-  //   icon: Search,
-  //   color: "bg-sky-50 text-sky-600",
-  //   features: ["Full-Text Search", "AI Tagging", "Smart Filters"],
-  // },
+  {
+    id: 2,
+    title: "File Upload & Storage",
+    description:
+      "Drag and drop files with advanced upload capabilities and cloud storage.",
+    icon: Upload,
+    color: "bg-indigo-50 text-indigo-600",
+    features: ["Bulk Upload", "Cloud Storage", "File Compression"],
+  },
+  {
+    id: 3,
+    title: "Search & Discovery",
+    description:
+      "Powerful search engine to find documents instantly using AI-powered indexing.",
+    icon: Search,
+    color: "bg-sky-50 text-sky-600",
+    features: ["Full-Text Search", "AI Tagging", "Smart Filters"],
+    path: '/ocr/template',
+  },
   {
     id: 4,
     title: 'Security & Compliance',
@@ -58,24 +59,24 @@ const modules = [
     features: ['Role-Based Access', 'Audit Trails', 'Encryptions'],
     path: '/settings',
   },
-  // {
-  //   id: 5,
-  //   title: "Team Collaboration",
-  //   description:
-  //     "Share documents securely and collaborate with team members in real-time.",
-  //   icon: Users,
-  //   color: "bg-indigo-50 text-indigo-700",
-  //   features: ["Real-time Sharing", "Comments", "Team Workspaces"],
-  // },
-  // {
-  //   id: 6,
-  //   title: "Archive Management",
-  //   description:
-  //     "Automated archiving with retention policies and compliance management.",
-  //   icon: Archive,
-  //   color: "bg-slate-50 text-slate-600",
-  //   features: ["Auto-Archive", "Retention Policies", "Legal Hold"],
-  // },
+  {
+    id: 5,
+    title: "Team Collaboration",
+    description:
+      "Share documents securely and collaborate with team members in real-time.",
+    icon: Users,
+    color: "bg-indigo-50 text-indigo-700",
+    features: ["Real-time Sharing", "Comments", "Team Workspaces"],
+  },
+  {
+    id: 6,
+    title: "Archive Management",
+    description:
+      "Automated archiving with retention policies and compliance management.",
+    icon: Archive,
+    color: "bg-slate-50 text-slate-600",
+    features: ["Auto-Archive", "Retention Policies", "Legal Hold"],
+  },
 ];
 
 export const HomePage: React.FC = () => {
