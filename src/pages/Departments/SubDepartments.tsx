@@ -201,10 +201,10 @@ export const SubDepartments: React.FC = () => {
       <header className="mb-8 flex flex-wrap justify-between items-center gap-4 sm:gap-2">
         <div className="flex-1 text-left">
           <h1 className="text-3xl font-bold text-blue-800">
-            Sub-Department Management
+            Document Type Management
           </h1>
           <p className="mt-2 text-gray-600 sm:truncate">
-            Manage sub-departments and assign them to departments
+            Manage document types and assign them to departments
           </p>
         </div>
         {subDepartmentPermissions?.Add && !isCreating && (
@@ -216,17 +216,17 @@ export const SubDepartments: React.FC = () => {
             className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
           >
             <Plus className="h-4 w-4" />
-            Create Sub-Department
+            Create Document Type
           </Button>
         )}
       </header>
 
       {/* Search */}
       <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
-        <h2 className="text-lg font-semibold">Sub-Departments</h2>
+        <h2 className="text-lg font-semibold">Document Types</h2>
         <div className="w-full sm:w-64">
           <Input
-            placeholder="Search sub-department..."
+            placeholder="Search document type..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full"
@@ -239,26 +239,26 @@ export const SubDepartments: React.FC = () => {
       {isCreating && (
         <div className="mb-6 p-4 border rounded-md bg-gray-50">
           <h3 className="text-lg font-semibold mb-4 text-blue-800">
-            Create New Sub-Department
+            Create New Document Type
           </h3>
           <form onSubmit={handleCreateSubmit} className="space-y-4">
             <Input
-              label="Sub-Department Name"
+              label="Document Type Name"
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
               required
-              placeholder="Enter sub-department name"
+              placeholder="Enter document type name"
             />
             <Input
-              label="Sub-Department Code"
+              label="Document Type Code"
               value={formData.code}
               onChange={(e) =>
                 setFormData({ ...formData, code: e.target.value })
               }
               required
-              placeholder="Enter sub-department code"
+              placeholder="Enter document type code"
             />
 
             <Select
@@ -294,7 +294,7 @@ export const SubDepartments: React.FC = () => {
                 type="submit"
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
               >
-                Create Sub-Department
+                Create Document Type
               </Button>
             </div>
           </form>

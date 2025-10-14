@@ -625,7 +625,7 @@ export const TemplateOCR = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Users size={14} className="text-gray-400" />
-                    <span className="font-medium">Sub-Dept:</span>
+                    <span className="font-medium">Doc-Type:</span>
                     <span className="truncate">
                       {template.SubDepartment?.Name}
                     </span>
@@ -722,7 +722,7 @@ export const TemplateOCR = () => {
         </div>
       </header>
 
-      {/* Top Row - Department, Sub-Department, Load Button */}
+      {/* Top Row - Department, Document Type, Load Button */}
       <div className="flex flex-col gap-2 sm:flex-row p-2 sm:p-4">
         <div className="flex-1">
           <Select
@@ -738,7 +738,7 @@ export const TemplateOCR = () => {
         </div>
         <div className="flex-1">
           <Select
-            label="Sub-Department"
+            label="Document Type"
             value={formData.subdepartment}
             onChange={(e: any) =>
               setFormData({ ...formData, subdepartment: e.target.value })
@@ -747,8 +747,8 @@ export const TemplateOCR = () => {
               !formData.department
                 ? 'Select a Department First'
                 : subDepartmentOptions.length === 0
-                ? 'No Sub-Departments Available'
-                : 'Select a Sub-Department'
+                ? 'No Document Types Available'
+                : 'Select a Document Type'
             }
             options={subDepartmentOptions}
             disabled={currentView === 'view' || !formData.department}

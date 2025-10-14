@@ -51,7 +51,7 @@ export const AllocationPanel = () => {
     { value: string; label: string }[]
   >([]);
   const allocationPermissions = useModulePermissions(7); // 1 = MODULE_ID
-  // Update sub-departments when department selection changes
+  // Update document types when department selection changes
   // useEffect(() => {
   //   if (selectedDept) {
   //     const selectedDeptId = departmentOptions.find(
@@ -61,7 +61,7 @@ export const AllocationPanel = () => {
   //     if (selectedDeptId) {
   //       const subs = getSubDepartmentOptions(Number(selectedDeptId));
   //       setSubDepartmentOptions(subs);
-  //       setSelectedSubDept(''); // Reset sub-department when department changes
+  //       setSelectedSubDept(''); // Reset document type when department changes
   //     }
   //   } else {
   //     setSubDepartmentOptions([]);
@@ -296,7 +296,7 @@ export const AllocationPanel = () => {
 
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">
-                  Sub-Department *
+                  Document Type *
                 </label>
                 {/* <select
                   value={selectedSubDept}
@@ -304,7 +304,7 @@ export const AllocationPanel = () => {
                   className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
                 >
                   <option value="" hidden>
-                    Select Sub-Department
+                    Select Document Type
                   </option>
                   {subDepartmentOptions.map((sub) => (
                     <option key={sub.value}>{sub.label}</option>
@@ -320,8 +320,8 @@ export const AllocationPanel = () => {
                     {!selectedDept
                       ? 'Select department first'
                       : subDepartmentOptions.length === 0
-                      ? 'No sub-departments available'
-                      : 'Select Sub-Department'}
+                      ? 'No document types available'
+                      : 'Select Document Type'}
                   </option>
                   {subDepartmentOptions.map((sub) => (
                     <option key={sub.value} value={sub.value}>

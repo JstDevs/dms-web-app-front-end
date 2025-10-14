@@ -10,7 +10,7 @@ const Settings: React.FC = () => {
   const allocationPermissions = useModulePermissions(12); // 1 = MODULE_ID
   return (
     <div className="animate-fade-in">
-      <h1 className="text-3xl font-bold text-blue-800 mb-6">Settings</h1>
+      <h1 className="text-3xl font-bold text-blue-800 mb-6">Profile</h1>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-200">
@@ -78,9 +78,9 @@ const Settings: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                </button> */}
+                </button>
 
-                {/* <button className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100">
+                <button className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100">
                   <div className="flex items-center">
                     <Shield className="h-5 w-5 text-gray-400 mr-3" />
                     <div className="text-left">

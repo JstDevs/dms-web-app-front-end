@@ -170,7 +170,7 @@ export const DepartmentsMain: React.FC = () => {
       );
     } catch (error) {
       toast.error(
-        `Failed to delete ${isDepartment ? 'department' : 'sub-department'}`
+        `Failed to delete ${isDepartment ? 'department' : 'document type'}`
       );
     }
   };
@@ -228,7 +228,7 @@ export const DepartmentsMain: React.FC = () => {
             Department Management
           </h1>
           <p className="mt-2 text-gray-600 sm:whitespace-nowrap sm:overflow-hidden sm:text-ellipsis">
-            Manage departments and their sub-departments in the system
+            Manage departments and their document type in the system
           </p>
         </div>
         <div className="w-full sm:w-auto">
@@ -250,7 +250,7 @@ export const DepartmentsMain: React.FC = () => {
       <div className="space-y-4">
         <div className="flex flex-row items-center justify-between flex-wrap gap-4">
           <h2 className="text-lg font-semibold">
-            Departments & Sub-Departments
+            Departments & Document Types
           </h2>
           <div className="w-full sm:w-64">
             <Input
@@ -416,11 +416,11 @@ export const DepartmentsMain: React.FC = () => {
                               : 'bg-blue-100 text-blue-800'
                           }`}
                         >
-                          {isDepartment ? 'Department' : 'Sub-Department'}
+                          {isDepartment ? 'Department' : 'Document Type'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                        {/* Only show edit/delete for departments, not sub-departments */}
+                        {/* Only show edit/delete for departments, not document types */}
                         {isDepartment && (
                           <>
                             {isEditingRow ? (

@@ -208,7 +208,7 @@ const OCRUnrecordedUI = () => {
             />
 
             <Select
-              label="Sub-Department"
+              label="Document Type"
               value={formData.subdepartment}
               onChange={(e) =>
                 setFormData({ ...formData, subdepartment: e.target.value })
@@ -217,8 +217,8 @@ const OCRUnrecordedUI = () => {
                 !formData.department
                   ? 'Select a Department First'
                   : subDepartmentOptions.length === 0
-                  ? 'No Sub-Departments Available'
-                  : 'Select a Sub-Department'
+                  ? 'No Document Types Available'
+                  : 'Select a Document Type'
               }
               options={subDepartmentOptions}
               disabled={!formData.department}

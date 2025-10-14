@@ -129,18 +129,18 @@ const MyDocuments: React.FC = () => {
                 value={department}
                 onChange={(e) => {
                   setDepartment(e.target.value);
-                  setSubDepartment(''); // Reset sub-department when department changes
+                  setSubDepartment(''); // Reset document type when department changes
                 }}
                 placeholder="All Departments"
                 options={departmentOptions}
               />
 
               <Select
-                label="Sub-Department"
+                label="Document Type"
                 value={subDepartment}
                 onChange={(e) => setSubDepartment(e.target.value)}
                 options={subDepartmentOptions}
-                placeholder="All Sub-Departments"
+                placeholder="All Document Types"
                 disabled={!department} // Only enable when department is selected
               />
             </div>
