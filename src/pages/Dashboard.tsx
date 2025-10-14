@@ -208,12 +208,12 @@ const Dashboard: React.FC = () => {
 
       {/* --- Dashboard Analytics Section --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Pie Chart - Document Types */}
+        {/* Pie Chart - File Types */}
         <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-6">
           <div className="flex items-center mb-4">
             <BarChart3 className="h-5 w-5 text-blue-600 mr-2" />
             <h3 className="text-lg font-semibold text-slate-800">
-              Document Types
+              File Types
             </h3>
           </div>
           <ResponsiveContainer width="100%" height={300}>
