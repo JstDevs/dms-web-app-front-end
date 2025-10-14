@@ -17,56 +17,122 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '../../utils/cn';
 
 const navItems = [
+  // { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+  // {
+  //   name: 'Departments',
+  //   icon: Building,
+  //   submenu: [
+  //     { name: 'Main', path: '/departments/main', moduleId: 1 },
+  //     { name: 'Sub-Department', path: '/departments/sub', moduleId: 2 },
+  //   ],
+  // },
+  // {
+  //   name: 'Documents',
+  //   icon: FileText,
+  //   path: '/documents',
+  //   submenu: [
+  //     { name: 'Upload', path: '/documents/upload', moduleId: 3 },
+  //     { name: 'Library', path: '/documents/library', moduleId: 4 },
+  //   ],
+  // },
+  // {
+  //   name: 'Users Settings',
+  //   icon: Users,
+  //   submenu: [
+  //     { name: 'Users', path: '/users/members', moduleId: 5 },
+  //     { name: 'User Access', path: '/users/access', moduleId: 6 },
+  //     // { name: 'Modules', path: '/users/modules' }, // no restriction for this link
+  //   ],
+  // },
+  // {
+  //   name: 'Digitalization Settings',
+  //   icon: Users,
+  //   submenu: [
+  //     { name: 'Allocation', path: '/digitalization/allocation', moduleId: 7 },
+  //     {
+  //       name: 'Batch Upload',
+  //       path: '/digitalization/batch-upload',
+  //       moduleId: 8,
+  //     },
+  //   ],
+  // },
+  // {
+  //   name: 'OCR',
+  //   icon: BookOpenCheck,
+  //   submenu: [
+  //     { name: 'Unrecorded', path: '/ocr/unrecorded', moduleId: 9 },
+  //     { name: 'Template', path: '/ocr/template', moduleId: 10 },
+  //     { name: 'Fields', path: '/ocr/fields', moduleId: 11 },
+  //   ],
+  // },
+  // { name: 'Settings', icon: Settings, path: '/settings', moduleId: 12 },
+  // { name: 'Approval Matrix', icon: Grid3x3, path: '/approval-matrix' },
   { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-  {
-    name: 'Departments',
-    icon: Building,
-    submenu: [
-      { name: 'Main', path: '/departments/main', moduleId: 1 },
-      { name: 'Sub-Department', path: '/departments/sub', moduleId: 2 },
-    ],
-  },
   {
     name: 'Documents',
     icon: FileText,
     path: '/documents',
     submenu: [
-      { name: 'Upload', path: '/documents/upload', moduleId: 3 },
       { name: 'Library', path: '/documents/library', moduleId: 4 },
-    ],
-  },
-  {
-    name: 'Users Settings',
-    icon: Users,
-    submenu: [
-      { name: 'Users', path: '/users/members', moduleId: 5 },
-      { name: 'User Access', path: '/users/access', moduleId: 6 },
-      // { name: 'Modules', path: '/users/modules' }, // no restriction for this link
-    ],
-  },
-  {
-    name: 'Digitalization Settings',
-    icon: Users,
-    submenu: [
-      { name: 'Allocation', path: '/digitalization/allocation', moduleId: 7 },
       {
-        name: 'Batch Upload',
-        path: '/digitalization/batch-upload',
-        moduleId: 8,
+        name: 'Upload',
+        icon: FileText,
+        path: '/documents/upload',
+        submenu: [
+          { name: 'Manual Upload', path: '/documents/upload', moduleId: 3 },
+          { name: 'Batch Upload', path: '/digitalization/batch-upload', moduleId: 8 },
+        ]
+      },
+      {
+        name: 'OCR',
+        icon: FileText,
+        path: '/documents/ocr',
+        submenu: [
+          { name: 'OCR Upload', path: '/xxx' },
+          { name: 'Unrecorded', path: '/ocr/unrecorded', moduleId: 9 },
+        ]
       },
     ],
   },
   {
-    name: 'OCR',
-    icon: BookOpenCheck,
+    name: 'Settings',
+    icon: Settings,
+    path: '/documents',
     submenu: [
-      { name: 'Unrecorded', path: '/ocr/unrecorded', moduleId: 9 },
-      { name: 'Template', path: '/ocr/template', moduleId: 10 },
-      { name: 'Fields', path: '/ocr/fields', moduleId: 11 },
+      { name: 'Department', path: '/departments/main', moduleId: 1 },
+      {
+        name: 'Document Settings',
+        icon: FileText,
+        path: '/documents/upload',
+        submenu: [
+          { name: 'Document Type', path: '/departments/sub', moduleId: 2 },
+          { name: 'Fields', path: '/ocr/fields', moduleId: 11 },
+          { name: 'Allocation', path: '/digitalization/allocation', moduleId: 7 },
+          { name: 'OCR Template', path: '/ocr/template', moduleId: 10 },
+        ]
+      },
+      {
+        name: 'Collaboration Settings',
+        icon: FileText,
+        path: '/documents/upload',
+        submenu: [
+          { name: 'Collaboration Matrix', path: '/yyy' },
+          { name: 'Approval Matrix', icon: Grid3x3, path: '/approval-matrix' },
+          { name: 'Masking Setup', path: '/ocr/unrecorded', moduleId: 9 },
+        ]
+      },
+      {
+        name: 'User Settings',
+        icon: FileText,
+        path: '/documents/upload',
+        submenu: [
+          { name: 'Profile', icon: Settings, path: '/settings', moduleId: 12 },
+          { name: 'Users', path: '/users/members', moduleId: 5 },
+          { name: 'User Access', path: '/users/access', moduleId: 6 },
+        ]
+      },
     ],
-  },
-  { name: 'Settings', icon: Settings, path: '/settings', moduleId: 12 },
-  { name: 'Approval Matrix', icon: Grid3x3, path: '/approval-matrix' },
+  },  
 ];
 
 const Sidebar: React.FC = () => {
@@ -191,7 +257,8 @@ const Sidebar: React.FC = () => {
                     </button>
                     {openSubmenus[item.name] && (
                       <ul className="ml-8 space-y-1 mt-1">
-                        {item.submenu.map((sub) => (
+                        {/* old submenu rendering */}
+                        {/* {item.submenu.map((sub) => (
                           <li key={sub.name}>
                             <NavLink
                               to={sub.path}
@@ -208,6 +275,17 @@ const Sidebar: React.FC = () => {
                               {sub.name}
                             </NavLink>
                           </li>
+                        ))} */}
+
+                        {/* new submenu rendering */}
+                        {item.submenu.map((sub) => (
+                          <SubMenuItem
+                            key={sub.name}
+                            item={sub}
+                            level={1}
+                            isMobile={isMobile}
+                            setIsMobileOpen={setIsMobileOpen}
+                          />
                         ))}
                       </ul>
                     )}
@@ -219,7 +297,7 @@ const Sidebar: React.FC = () => {
                       cn(
                         'flex items-center px-2 py-2 rounded-md transition-colors',
                         isActive
-                          ? 'bg-blue-800 text-white'
+                          ? 'bg-blue-800 text-orange'
                           : 'text-blue-300 hover:text-white hover:bg-blue-800'
                       )
                     }
@@ -240,8 +318,8 @@ const Sidebar: React.FC = () => {
 
         <div className="p-4 border-t border-blue-800">
           <div className="text-xs text-blue-300">
-            <p>DMS v1.0</p>
-            <p>© 2025 Company</p>
+            <p>DMS v1.0.0</p>
+            <p>© 2025 BLS</p>
           </div>
         </div>
       </div>
@@ -256,5 +334,68 @@ const Sidebar: React.FC = () => {
     </>
   );
 };
+
+// added for nested submenu
+const SubMenuItem = ({
+  item,
+  level = 1,
+  isMobile,
+  setIsMobileOpen,
+}: {
+  item: any;
+  level?: number;
+  isMobile: boolean;
+  setIsMobileOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <li>
+      {item.submenu ? (
+        <>
+          <button
+            onClick={() => setOpen(!open)}
+            className={cn(
+              'flex items-center justify-start w-full px-2 py-1 rounded-md text-sm transition-colors',
+              'text-left text-blue-300 hover:text-white hover:bg-blue-800'
+            )}
+          >
+            <span className="flex-1 text-left">{item.name}</span>
+            {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {open && (
+            <ul className={cn(`ml-${level * 4} space-y-1 mt-1`)}>
+              {item.submenu.map((child: any) => (
+                <SubMenuItem
+                  key={child.name}
+                  item={child}
+                  level={level + 1}
+                  isMobile={isMobile}
+                  setIsMobileOpen={setIsMobileOpen}
+                />
+              ))}
+            </ul>
+          )}
+        </>
+      ) : (
+        <NavLink
+          to={item.path}
+          className={({ isActive }) =>
+            cn(
+              'block w-full text-left px-2 py-1 rounded-md text-sm',
+              isActive
+                ? 'bg-blue-800 text-white'
+                : 'text-blue-300 hover:text-white hover:bg-blue-800'
+            )
+          }
+          onClick={() => isMobile && setIsMobileOpen(false)}
+        >
+          {item.name}
+        </NavLink>
+      )}
+    </li>
+  );
+};
+
 
 export default Sidebar;
