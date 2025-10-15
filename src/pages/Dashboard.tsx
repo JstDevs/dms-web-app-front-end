@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDocument } from '../contexts/DocumentContext';
-import { Folder, FileText, BarChart3, RotateCcw } from 'lucide-react'; // Added RotateCcw for reset button
+import { Folder, FileText, BarChart3, RotateCcw, ChevronDown } from 'lucide-react'; // Added RotateCcw for reset button
 // import { Button } from '@chakra-ui/react'; // Uncomment if using Chakra UI buttons
 import { useAuth } from '@/contexts/AuthContext';
 import axios from '@/api/axios';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 
 interface Activity {
   ID: number;
@@ -38,6 +39,19 @@ const Dashboard: React.FC = () => {
   const [selectedYear] = useState<string>(new Date().getFullYear().toString());
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  
+  // Department and Sub-department filters
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [selectedSubDepartment, setSelectedSubDepartment] = useState<string>('');
+  const [subDepartmentOptions, setSubDepartmentOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+  
+  // Department options hook
+  const {
+    departmentOptions,
+    getSubDepartmentOptions,
+  } = useNestedDepartmentOptions();
 
   // Dynamic state for charts and quick stats
   const [documentTypeData, setDocumentTypeData] = useState<{ name: string; value: number }[]>([]);
@@ -46,7 +60,7 @@ const Dashboard: React.FC = () => {
   const [activeUsersCount, setActiveUsersCount] = useState<number>(0);
   const [confidentialDocsCount, setConfidentialDocsCount] = useState<number>(0);
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+  const COLORS = ['#5fad56', '#f2c14e', '#f78154', '#4d9078'];
 
   // Effect to fetch document list on role change
   useEffect(() => {
@@ -54,6 +68,30 @@ const Dashboard: React.FC = () => {
       fetchDocumentList(Number(selectedRole.ID), documentList?.currentPage);
     }
   }, [selectedRole, documentList?.currentPage]);
+
+  // Update sub-departments when department selection changes
+  useEffect(() => {
+    if (selectedDepartment && departmentOptions.length > 0) {
+      const selectedDeptId = departmentOptions.find(
+        (dept) => dept.label === selectedDepartment
+      )?.value;
+
+      if (selectedDeptId) {
+        const subs = getSubDepartmentOptions(Number(selectedDeptId));
+        setSubDepartmentOptions(subs);
+        // Only reset if the current subDept doesn't exist in new options
+        if (!subs.some((sub) => sub.label === selectedSubDepartment)) {
+          setSelectedSubDepartment('');
+        }
+      }
+    } else {
+      setSubDepartmentOptions([]);
+      if (selectedSubDepartment) {
+        // Only reset if there's a value
+        setSelectedSubDepartment('');
+      }
+    }
+  }, [selectedDepartment, departmentOptions]);
 
   // Effect to fetch recent activities based on filters
   useEffect(() => {
@@ -76,8 +114,16 @@ const Dashboard: React.FC = () => {
               to: endDate,
               startAt,
               endAt,
+              // Department filters
+              ...(selectedDepartment && { department: selectedDepartment }),
+              ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
             }
-          : { year: selectedYear };
+          : { 
+              year: selectedYear,
+              // Department filters
+              ...(selectedDepartment && { department: selectedDepartment }),
+              ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
+            };
 
         const { data } = await axios.get(`/documents/activities-dashboard`, {
           params: paramsWhenRange,
@@ -165,7 +211,7 @@ const Dashboard: React.FC = () => {
     };
 
     fetchActivities();
-  }, [selectedYear, startDate, endDate]); // Dependencies now include startDate and endDate
+  }, [selectedYear, startDate, endDate, selectedDepartment, selectedSubDepartment]); // Dependencies now include startDate, endDate, and department filters
 
   // Compute total pages from loaded documents
   const totalPagesFromDocuments = useMemo(() => {
@@ -221,9 +267,11 @@ const Dashboard: React.FC = () => {
     return `${Math.floor(diffInSeconds / 86400)} days ago`;
   };
 
-  const handleResetDates = () => {
+  const handleResetFilters = () => {
     setStartDate('');
     setEndDate('');
+    setSelectedDepartment('');
+    setSelectedSubDepartment('');
     // Optionally reset year if you want: setSelectedYear(new Date().getFullYear().toString());
   };
 
@@ -247,44 +295,103 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
       
-      {/* --- Date Range Filter (The requested feature) --- */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-100 mb-6 flex flex-col md:flex-row items-start md:items-end gap-4">
-        <div className="flex-1 w-full">
-          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
-            Start Date
-          </label>
-          <input
-            id="startDate"
-            type="date"
-            value={startDate}
-            // Ensure end date is not before start date (basic validation)
-            onChange={(e) => setStartDate(e.target.value)}
-            max={endDate || undefined} 
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          />
+      {/* --- Filters Section --- */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-100 mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Filters</h3>
+        
+        {/* Date Range Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+              Start Date
+            </label>
+            <input
+              id="startDate"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              max={endDate || undefined} 
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+              End Date
+            </label>
+            <input
+              id="endDate"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              min={startDate || undefined}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </div>
-        <div className="flex-1 w-full">
-          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
-            End Date
-          </label>
-          <input
-            id="endDate"
-            type="date"
-            value={endDate}
-            // Ensure end date is not before start date (basic validation)
-            onChange={(e) => setEndDate(e.target.value)}
-            min={startDate || undefined}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          />
+
+        {/* Department Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Department
+            </label>
+            <div className="relative">
+              <select
+                value={selectedDepartment}
+                onChange={(e) => setSelectedDepartment(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="" hidden>
+                  Select Department
+                </option>
+                {departmentOptions.map((dept) => (
+                  <option key={dept.value} value={dept.label}>
+                    {dept.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Department Item
+            </label>
+            <div className="relative">
+              <select
+                value={selectedSubDepartment}
+                onChange={(e) => setSelectedSubDepartment(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!selectedDepartment}
+              >
+                <option value="" hidden>
+                  {subDepartmentOptions.length === 0
+                    ? 'No sub-departments available'
+                    : 'Select Sub-Department'}
+                </option>
+                {subDepartmentOptions.map((subDept) => (
+                  <option key={subDept.value} value={subDept.label}>
+                    {subDept.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+            </div>
+          </div>
         </div>
-        <button
-          onClick={handleResetDates}
-          disabled={!startDate && !endDate}
-          className="md:h-10 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg border border-gray-300 hover:bg-gray-200 transition duration-150 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <RotateCcw className="w-4 h-4 mr-1" />
-          Reset
-        </button>
+
+        {/* Reset Button */}
+        <div className="flex justify-end">
+          <button
+            onClick={handleResetFilters}
+            disabled={!startDate && !endDate && !selectedDepartment && !selectedSubDepartment}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg border border-gray-300 hover:bg-gray-200 transition duration-150 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RotateCcw className="w-4 h-4 mr-1" />
+            Reset All Filters
+          </button>
+        </div>
       </div>
       {/* ------------------------------------------------------------------ */}
 

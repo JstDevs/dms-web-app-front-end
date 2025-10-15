@@ -27,20 +27,27 @@ const MyDocuments: React.FC = () => {
   const { selectedRole } = useAuth(); // assuming user object has user.id
   const [currentPage, setCurrentPage] = useState(1);
   const [paginationData, setPaginationData] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("")
   // console.log("selectedRole", selectedRole);
   const myDocumentPermissions = useModulePermissions(4); // 1 = MODULE_ID
   useEffect(() => {
     const loadDocuments = async () => {
+      setLoading(true);
       try {
         const { data } = await fetchDocuments(
           Number(selectedRole?.ID),
           currentPage
         );
-
+        console.log(data)
+        
         setDocuments(data.documents);
         setFilteredDocs(data.documents);
         setPaginationData(data.pagination);
+        setLoading(false);
       } catch (err) {
+        //error
+        setError("Error in this!!")
         console.error('Failed to fetch documents', err);
       }
     };
@@ -183,7 +190,54 @@ const MyDocuments: React.FC = () => {
             );
           })}
         </div>
-      ) : (
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center bg-gray-50 text-red-700 rounded-md p-8 shadow-md animate-pulse">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-12 w-12 mb-3 text-red-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-.01-10a9 9 0 100 18 9 9 0 000-18z"
+            />
+          </svg>
+          <p className="text-lg font-semibold">Oops! Something Went Wrong</p>
+          <p className="text-sm text-red-600 mt-2">
+            Please try refreshing the page or check your network connection.
+          </p>
+        </div>
+      ) : loading ? (
+        <div className="flex flex-col items-center justify-center bg-gray-50 text-blue-700 rounded-md p-8 shadow-md">
+          <svg
+            className="animate-spin h-10 w-10 text-green-500 mb-3"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8H4z"
+            ></path>
+          </svg>
+          <p className="text-lg text-green-600 font-medium">Please Wait...</p>
+          <p className="text-sm text-green-600 mt-2">Almost there! Thanks for your patience...</p>
+        </div>
+      ) :
+      (
         <div className="bg-gray-50 rounded-md p-8 text-center">
           <p className="text-gray-500">
             No documents found matching your criteria
