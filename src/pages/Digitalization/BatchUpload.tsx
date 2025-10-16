@@ -33,7 +33,7 @@ export const BatchUploadPanel = () => {
   } = useNestedDepartmentOptions();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const batchUploadPermissions = useModulePermissions(8); // 1 = MODULE_ID
-  // Update sub-departments when department selection changes
+  // Update document types when department selection changes
   useEffect(() => {
     if (selectedDepartment && departmentOptions.length > 0) {
       const selectedDeptId = departmentOptions.find(
@@ -161,7 +161,7 @@ export const BatchUploadPanel = () => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Sub-Department
+            Document Type
           </label>
           <div className="relative">
             <select
@@ -172,8 +172,8 @@ export const BatchUploadPanel = () => {
             >
               <option value="" hidden>
                 {subDepartmentOptions.length === 0
-                  ? 'No sub-departments available'
-                  : 'Select Sub-Department'}
+                  ? 'No document types available'
+                  : 'Select Document Type'}
               </option>
               {subDepartmentOptions.map((subDept) => (
                 <option key={subDept.value} value={subDept.label}>
@@ -201,7 +201,7 @@ export const BatchUploadPanel = () => {
         <p className="text-sm">
           {selectedSubDepartment
             ? 'Drag & drop files here or click to upload'
-            : 'Please select a department and sub-department first'}
+            : 'Please select a department and document type first'}
         </p>
         <input
           type="file"

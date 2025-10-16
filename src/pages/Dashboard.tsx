@@ -356,7 +356,7 @@ const Dashboard: React.FC = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Department Item
+              Document Type
             </label>
             <div className="relative">
               <select
@@ -368,8 +368,8 @@ const Dashboard: React.FC = () => {
                 
                 <option value="" hidden>
                   {subDepartmentOptions.length === 0
-                    ? 'No sub-departments available'
-                    : 'Select Sub-Department'}
+                    ? 'No document types available'
+                    : 'Select Document Type'}
                 </option>
                 {subDepartmentOptions.map((subDept) => (
                   <option key={subDept.value} value={subDept.label}>

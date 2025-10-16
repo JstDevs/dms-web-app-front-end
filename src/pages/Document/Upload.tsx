@@ -351,7 +351,7 @@ export default function DocumentUpload() {
                 setNewDoc({
                   ...newDoc,
                   DepartmentId: deptId,
-                  SubDepartmentId: 0, // Reset sub-department when department changes
+                  SubDepartmentId: 0, // Reset document type when department changes
                 });
               }}
               options={departmentOptions}
@@ -359,10 +359,10 @@ export default function DocumentUpload() {
             />
           </div>
 
-          {/* Sub-Department */}
+          {/* Document Type */}
           <div className="col-span-1">
             <label className="text-sm sm:text-base">
-              Sub-Department <span className="text-red-500">*</span>{' '}
+              Document Type <span className="text-red-500">*</span>{' '}
             </label>
 
             <Select
@@ -370,8 +370,8 @@ export default function DocumentUpload() {
                 !newDoc.DepartmentId
                   ? 'Select a Department First'
                   : getSubDepartmentOptions(newDoc.DepartmentId).length === 0
-                  ? 'No Sub-Departments Available'
-                  : 'Select a Sub-Department'
+                  ? 'No Document Types Available'
+                  : 'Select a Document Type'
               }
               value={newDoc.SubDepartmentId?.toString() || ''}
               onChange={(e) =>

@@ -185,14 +185,14 @@ const DocumentCurrentView = ({
                 </p>
               </div>
 
-              {/* Sub-Department */}
+              {/* Document Type */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
                     <Building className="h-4 w-4 text-white" />
                   </div>
                   <h4 className="text-sm font-medium text-gray-700">
-                    Sub-Department
+                    Document Type
                   </h4>
                 </div>
                 <p className="text-gray-900 font-medium">
