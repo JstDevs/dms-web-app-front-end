@@ -212,7 +212,15 @@ export const UsersPage: React.FC = () => {
         <div className="text-left flex-1">
           <h1 className="text-3xl font-bold text-blue-800">Users</h1>
           <p className="mt-2 text-gray-600">
-            Manage system users and access permissions
+            Manage system users and access permissions 
+
+            {/* sadasdasd   [{JSON.stringify(useModulePermissions(5)?.Add?.valueOf())}] */}
+
+            {/* <br/> View is [{JSON.stringify(userPagePermissions?.View?.valueOf())}]
+            <br/> Add is [{JSON.stringify(userPagePermissions?.Add?.valueOf())}]
+            <br/> Edit is [{JSON.stringify(userPagePermissions?.Edit?.valueOf())}]
+            <br/> Delete is [{JSON.stringify(userPagePermissions?.Delete?.valueOf())}]
+            <br/> Print is [{JSON.stringify(userPagePermissions?.Print?.valueOf())}] */}
           </p>
         </div>
         <div className="w-full sm:w-auto">
@@ -311,7 +319,10 @@ export const UsersPage: React.FC = () => {
                     </Portal>
                   </Select.Root>
                 )}
-                {canUpdatePassword(currentUser) && (
+                {
+
+                // Unimportant function //  
+                // canUpdatePassword(currentUser) && (
                   <>
                     <Input
                       label={isEditing ? 'New Password (optional)' : 'Password'}
@@ -340,14 +351,22 @@ export const UsersPage: React.FC = () => {
                       />
                     )}
                   </>
-                )}
-                {!canUpdatePassword(currentUser) && isEditing && (
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p className="text-sm text-yellow-800">
-                      You don't have permission to update this user's password.
-                    </p>
-                  </div>
-                )}
+
+                //)//
+                }
+                {
+                
+                // Unimportant function //    
+                // !canUpdatePassword(currentUser) && isEditing && (
+                //   <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                //     <p className="text-sm text-yellow-800">
+                //       You don't have permission to update this user's password.
+                //     </p>
+                //   </div>
+                // )
+                
+                }
+
                 {/* <Input
                   label={isEditing ? 'New Password (optional)' : 'Password'}
                   type="password"
@@ -453,7 +472,7 @@ export const UsersPage: React.FC = () => {
                             onClick={() => handleEditClick(user)}
                           >
                             <Edit className="h-4 w-4" />
-                            Edit
+                            {/* <span>Edit</span> */}
                           </Button>
                         )}
                         {userPagePermissions?.Delete && (
@@ -467,7 +486,7 @@ export const UsersPage: React.FC = () => {
                               className="text-red-600 hover:text-red-900"
                             >
                               <Trash2 className="h-4 w-4" />
-                              Delete
+                              {/* <span>Delete</span> */}
                             </Button>
                           </DeleteDialog>
                         )}

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '../../utils/cn';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 // Define proper types for nav items
 interface NavSubmenu {
@@ -128,7 +129,7 @@ const Sidebar: React.FC = () => {
     return navItems
       .map((item) => {
         if (item.submenu && item.submenu.length > 0) {
-          const filteredSubs = item.submenu.filter((sub) =>
+          const filteredSubs = item.submenu.filter((sub) => 
             hasViewPermission(sub.moduleId)
           );
           if (filteredSubs.length > 0) {
