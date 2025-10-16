@@ -7,6 +7,8 @@ interface PaginationControlsProps {
   itemsPerPage: number;
   onPageChange: (page: number) => void;
   onItemsPerPageChange?: (itemsPerPage: number) => void;
+  // If provided, this value will be used instead of computing from totalItems/itemsPerPage
+  totalPagesOverride?: number;
 }
 
 const PaginationControls: React.FC<PaginationControlsProps> = ({
@@ -15,22 +17,23 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
   itemsPerPage,
   onPageChange,
   onItemsPerPageChange,
+  totalPagesOverride,
 }) => {
   const [totalPages, setTotalPages] = useState(
-    Math.ceil(totalItems / itemsPerPage)
+    totalPagesOverride ?? Math.ceil(totalItems / itemsPerPage)
   );
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     // Update total pages when items or page size changes
-    const newTotalPages = Math.ceil(totalItems / itemsPerPage);
+    const newTotalPages = (totalPagesOverride ?? Math.ceil(totalItems / itemsPerPage)) as number;
     setTotalPages(newTotalPages);
 
     // Adjust current page if it's now beyond the new total pages
     if (currentPage > newTotalPages && newTotalPages > 0) {
       onPageChange(newTotalPages);
     }
-  }, [totalItems, itemsPerPage, currentPage, onPageChange]);
+  }, [totalItems, itemsPerPage, currentPage, onPageChange, totalPagesOverride]);
 
   useEffect(() => {
     // Check if mobile on mount and resize

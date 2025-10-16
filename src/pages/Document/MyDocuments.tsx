@@ -92,9 +92,18 @@ const MyDocuments: React.FC = () => {
     return new Date(debouncedStartDate) <= new Date(debouncedEndDate);
   };
 
-  // Reset to page 1 when search or filters change
+  // Reset to page 1 only when filters are active (non-empty)
   useEffect(() => {
-    setCurrentPage(1);
+    const anyFilterActive = Boolean(
+      debouncedSearchTerm ||
+      debouncedDepartment ||
+      debouncedSubDepartment ||
+      debouncedStartDate ||
+      debouncedEndDate
+    );
+    if (anyFilterActive) {
+      setCurrentPage(1);
+    }
   }, [debouncedSearchTerm, debouncedDepartment, debouncedSubDepartment, debouncedStartDate, debouncedEndDate]);
 
   useEffect(() => {
@@ -136,10 +145,11 @@ const MyDocuments: React.FC = () => {
         }
 
         // When filters are active, fetch ALL pages so results include matches beyond page 1
-        // Otherwise, fetch only the current page
+        // Otherwise, fetch only the requested current page
+        const pageToFetch = isFilterActive ? 1 : currentPage;
         const firstPage = await fetchDocuments(
           Number(selectedRole?.ID),
-          1,
+          pageToFetch,
           debouncedSearchTerm,
           debouncedDepartment,
           debouncedSubDepartment,
