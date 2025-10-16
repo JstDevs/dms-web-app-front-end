@@ -42,7 +42,7 @@ const Login: React.FC = () => {
 
       if (user) {
         toast.success('Login successful!');
-        navigate('/home');
+        navigate('/dashboard');
       } else {
         toast.error('Invalid email or password');
       }
