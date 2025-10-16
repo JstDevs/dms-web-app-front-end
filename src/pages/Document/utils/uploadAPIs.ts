@@ -9,9 +9,29 @@ export async function uploadFile(payload: FormData) {
   return response.data;
 }
 
-export async function fetchDocuments(userId: number, page: number = 1) {
+export async function fetchDocuments(userId: number, page: number = 1, searchTerm?: string, department?: string, subDepartment?: string, startDate?: string, endDate?: string) {
+  const params = new URLSearchParams({
+    page: page.toString()
+  });
+  
+  if (searchTerm) {
+    params.append('search', searchTerm);
+  }
+  if (department) {
+    params.append('department', department);
+  }
+  if (subDepartment) {
+    params.append('subDepartment', subDepartment);
+  }
+  if (startDate) {
+    params.append('startDate', startDate);
+  }
+  if (endDate) {
+    params.append('endDate', endDate);
+  }
+  
   const response = await axios.get(
-    `/documents/documents/${userId}?page=${page}`
+    `/documents/documents/${userId}?${params.toString()}`
   );
   return response.data;
 }

@@ -20,6 +20,8 @@ const MyDocuments: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [department, setDepartment] = useState('');
   const [subDepartment, setSubDepartment] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   // TODO CHANGE THIS TS TYPE
   const [documents, setDocuments] = useState<any[]>([]);
   const [filteredDocs, setFilteredDocs] = useState(documents);
@@ -28,32 +30,260 @@ const MyDocuments: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [paginationData, setPaginationData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [filterLoading, setFilterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("")
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [debouncedDepartment, setDebouncedDepartment] = useState('');
+  const [debouncedSubDepartment, setDebouncedSubDepartment] = useState('');
+  const [debouncedStartDate, setDebouncedStartDate] = useState('');
+  const [debouncedEndDate, setDebouncedEndDate] = useState('');
   // console.log("selectedRole", selectedRole);
   const myDocumentPermissions = useModulePermissions(4); // 1 = MODULE_ID
+  
+  // Debounce search term to prevent too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Debounce department changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedDepartment(department);
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [department]);
+
+  // Debounce subdepartment changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSubDepartment(subDepartment);
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [subDepartment]);
+
+  // Debounce start date
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedStartDate(startDate);
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [startDate]);
+
+  // Debounce end date
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedEndDate(endDate);
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [endDate]);
+
+  // Date range validation
+  const isDateRangeValid = () => {
+    if (!debouncedStartDate && !debouncedEndDate) return true;
+    if (!debouncedStartDate || !debouncedEndDate) return true; // Allow partial dates
+    return new Date(debouncedStartDate) <= new Date(debouncedEndDate);
+  };
+
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, debouncedDepartment, debouncedSubDepartment, debouncedStartDate, debouncedEndDate]);
+
   useEffect(() => {
     const loadDocuments = async () => {
-      setLoading(true);
+      // Use filterLoading for non-initial loads
+      const isInitialLoad = !documents.length && !filteredDocs.length;
+      const isFilterActive = Boolean(
+        debouncedSearchTerm ||
+          debouncedDepartment ||
+          debouncedSubDepartment ||
+          debouncedStartDate ||
+          debouncedEndDate
+      );
+      if (!isInitialLoad) {
+        setFilterLoading(true);
+      } else {
+        setLoading(true);
+      }
+      
       try {
-        const { data } = await fetchDocuments(
+        console.log('🔍 Fetching documents with filters:', {
+          userId: Number(selectedRole?.ID),
+          page: currentPage,
+          search: debouncedSearchTerm,
+          department: debouncedDepartment,
+          subDepartment: debouncedSubDepartment,
+          startDate: debouncedStartDate,
+          endDate: debouncedEndDate
+        });
+
+        // Debug: Log the date range being sent
+        if (debouncedStartDate || debouncedEndDate) {
+          console.log('📅 Date range filter:', {
+            startDate: debouncedStartDate,
+            endDate: debouncedEndDate,
+            startDateType: typeof debouncedStartDate,
+            endDateType: typeof debouncedEndDate
+          });
+        }
+
+        // When filters are active, fetch ALL pages so results include matches beyond page 1
+        // Otherwise, fetch only the current page
+        const firstPage = await fetchDocuments(
           Number(selectedRole?.ID),
-          currentPage
+          1,
+          debouncedSearchTerm,
+          debouncedDepartment,
+          debouncedSubDepartment,
+          debouncedStartDate,
+          debouncedEndDate
         );
-        console.log(data)
+        const firstData = firstPage.data;
+
+        let combinedDocuments = firstData.documents as any[];
+        let effectivePagination = firstData.pagination;
+
+        if (isFilterActive && firstData?.pagination?.totalPages > 1) {
+          const totalPages: number = firstData.pagination.totalPages;
+          const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+          const pageResults = await Promise.all(
+            remainingPages.map((p) =>
+              fetchDocuments(
+                Number(selectedRole?.ID),
+                p,
+                debouncedSearchTerm,
+                debouncedDepartment,
+                debouncedSubDepartment,
+                debouncedStartDate,
+                debouncedEndDate
+              )
+            )
+          );
+          const restDocs = pageResults.flatMap((r) => r.data.documents as any[]);
+          combinedDocuments = [...combinedDocuments, ...restDocs];
+          // Build a synthetic pagination snapshot covering all fetched items
+          effectivePagination = {
+            ...(firstData.pagination || {}),
+            totalItems: combinedDocuments.length,
+            totalPages: 1,
+          };
+        }
         
-        setDocuments(data.documents);
-        setFilteredDocs(data.documents);
-        setPaginationData(data.pagination);
-        setLoading(false);
+        console.log('✅ Documents fetched successfully:', {
+          firstPageCount: firstData?.documents?.length,
+          aggregatedCount: combinedDocuments?.length,
+          totalPagesFetched: isFilterActive ? (firstData?.pagination?.totalPages || 1) : 1,
+        });
+        
+        // Debug: Log document dates to see what date fields are available
+        if (combinedDocuments && combinedDocuments.length > 0) {
+          console.log('📄 Sample document dates:', {
+            firstDocument: combinedDocuments[0]?.newdoc ? {
+              ID: combinedDocuments[0].newdoc.ID,
+              FileName: combinedDocuments[0].newdoc.FileName,
+              CreatedDate: combinedDocuments[0].newdoc.CreatedDate,
+              FileDate: combinedDocuments[0].newdoc.FileDate,
+              // Add other date fields if they exist
+            } : 'No documents found'
+          });
+
+        // Debug: Check if filtering is working by comparing dates (timezone-safe)
+          if (debouncedStartDate || debouncedEndDate) {
+            console.log('🔍 FILTERING DEBUG:');
+            console.log('📅 Filter criteria:', {
+              startDate: debouncedStartDate,
+              endDate: debouncedEndDate
+            });
+          // Build day-start/day-end boundaries in local time
+          const startBoundary = debouncedStartDate
+            ? new Date(`${debouncedStartDate}T00:00:00`)
+            : null;
+          const endBoundary = debouncedEndDate
+            ? new Date(`${debouncedEndDate}T23:59:59.999`)
+            : null;
+          const today = new Date().toISOString().split('T')[0];
+            console.log('📅 Today\'s date:', today);
+            
+            // Check if any documents match the date criteria
+            const matchingDocs = combinedDocuments.filter((doc: any) => {
+            const docDateStr = doc.newdoc?.CreatedDate || doc.newdoc?.FileDate;
+            if (!docDateStr) return false;
+            const docDate = new Date(docDateStr);
+            if (Number.isNaN(docDate.getTime())) return false;
+
+            if (startBoundary && docDate < startBoundary) return false;
+            if (endBoundary && docDate > endBoundary) return false;
+            return true;
+          });
+            
+            console.log('🎯 Documents that SHOULD match filter:', matchingDocs.length);
+            console.log('📊 Total documents fetched:', combinedDocuments.length);
+            console.log('❌ Backend filtering is', 'UNKNOWN (client aggregates pages)');
+          }
+        }
+        
+        setDocuments(combinedDocuments);
+        
+        // CLIENT-SIDE FALLBACK FILTERING (for testing)
+        let filteredDocuments = combinedDocuments;
+        
+        // Apply client-side date filtering if backend is not working (timezone-safe)
+        if (debouncedStartDate || debouncedEndDate) {
+          const startBoundary = debouncedStartDate
+            ? new Date(`${debouncedStartDate}T00:00:00`)
+            : null;
+          const endBoundary = debouncedEndDate
+            ? new Date(`${debouncedEndDate}T23:59:59.999`)
+            : null;
+
+          filteredDocuments = combinedDocuments.filter((doc: any) => {
+            const docDateStr = doc.newdoc?.CreatedDate || doc.newdoc?.FileDate;
+            if (!docDateStr) return false;
+            const docDate = new Date(docDateStr);
+            if (Number.isNaN(docDate.getTime())) return false;
+
+            if (startBoundary && docDate < startBoundary) return false;
+            if (endBoundary && docDate > endBoundary) return false;
+            return true;
+          });
+          
+          console.log('🔧 CLIENT-SIDE FILTERING APPLIED:', {
+            originalCount: combinedDocuments.length,
+            filteredCount: filteredDocuments.length
+          });
+        }
+        
+        setFilteredDocs(filteredDocuments);
+        // If filter mode, or client-side filtering changed counts, adjust pagination
+        if (isFilterActive) {
+          setPaginationData((prev: any) => ({
+            ...(effectivePagination || prev || {}),
+            totalItems: filteredDocuments.length,
+            totalPages: 1,
+          }));
+        } else {
+          setPaginationData(effectivePagination);
+        }
+        setError(""); // Clear any previous errors
       } catch (err) {
-        //error
-        setError("Error in this!!")
-        console.error('Failed to fetch documents', err);
+        console.error('❌ Failed to fetch documents:', err);
+        setError("Error loading documents. Please try again.");
+      } finally {
+        setLoading(false);
+        setFilterLoading(false);
       }
     };
 
     loadDocuments();
-  }, [selectedRole, currentPage]);
+  }, [selectedRole, currentPage, debouncedSearchTerm, debouncedDepartment, debouncedSubDepartment, debouncedStartDate, debouncedEndDate]);
   // Department/subDept options
   // const departments = Array.from(new Set(documents.map((d) => d.DepartmentId)));
   // const subDepartments = Array.from(
@@ -64,27 +294,16 @@ const MyDocuments: React.FC = () => {
   //   )
   // );
 
-  // Apply filters whenever any filter changes
-  // Filtering logic
-  useEffect(() => {
-    const filtered = documents.filter((docWrapper) => {
-      const doc = docWrapper.newdoc;
-      const matchesSearch =
-        doc.FileName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.FileDescription?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesDept = department ? doc.DepartmentId === +department : true;
-      const matchesSubDept = subDepartment
-        ? doc.SubDepartmentId === +subDepartment
-        : true;
-      return matchesSearch && matchesDept && matchesSubDept;
-    });
-    setFilteredDocs(filtered);
-  }, [searchTerm, department, subDepartment, documents]);
+  // Server-side filtering is now handled by the API
+  // No need for client-side filtering
 
   const clearFilters = () => {
     setSearchTerm('');
     setDepartment('');
     setSubDepartment('');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
   };
   // if (!myDocumentPermissions.View) {
   //   return (
@@ -114,8 +333,15 @@ const MyDocuments: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="py-2 w-full"
+              disabled={filterLoading}
             />
-            <FiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            {filterLoading ? (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+              </div>
+            ) : (
+              <FiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            )}
           </div>
 
           <button
@@ -130,7 +356,13 @@ const MyDocuments: React.FC = () => {
         {/* Filter Panel */}
         {showFilters && (
           <div className="bg-gray-50 p-4 rounded-md mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filterLoading && (
+              <div className="mb-4 flex items-center justify-center text-blue-600 bg-blue-50 p-3 rounded-md">
+                <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></div>
+                <span className="text-sm font-medium">Applying filters...</span>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Select
                 label="Department"
                 value={department}
@@ -138,8 +370,9 @@ const MyDocuments: React.FC = () => {
                   setDepartment(e.target.value);
                   setSubDepartment(''); // Reset document type when department changes
                 }}
-                placeholder="All Departments"
+                placeholder="Select Department"
                 options={departmentOptions}
+                disabled={filterLoading}
               />
 
               <Select
@@ -147,12 +380,45 @@ const MyDocuments: React.FC = () => {
                 value={subDepartment}
                 onChange={(e) => setSubDepartment(e.target.value)}
                 options={subDepartmentOptions}
-                placeholder="All Document Types"
-                disabled={!department} // Only enable when department is selected
+                placeholder="Select Document Type"
+                disabled={!department || filterLoading} // Only enable when department is selected
               />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Date
+                </label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full"
+                  disabled={filterLoading}
+                  max={endDate || undefined} // Prevent start date from being after end date
+                />
+                <p className="text-xs text-gray-500 mt-1">Filter by document creation date</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  End Date
+                </label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full"
+                  disabled={filterLoading}
+                  min={startDate || undefined} // Prevent end date from being before start date
+                />
+                <p className="text-xs text-gray-500 mt-1">Filter by document creation date</p>
+                {!isDateRangeValid() && (
+                  <p className="text-xs text-red-500 mt-1">End date must be after start date</p>
+                )}
+              </div>
             </div>
 
-            {(department || subDepartment || searchTerm) && (
+            {(department || subDepartment || searchTerm || startDate || endDate) && (
               <div className="mt-4 flex justify-end">
                 <button
                   onClick={clearFilters}
@@ -169,9 +435,28 @@ const MyDocuments: React.FC = () => {
 
       {/* Results Count */}
       <div className="mb-4 flex justify-between items-center">
-        <p className="text-sm text-gray-600">
-          Showing {filteredDocs.length} of {documents.length} documents
-        </p>
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-gray-600">
+            Showing {filteredDocs.length} of {paginationData?.totalItems || 0} documents
+          </p>
+          {(department || subDepartment || debouncedSearchTerm || startDate || endDate) && (
+            <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span className="font-medium">Filters active</span>
+              {(startDate || endDate) && (
+                <span className="text-xs text-gray-500">
+                  (Date: {startDate || 'any'} to {endDate || 'any'})
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        {filterLoading && (
+          <div className="flex items-center text-blue-600">
+            <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></div>
+            <span className="text-sm">Loading...</span>
+          </div>
+        )}
       </div>
 
       {/* Documents Grid */}
@@ -244,7 +529,8 @@ const MyDocuments: React.FC = () => {
           </p>
         </div>
       )}
-      {!searchTerm && (
+      {/* Hide pagination when client-side filtering changed counts */}
+      {(!debouncedStartDate && !debouncedEndDate) ? (
         <PaginationControls
           currentPage={currentPage}
           totalItems={paginationData?.totalItems}
@@ -252,7 +538,7 @@ const MyDocuments: React.FC = () => {
           onPageChange={setCurrentPage}
           // onItemsPerPageChange={setItemsPerPage}
         />
-      )}
+      ) : null}
     </div>
   );
 };

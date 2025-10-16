@@ -19,6 +19,7 @@ interface DocumentCardProps {
     ID: string;
     FileName: string;
     FileDescription: string;
+    CreatedDate?: string;
     FileDate: string;
     ExpirationDate?: string;
     Confidential: boolean;
@@ -44,6 +45,7 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
   const {
     FileName,
     FileDescription,
+    CreatedDate,
     FileDate,
     ExpirationDate,
     Confidential,
@@ -161,10 +163,10 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
             {getStatusBadge()}
             <div className="flex items-center text-sm text-gray-500">
               <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-              <span className="font-medium">Created:</span>
+            <span className="font-medium">Created:</span>
               <span className="ml-2">
-                {FileDate
-                  ? new Date(FileDate).toLocaleDateString('en-US', {
+              {(CreatedDate || FileDate)
+                  ? new Date(CreatedDate || FileDate).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
