@@ -52,7 +52,7 @@ const DocumentCurrentView = ({
       }
     }
   };
-
+  
   if (!document || !currentDocumentInfo) return null;
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
