@@ -38,9 +38,9 @@ const Login: React.FC = () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Attempt login
-      const user = await login(userName, password);
+      const userValid = await login(userName, password);
 
-      if (user) {
+      if (userValid) {
         toast.success('Login successful!');
         navigate('/dashboard');
       } else {

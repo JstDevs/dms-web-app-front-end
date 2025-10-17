@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '../../utils/cn';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import toast from 'react-hot-toast';
 
 // Define proper types for nav items
 interface NavSubmenu {
@@ -56,7 +57,7 @@ const navItems: NavItem[] = [
         icon: FileText,
         path: '/documents/ocr',
         submenu: [
-          { name: 'OCR Upload', path: '/xxx' },
+          { name: 'OCR Upload', path: '/xxx', moduleId: 9 },
           { name: 'Unrecorded', path: '/ocr/unrecorded', moduleId: 9 },
         ]
       },
@@ -84,8 +85,8 @@ const navItems: NavItem[] = [
         icon: FileText,
         path: '/documents/upload',
         submenu: [
-          { name: 'Collaboration Matrix', path: '/yyy' },
-          { name: 'Approval Matrix', icon: Grid3x3, path: '/approval-matrix' },
+          { name: 'Collaboration Matrix', path: '/yyy', moduleId: 9 },
+          { name: 'Approval Matrix', icon: Grid3x3, path: '/approval-matrix', moduleId: 9 },
           { name: 'Masking Setup', path: '/ocr/unrecorded', moduleId: 9 },
         ]
       },
@@ -94,7 +95,7 @@ const navItems: NavItem[] = [
         icon: FileText,
         path: '/documents/upload',
         submenu: [
-          { name: 'Profile', icon: Settings, path: '/settings', moduleId: 12 },
+          { name: 'Profile', path: '/settings', moduleId: 12 },
           { name: 'Users', path: '/users/members', moduleId: 5 },
           { name: 'User Access', path: '/users/access', moduleId: 6 },
         ]
@@ -111,9 +112,13 @@ const Sidebar: React.FC = () => {
   const { selectedRole } = useAuth();
 
   const isAdmin = selectedRole?.Description === 'Administration';
-
+  
   // Permission check is *only* via selectedRole.moduleAccess now!
   function hasViewPermission(moduleId?: number) {
+    if (moduleId !== undefined) {
+      toast.success(`Checking permission for moduleId: ${moduleId}`);
+    }
+
     if (isAdmin) return true;
     if (!moduleId) return true; // Public
     if (!selectedRole?.moduleAccess) return false;
@@ -125,23 +130,33 @@ const Sidebar: React.FC = () => {
   }
 
   // Filter navItems according to selectedRole only.
-  const filteredNavItems = React.useMemo(() => {
-    return navItems
+  function deepFilterNavItems<T extends NavItem | NavSubmenu>(
+    items: T[],
+    hasViewPermission: (moduleId?: number) => boolean
+  ): T[] {
+    return items
       .map((item) => {
         if (item.submenu && item.submenu.length > 0) {
-          const filteredSubs = item.submenu.filter((sub) => 
-            hasViewPermission(sub.moduleId)
-          );
-          if (filteredSubs.length > 0) {
-            return { ...item, submenu: filteredSubs };
+          const filteredSubmenu = deepFilterNavItems(item.submenu as T[], hasViewPermission);
+
+          if (filteredSubmenu.length > 0) {
+            return {
+              ...item,
+              submenu: filteredSubmenu,
+            };
           }
-          return null; // Entire section hidden if no visible submenu items
+
+          return null; // No visible children — hide this container
         }
-        // If no submenu, check permission for item itself
-        if (hasViewPermission(item.moduleId)) return item;
-        return null;
+
+        // Leaf node: return only if it has permission
+        return hasViewPermission(item.moduleId) ? item : null;
       })
-      .filter(Boolean);
+      .filter(Boolean) as T[];
+  }
+
+  const filteredNavItems = React.useMemo(() => {
+    return deepFilterNavItems(navItems, hasViewPermission) as NavItem[];
   }, [selectedRole]);
 
   useEffect(() => {

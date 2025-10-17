@@ -216,11 +216,11 @@ export const UsersPage: React.FC = () => {
 
             {/* sadasdasd   [{JSON.stringify(useModulePermissions(5)?.Add?.valueOf())}] */}
 
-            {/* <br/> View is [{JSON.stringify(userPagePermissions?.View?.valueOf())}]
-            <br/> Add is [{JSON.stringify(userPagePermissions?.Add?.valueOf())}]
-            <br/> Edit is [{JSON.stringify(userPagePermissions?.Edit?.valueOf())}]
+            {/* <br/> View is   [{JSON.stringify(userPagePermissions?.View?.valueOf())}]
+            <br/> Add is    [{JSON.stringify(userPagePermissions?.Add?.valueOf())}]
+            <br/> Edit is   [{JSON.stringify(userPagePermissions?.Edit?.valueOf())}]
             <br/> Delete is [{JSON.stringify(userPagePermissions?.Delete?.valueOf())}]
-            <br/> Print is [{JSON.stringify(userPagePermissions?.Print?.valueOf())}] */}
+            <br/> Print is  [{JSON.stringify(userPagePermissions?.Print?.valueOf())}] */}
           </p>
         </div>
         <div className="w-full sm:w-auto">
