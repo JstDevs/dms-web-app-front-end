@@ -85,7 +85,7 @@ const navItems: NavItem[] = [
         icon: FileText,
         path: '/documents/upload',
         submenu: [
-          { name: 'Collaboration Matrix', path: '/yyy', moduleId: 9 },
+          { name: 'Collaboration Access', path: '/yyy', moduleId: 9 },
           { name: 'Approval Matrix', icon: Grid3x3, path: '/approval-matrix', moduleId: 9 },
           { name: 'Masking Setup', path: '/ocr/unrecorded', moduleId: 9 },
         ]
@@ -100,6 +100,7 @@ const navItems: NavItem[] = [
           { name: 'User Access', path: '/users/access', moduleId: 6 },
         ]
       },
+      { name: 'Audit Trail', path: '/departments/main', moduleId: 1 },
     ],
   },  
 ];
