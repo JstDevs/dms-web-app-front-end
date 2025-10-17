@@ -99,7 +99,7 @@ const DocumentView: React.FC = () => {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center flex-1 w-full">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/documents/library')}
             className="mr-2 p-1 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100"
           >
             <ChevronLeft size={20} />
