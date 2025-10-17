@@ -1,45 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDocument } from '../contexts/DocumentContext';
-import { Folder, FileText, BarChart3, RotateCcw, ChevronDown } from 'lucide-react'; // Added RotateCcw for reset button
+import { Folder, BarChart3, FileText, RotateCcw, ChevronDown } from 'lucide-react';
 // import { Button } from '@chakra-ui/react'; // Uncomment if using Chakra UI buttons
 import { useAuth } from '@/contexts/AuthContext';
-import axios from '@/api/axios';
+//
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import axios from '@/api/axios';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
+//
 
-interface Activity {
-  ID: number;
-  DocumentID: number;
-  LinkID: string;
-  Action: string;
-  ActionBy: number;
-  ActionDate: string;
-  IPAddress: string;
-  UserAgent: string;
-  actor: {
-    id: number;
-    userName: string;
-  };
-  documentNew: {
-    ID: number;
-    FileName: string;
-    FileDescription: string;
-    DataType: string;
-    Confidential: boolean;
-  };
-}
+//
 
 const Dashboard: React.FC = () => {
   const { documentList, fetchDocumentList } = useDocument();
   const { selectedRole } = useAuth();
-  const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Recent Activity moved to AuditTrail page
   
-  // FIX: Renamed unused setters to be usable
+  // Filters for analytics
   const [selectedYear] = useState<string>(new Date().getFullYear().toString());
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  
+
   // Department and Sub-department filters
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [selectedSubDepartment, setSelectedSubDepartment] = useState<string>('');
@@ -79,7 +60,6 @@ const Dashboard: React.FC = () => {
       if (selectedDeptId) {
         const subs = getSubDepartmentOptions(Number(selectedDeptId));
         setSubDepartmentOptions(subs);
-        // Only reset if the current subDept doesn't exist in new options
         if (!subs.some((sub) => sub.label === selectedSubDepartment)) {
           setSelectedSubDepartment('');
         }
@@ -87,16 +67,14 @@ const Dashboard: React.FC = () => {
     } else {
       setSubDepartmentOptions([]);
       if (selectedSubDepartment) {
-        // Only reset if there's a value
         setSelectedSubDepartment('');
       }
     }
   }, [selectedDepartment, departmentOptions]);
 
-  // Effect to fetch recent activities based on filters
+  // Fetch activities and aggregate for analytics
   useEffect(() => {
     const fetchActivities = async () => {
-      setLoading(true);
       try {
         // Normalize date params to match potential backend expectations
         const hasRange = Boolean(startDate && endDate);
@@ -105,7 +83,6 @@ const Dashboard: React.FC = () => {
 
         const paramsWhenRange = hasRange
           ? {
-              // common aliases
               startDate: startDate,
               endDate: endDate,
               start_date: startDate,
@@ -114,13 +91,11 @@ const Dashboard: React.FC = () => {
               to: endDate,
               startAt,
               endAt,
-              // Department filters
               ...(selectedDepartment && { department: selectedDepartment }),
               ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
             }
           : { 
               year: selectedYear,
-              // Department filters
               ...(selectedDepartment && { department: selectedDepartment }),
               ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
             };
@@ -142,23 +117,12 @@ const Dashboard: React.FC = () => {
           if (endBound && ts > endBound) return false;
           return true;
         };
-        const filteredActivities: Activity[] = startBound || endBound
-          ? auditTrails.filter((a: Activity) => withinRange(a.ActionDate))
+        const filteredActivities = startBound || endBound
+          ? auditTrails.filter((a: any) => withinRange(a.ActionDate))
           : auditTrails;
 
-        // Sort by date (newest first) and take top 10
-        const sortedActivities = filteredActivities
-          .sort(
-            (a: Activity, b: Activity) =>
-              new Date(b.ActionDate).getTime() -
-              new Date(a.ActionDate).getTime()
-          )
-          .slice(0, 10);
-
-        setRecentActivities(sortedActivities);
-
-        // --- Aggregate dynamic stats from all fetched activities (not just the top 10) ---
-        const allActivities: Activity[] = filteredActivities;
+        // Aggregate dynamic stats from all filtered activities
+        const allActivities = filteredActivities as any[];
 
         // File types by DataType or derive from FileName
         const typeCounter: Record<string, number> = {};
@@ -183,7 +147,7 @@ const Dashboard: React.FC = () => {
         const typeData = Object.entries(typeCounter)
           .map(([name, value]) => ({ name, value }))
           .sort((a, b) => b.value - a.value)
-          .slice(0, 8); // cap to avoid overly long legends
+          .slice(0, 8);
         setDocumentTypeData(typeData);
 
         // Uploads/Downloads counts
@@ -205,13 +169,18 @@ const Dashboard: React.FC = () => {
         setConfidentialDocsCount(confidentialSet.size);
       } catch (error) {
         console.error('Failed to fetch activities', error);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchActivities();
-  }, [selectedYear, startDate, endDate, selectedDepartment, selectedSubDepartment]); // Dependencies now include startDate, endDate, and department filters
+  }, [selectedYear, startDate, endDate, selectedDepartment, selectedSubDepartment]);
+
+  const handleResetFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    setSelectedDepartment('');
+    setSelectedSubDepartment('');
+  };
 
   // Compute total pages from loaded documents
   const totalPagesFromDocuments = useMemo(() => {
@@ -236,44 +205,6 @@ const Dashboard: React.FC = () => {
       color: 'border-purple-100',
     },
   ];
-
-  const formatActivityType = (action: string) => {
-    switch (action) {
-      case 'VIEWED':
-        return 'viewed document';
-      case 'DOWNLOADED':
-        return 'downloaded document';
-      case 'CREATED':
-        return 'created document';
-      case 'UPDATED':
-        return 'updated document';
-      case 'DELETED':
-        return 'deleted document';
-      default:
-        return action.toLowerCase().replace(/_/g, ' ');
-    }
-  };
-
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`;
-    if (diffInSeconds < 3600)
-      return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-    if (diffInSeconds < 86400)
-      return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-    return `${Math.floor(diffInSeconds / 86400)} days ago`;
-  };
-
-  const handleResetFilters = () => {
-    setStartDate('');
-    setEndDate('');
-    setSelectedDepartment('');
-    setSelectedSubDepartment('');
-    // Optionally reset year if you want: setSelectedYear(new Date().getFullYear().toString());
-  };
 
   return (
     <div className="animate-fade-in">
@@ -454,64 +385,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Activity Feed */}
-      <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-slate-800">
-            Recent Activity
-          </h3>
-          {/* <Button
-            variant="outline"
-            size="sm"
-            className="text-sm font-semibold border border-slate-200 hover:bg-slate-100 px-4 py-2 flex items-center"
-          >
-            View All
-          </Button> */}
-        </div>
-        {loading ? (
-          <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          </div>
-        ) : recentActivities.length > 0 ? (
-          <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div
-                key={activity.ID}
-                className="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-800">
-                      <span className="text-blue-600">
-                        {activity.actor.userName}
-                      </span>{' '}
-                      {formatActivityType(activity.Action)}
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      {activity.documentNew.FileName}
-                      {activity.documentNew.Confidential && (
-                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                          Confidential
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-xs text-slate-500">
-                  {formatTimeAgo(activity.ActionDate)}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-slate-500">
-            No recent activities found
-          </div>
-        )}
-      </div>
+      {/* Recent Activity moved to Audit Trail page */}
     </div>
   );
 };

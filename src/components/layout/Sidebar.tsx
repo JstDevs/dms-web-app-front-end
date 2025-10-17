@@ -3,10 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
-  Users,
   Settings,
-  Building,
-  BookOpenCheck,
   Menu,
   X,
   ChevronDown,
@@ -15,8 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '../../utils/cn';
-import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
-import toast from 'react-hot-toast';
+//
 
 // Define proper types for nav items
 interface NavSubmenu {
@@ -100,7 +96,7 @@ const navItems: NavItem[] = [
           { name: 'User Access', path: '/users/access', moduleId: 6 },
         ]
       },
-      { name: 'Audit Trail', path: '/departments/main', moduleId: 1 },
+      { name: 'Audit Trail', path: '/audit-trail', moduleId: 1 },
     ],
   },  
 ];

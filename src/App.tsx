@@ -15,6 +15,7 @@ import Login from './pages/Login';
 import MyDocuments from './pages/Document/MyDocuments';
 import PendingApprovals from './pages/PendingApprovals';
 import RecentActivity from './pages/RecentActivity';
+import AuditTrail from './pages/AuditTrail';
 import DepartmentFiles from './pages/DepartmentFiles';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
@@ -62,6 +63,7 @@ function App() {
                       element={<PendingApprovals />}
                     />
                     <Route path="/activity" element={<RecentActivity />} />
+                    <Route path="/audit-trail" element={<AuditTrail />} />
                     <Route path="/department" element={<DepartmentFiles />} />
                     <Route path="/team" element={<Team />} />
                     <Route
