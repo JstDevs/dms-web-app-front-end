@@ -115,9 +115,9 @@ const Sidebar: React.FC = () => {
   
   // Permission check is *only* via selectedRole.moduleAccess now!
   function hasViewPermission(moduleId?: number) {
-    if (moduleId !== undefined) {
-      toast.success(`Checking permission for moduleId: ${moduleId}`);
-    }
+    // if (moduleId !== undefined) {
+    //   toast.success(`Checking permission for moduleId: ${moduleId}`);
+    // }
 
     if (isAdmin) return true;
     if (!moduleId) return true; // Public
