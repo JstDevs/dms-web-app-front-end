@@ -219,6 +219,10 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
             ? 'Custom area restriction'
             : `Field "${formData.field}" restriction`;
         showMessage(`${action} added successfully!`);
+        try {
+          const toastModule = await import('react-hot-toast');
+          toastModule.default.success('Restriction added successfully');
+        } catch {}
         
         console.log('Restriction added successfully:', {
           field: formData.field,
