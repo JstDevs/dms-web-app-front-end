@@ -13,6 +13,7 @@ import {
 import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
 import { useState } from 'react';
 import { logDocumentActivity } from '@/utils/activityLogger';
+import { useDocument } from '@/contexts/DocumentContext';
 import { useAuth } from '@/contexts/AuthContext';
 
 const DocumentCurrentView = ({
@@ -23,6 +24,7 @@ const DocumentCurrentView = ({
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const { user } = useAuth();
+  const { fetchDocument } = useDocument();
 
   const currentDocumentInfo = document?.document[0];
   const documentsDepartment = departmentOptions.find(
@@ -53,6 +55,7 @@ const DocumentCurrentView = ({
         
         // Log document download activity
         try {
+          console.log('🔍 Logging download activity for document:', currentDocumentInfo.ID);
           await logDocumentActivity(
             'DOWNLOADED',
             user!.ID,
@@ -61,6 +64,14 @@ const DocumentCurrentView = ({
             currentDocumentInfo.FileName,
             `Downloaded by ${user!.UserName}`
           );
+          console.log('✅ Download activity logged successfully');
+          
+          // Refresh document data to show the new audit trail entry
+          if (document?.document?.[0]?.ID) {
+            console.log('🔄 Refreshing document data...');
+            await fetchDocument(String(document.document[0].ID));
+            console.log('✅ Document data refreshed');
+          }
         } catch (logError) {
           console.warn('Failed to log document download activity:', logError);
         }

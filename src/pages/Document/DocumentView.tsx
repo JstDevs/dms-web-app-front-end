@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDocument } from '../../contexts/DocumentContext';
+import { logDocumentActivity } from '@/utils/activityLogger';
+import { useAuth } from '@/contexts/AuthContext';
 import DocumentVersionHistory from '../../components/documents/DocumentVersionHistory';
 import DocumentCollaboration from '../../components/documents/DocumentCollaboration';
 import DocumentApproval from '../../components/documents/DocumentApproval';
@@ -27,6 +29,7 @@ type TabType =
 const DocumentView: React.FC = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const { currentDocument, loading, fetchDocument } = useDocument();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('document');
 
@@ -35,6 +38,27 @@ const DocumentView: React.FC = () => {
       fetchDocument(documentId);
     }
   }, [documentId]);
+
+  // Log document view when document is loaded
+  useEffect(() => {
+    if (currentDocument && user) {
+      const logView = async () => {
+        try {
+          await logDocumentActivity(
+            'VIEWED',
+            user.ID,
+            user.UserName,
+            currentDocument.document[0].ID,
+            currentDocument.document[0].FileName,
+            `Viewed by ${user.UserName}`
+          );
+        } catch (logError) {
+          console.warn('Failed to log document view activity:', logError);
+        }
+      };
+      logView();
+    }
+  }, [currentDocument, user]);
 
   const renderTabContent = () => {
     switch (activeTab) {

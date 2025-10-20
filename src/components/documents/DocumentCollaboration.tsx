@@ -20,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { Button } from '@chakra-ui/react';
 import { logCollaborationActivity } from '@/utils/activityLogger';
+import { useDocument } from '@/contexts/DocumentContext';
 
 interface DocumentCollaborationProps {
   document: CurrentDocument | null;
@@ -52,6 +53,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
 }) => {
   const { users, loading: usersLoading, error: usersError } = useUsers();
   const { user: loggedUser } = useAuth();
+  const { fetchDocument } = useDocument();
   const [comment, setComment] = useState('');
   const [showUserSelector, setShowUserSelector] = useState(false);
   const [selectedPermission, setSelectedPermission] = useState<
@@ -147,6 +149,9 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
             loggedUser!.UserName,
             'general'
           );
+          
+          // Refresh document data to show the new audit trail entry
+          await fetchDocument(String(document.document[0].ID));
         } catch (logError) {
           console.warn('Failed to log comment activity:', logError);
         }
@@ -191,6 +196,9 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
             document.document[0].FileName,
             loggedUser!.UserName
           );
+          
+          // Refresh document data to show the new audit trail entry
+          await fetchDocument(String(document.document[0].ID));
         } catch (logError) {
           console.warn('Failed to log comment deletion activity:', logError);
         }
@@ -242,6 +250,9 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
             user.UserName,
             selectedPermission
           );
+          
+          // Refresh document data to show the new audit trail entry
+          await fetchDocument(String(document.document[0].ID));
         } catch (logError) {
           console.warn('Failed to log collaborator addition activity:', logError);
         }
@@ -278,6 +289,9 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
             document.document[0].FileName,
             collaborator.CollaboratorName
           );
+          
+          // Refresh document data to show the new audit trail entry
+          await fetchDocument(String(document.document[0].ID));
         } catch (logError) {
           console.warn('Failed to log collaborator removal activity:', logError);
         }
