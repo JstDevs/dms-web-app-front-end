@@ -11,6 +11,8 @@ import {
 import DocumentPreview from './Restriction/DocumentPreview';
 import RestrictionForm from './Restriction/RestrictionForm';
 import RestrictionList from './Restriction/RestrictionList';
+import { logSecurityActivity } from '@/utils/activityLogger';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FieldRestrictionProps {
   document: CurrentDocument | null;
@@ -49,6 +51,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
   });
 
   const { fetchDocument } = useDocument();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (document) {
@@ -164,6 +167,21 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
       );
 
       if (response.success) {
+        // Log restriction addition activity
+        try {
+          await logSecurityActivity(
+            'RESTRICTION_ADDED',
+            user!.ID,
+            user!.UserName,
+            document.document[0].ID,
+            document.document[0].FileName,
+            formData.field === 'custom_area' ? 'custom_area' : formData.field,
+            formData.reason
+          );
+        } catch (logError) {
+          console.warn('Failed to log restriction activity:', logError);
+        }
+
         const action =
           formData.field === 'custom_area'
             ? 'Custom area restriction'

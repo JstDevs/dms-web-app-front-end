@@ -17,17 +17,19 @@ interface AuthContextType {
   setSelectedRole: (role: Role) => void;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<User | null>;
-  logout: () => void;
+  logout: () => Promise<void>;
   error: string | null;
   isLoading: boolean;
   updateUserInContext: (updatedUser: User) => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
+
+import { logActivity } from '@/utils/activityLogger';
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
@@ -106,6 +108,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setSelectedRole(defaultRole);
         }
 
+        // Track login activity
+        try {
+          await logActivity({
+            action: 'LOGIN',
+            userId: user.ID,
+            userName: user.UserName,
+            details: 'User logged in successfully'
+          });
+        } catch (logError) {
+          console.warn('Failed to log login activity:', logError);
+        }
+
         toast.success(`Welcome back, ${user.UserName}!`);
         return user;
       } else {
@@ -119,7 +133,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Track logout activity before clearing user data
+    if (user) {
+      try {
+        await logActivity({
+          action: 'LOGOUT',
+          userId: user.ID,
+          userName: user.UserName,
+          details: 'User logged out successfully'
+        });
+      } catch (logError) {
+        console.warn('Failed to log logout activity:', logError);
+      }
+    }
+
     sessionStorage.removeItem('auth_token');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('selected_role');
@@ -154,3 +182,6 @@ export const useAuth = () => {
   }
   return context;
 };
+
+// Default export for better HMR compatibility
+export default { AuthContext, useAuth };

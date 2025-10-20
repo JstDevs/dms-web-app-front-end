@@ -27,6 +27,8 @@ import { Button } from '@chakra-ui/react';
 import { Input } from '@/components/ui/Input';
 import { DeleteDialog } from '@/components/ui/DeleteDialog';
 import { PaginationControls } from '@/components/ui/PaginationControls';
+import { logSystemActivity } from '@/utils/activityLogger';
+import { useAuth } from '@/contexts/AuthContext';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 export const DepartmentsMain: React.FC = () => {
@@ -49,6 +51,7 @@ export const DepartmentsMain: React.FC = () => {
   const departments = useSelector(
     (state: RootState) => state.departments.items
   );
+  const { user } = useAuth();
 
   const departmentPermissions = useModulePermissions(1); // 1 = MODULE_ID
 
@@ -148,6 +151,21 @@ export const DepartmentsMain: React.FC = () => {
         createDepartment({ name: formData.name, code: formData.code })
       ).unwrap();
       await dispatch(fetchDepartments()).unwrap();
+      
+      // Log department creation activity
+      try {
+        await logSystemActivity(
+          'DEPARTMENT_CREATED',
+          user!.ID,
+          user!.UserName,
+          'Department',
+          formData.name,
+          `Code: ${formData.code}`
+        );
+      } catch (logError) {
+        console.warn('Failed to log department creation activity:', logError);
+      }
+      
       toast.success('Department created successfully!');
     } catch (error: any) {
       toast.error(
@@ -161,8 +179,26 @@ export const DepartmentsMain: React.FC = () => {
 
   const handleDelete = async (id: number, isDepartment: boolean = true) => {
     try {
+      const departmentToDelete = departments.find(dept => dept.ID === id);
       await dispatch(deleteDepartment(id)).unwrap();
       await dispatch(fetchDepartments()).unwrap();
+      
+      // Log department deletion activity
+      if (departmentToDelete) {
+        try {
+          await logSystemActivity(
+            'DEPARTMENT_DELETED',
+            user!.ID,
+            user!.UserName,
+            'Department',
+            departmentToDelete.Name,
+            `Code: ${departmentToDelete.Code}`
+          );
+        } catch (logError) {
+          console.warn('Failed to log department deletion activity:', logError);
+        }
+      }
+      
       toast.success(
         `${
           isDepartment ? 'Department' : 'Sub-department'

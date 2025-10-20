@@ -13,6 +13,7 @@ import { runOCR } from './utils/unrecordedHelpers';
 import { useDocument } from '@/contexts/DocumentContext';
 import { CurrentDocument } from '@/types/Document';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { logOCRActivity } from '@/utils/activityLogger';
 
 interface FormData {
   department: string;
@@ -109,6 +110,22 @@ const OCRUnrecordedUI = () => {
     try {
       const res = await runOCR(selectedDocument.ID, payload);
       console.log(res, 'runOCR');
+      
+      // Log OCR processing activity
+      try {
+        await logOCRActivity(
+          'OCR_PROCESSED',
+          selectedRole!.ID,
+          selectedRole!.UserName,
+          selectedDocument.ID,
+          selectedDocument.FileName,
+          selectedTemplateName,
+          true
+        );
+      } catch (logError) {
+        console.warn('Failed to log OCR activity:', logError);
+      }
+      
       setFormData({ ...formData, selectedDoc: null });
       fetchUnrecorded(
         formData.department,
@@ -119,6 +136,22 @@ const OCRUnrecordedUI = () => {
       toast.success('OCR processing started successfully!');
     } catch (error) {
       console.error(error);
+      
+      // Log OCR failure activity
+      try {
+        await logOCRActivity(
+          'OCR_FAILED',
+          selectedRole!.ID,
+          selectedRole!.UserName,
+          selectedDocument.ID,
+          selectedDocument.FileName,
+          selectedTemplateName,
+          false
+        );
+      } catch (logError) {
+        console.warn('Failed to log OCR failure activity:', logError);
+      }
+      
       toast.error('Failed to start OCR');
     }
   };

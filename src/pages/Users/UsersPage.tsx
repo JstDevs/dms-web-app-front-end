@@ -12,6 +12,7 @@ import useAccessLevelRole from './Users Access/useAccessLevelRole';
 import { deleteUserSoft, registerUser, updateUser } from '@/api/auth';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { useAuth } from '@/contexts/AuthContext';
+import { logSystemActivity } from '@/utils/activityLogger';
 import axios from '@/api/axios';
 
 export const UsersPage: React.FC = () => {
@@ -154,8 +155,22 @@ export const UsersPage: React.FC = () => {
     try {
       await updateUser(payload);
       await refetch();
+      
+      // Log user update activity
+      try {
+        await logSystemActivity(
+          'USER_UPDATED',
+          user!.ID,
+          user!.UserName,
+          'User',
+          currentUser.UserName,
+          `Updated by ${user.UserName}`
+        );
+      } catch (logError) {
+        console.warn('Failed to log user update activity:', logError);
+      }
+      
       // ✅ if editing the logged-in user, update context
-
       // ✅ get the freshly updated list of users from API
       const updatedUser = (await axios.get('/users')).data.users.find(
         (u: User) => u.ID === currentUser?.ID
@@ -184,7 +199,25 @@ export const UsersPage: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
+      const userToDelete = localUsers.find(u => u.ID === id);
       await deleteUserSoft(id);
+      
+      // Log user deletion activity
+      if (userToDelete) {
+        try {
+          await logSystemActivity(
+            'USER_DELETED',
+            user!.ID,
+            user!.UserName,
+            'User',
+            userToDelete.UserName,
+            `Deleted by ${user.UserName}`
+          );
+        } catch (logError) {
+          console.warn('Failed to log user deletion activity:', logError);
+        }
+      }
+      
       toast.success('User deleted');
       setLocalUsers((prev) => prev.filter((user) => user.ID !== id));
     } catch (error) {

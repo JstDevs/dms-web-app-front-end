@@ -28,6 +28,7 @@ import {
 } from './utils/documentHelpers';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { logDocumentActivity } from '@/utils/activityLogger';
 import { PaginationControls } from '@/components/ui/PaginationControls';
 interface DocumentWrapper {
   newdoc: DocumentUploadProp;
@@ -138,6 +139,20 @@ export default function DocumentUpload() {
       console.log({ formData });
       const response = await uploadFile(formData);
       if (response.status) {
+        // Log document creation activity
+        try {
+          await logDocumentActivity(
+            'CREATED',
+            selectedRole!.ID,
+            selectedRole!.UserName,
+            response.data?.ID || 0,
+            newDoc.FileName || 'Unknown Document',
+            `Uploaded by ${selectedRole!.UserName}`
+          );
+        } catch (logError) {
+          console.warn('Failed to log document creation activity:', logError);
+        }
+        
         toast.success('Document Added Successfully');
         await loadDocuments();
       } else {
@@ -165,6 +180,20 @@ export default function DocumentUpload() {
       const response = await editDocument(formData);
 
       if (response.status) {
+        // Log document update activity
+        try {
+          await logDocumentActivity(
+            'UPDATED',
+            selectedRole!.ID,
+            selectedRole!.UserName,
+            editId,
+            newDoc.FileName || 'Unknown Document',
+            `Updated by ${selectedRole!.UserName}`
+          );
+        } catch (logError) {
+          console.warn('Failed to log document update activity:', logError);
+        }
+        
         await loadDocuments();
         toast.success('Document Updated Successfully');
       } else {
@@ -255,7 +284,25 @@ export default function DocumentUpload() {
   // console.log(newDoc);
   const handleDelete = async (id: number) => {
     try {
+      const documentToDelete = documents.find(d => d.newdoc.ID === id);
       await deleteDocument(id);
+      
+      // Log document deletion activity
+      if (documentToDelete) {
+        try {
+          await logDocumentActivity(
+            'DELETED',
+            selectedRole!.ID,
+            selectedRole!.UserName,
+            id,
+            documentToDelete.newdoc.FileName,
+            `Deleted by ${selectedRole!.UserName}`
+          );
+        } catch (logError) {
+          console.warn('Failed to log document deletion activity:', logError);
+        }
+      }
+      
       toast.success('Document deleted successfully');
       setDocuments((prev) => prev.filter((d) => d.newdoc.ID !== id));
     } catch (error) {

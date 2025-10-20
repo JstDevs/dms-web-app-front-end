@@ -7,6 +7,7 @@ export interface OCRField {
   createdAt: string;
 }
 
+// For Excel files - batch processing
 export const performBatchUpload = async (
   formData: FormData
 ): Promise<OCRField[]> => {
@@ -20,4 +21,20 @@ export const performBatchUpload = async (
     }
   );
   return response.data.data;
+};
+
+// For other file types - regular document upload
+export const performDocumentUpload = async (
+  formData: FormData
+): Promise<any> => {
+  const response = await axios.post(
+    '/documents/create',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data;
 };

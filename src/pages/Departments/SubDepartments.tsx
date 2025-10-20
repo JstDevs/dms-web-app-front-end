@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Plus, Search, Edit, Trash2, Save, X } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 import {
   fetchSubDepartments,
@@ -19,6 +19,8 @@ import { Button } from '@chakra-ui/react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { logSystemActivity } from '@/utils/activityLogger';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const SubDepartments: React.FC = () => {
   // Redux
@@ -29,6 +31,7 @@ export const SubDepartments: React.FC = () => {
 
   // Hooks
   const { departmentOptions } = useDepartmentOptions();
+  const { user } = useAuth();
 
   // State
   const [searchTerm, setSearchTerm] = useState('');
@@ -111,6 +114,21 @@ export const SubDepartments: React.FC = () => {
         })
       ).unwrap();
       await dispatch(fetchSubDepartments()).unwrap();
+      
+      // Log subdepartment creation activity
+      try {
+        await logSystemActivity(
+          'SUBDEPARTMENT_CREATED',
+          user?.ID || 0,
+          user?.UserName || 'Unknown User',
+          'Department Item',
+          formData.name,
+          `Code: ${formData.code}, Department: ${getDepartmentName(formData.departmentId)}`
+        );
+      } catch (logError) {
+        console.warn('Failed to log subdepartment creation activity:', logError);
+      }
+      
       toast.success('Sub-Department created successfully!');
     } catch (error: any) {
       toast.error(
@@ -125,8 +143,26 @@ export const SubDepartments: React.FC = () => {
   // Delete
   const handleDelete = async (id: number) => {
     try {
+      const subDepartmentToDelete = subDepartments.find(dept => dept.ID === id);
       await dispatch(deleteSubDepartment(id)).unwrap();
       await dispatch(fetchSubDepartments()).unwrap();
+      
+      // Log subdepartment deletion activity
+      if (subDepartmentToDelete) {
+        try {
+          await logSystemActivity(
+            'SUBDEPARTMENT_DELETED',
+            user?.ID || 0,
+            user?.UserName || 'Unknown User',
+            'Department Item',
+            subDepartmentToDelete.Name,
+            `Code: ${subDepartmentToDelete.Code}`
+          );
+        } catch (logError) {
+          console.warn('Failed to log subdepartment deletion activity:', logError);
+        }
+      }
+      
       toast.success('Sub-Department deleted successfully!');
     } catch (error) {
       toast.error('Failed to delete sub-department');
@@ -170,6 +206,7 @@ export const SubDepartments: React.FC = () => {
     }
 
     try {
+      const subDepartmentToUpdate = subDepartments.find(dept => dept.ID === id);
       await dispatch(
         editSubDepartment({
           id,
@@ -179,6 +216,23 @@ export const SubDepartments: React.FC = () => {
         })
       ).unwrap();
       await dispatch(fetchSubDepartments()).unwrap();
+      
+      // Log subdepartment update activity
+      if (subDepartmentToUpdate) {
+        try {
+          await logSystemActivity(
+            'SUBDEPARTMENT_UPDATED',
+            user?.ID || 0,
+            user?.UserName || 'Unknown User',
+            'Department Item',
+            formData.name,
+            `Updated from "${subDepartmentToUpdate.Name}" to "${formData.name}"`
+          );
+        } catch (logError) {
+          console.warn('Failed to log subdepartment update activity:', logError);
+        }
+      }
+      
       toast.success('Sub-Department updated!');
     } catch (error) {
       toast.error('Update failed.');

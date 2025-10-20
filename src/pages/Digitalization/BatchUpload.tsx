@@ -2,8 +2,10 @@ import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { UploadCloud, Trash2, ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect, ChangeEvent, DragEvent } from 'react';
 import toast from 'react-hot-toast';
-import { performBatchUpload } from './utils/batchServices';
+import { performBatchUpload, performDocumentUpload } from './utils/batchServices';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { logOCRActivity } from '@/utils/activityLogger';
+import { useAuth } from '@/contexts/AuthContext';
 
 type UploadedFile = {
   id: number;
@@ -33,6 +35,7 @@ export const BatchUploadPanel = () => {
   } = useNestedDepartmentOptions();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const batchUploadPermissions = useModulePermissions(8); // 1 = MODULE_ID
+  const { user } = useAuth();
   // Update document types when department selection changes
   useEffect(() => {
     if (selectedDepartment && departmentOptions.length > 0) {
@@ -107,18 +110,89 @@ export const BatchUploadPanel = () => {
   const handleUpload = async () => {
     if (!files || files.length === 0) return;
 
-    const formData = new FormData();
-    const uploadedFile = files[0]; // type: UploadedFile
-    formData.append('batchupload', uploadedFile.file, uploadedFile.name);
+    // Process all files, not just the first one
+    for (const uploadedFile of files) {
+      if (uploadedFile.status === 'Pending') {
+        const formData = new FormData();
+        
+        // Determine file type and use appropriate endpoint
+        const isExcelFile = uploadedFile.file.type.includes('excel') || 
+                           uploadedFile.file.type.includes('spreadsheet') ||
+                           uploadedFile.name.toLowerCase().endsWith('.xlsx') ||
+                           uploadedFile.name.toLowerCase().endsWith('.xls');
 
-    try {
-      const data = await performBatchUpload(formData);
-      toast.success('Batch Upload successfully!');
-      console.log(data);
-    } catch (error) {
-      console.error(error);
-      toast.error('Batch upload failed.');
+        if (isExcelFile) {
+          // Use batch upload endpoint for Excel files
+          formData.append('batchupload', uploadedFile.file, uploadedFile.name);
+        } else {
+          // Use regular document upload for other file types
+          formData.append('file', uploadedFile.file, uploadedFile.name);
+          formData.append('FileName', uploadedFile.name);
+          formData.append('FileDescription', `Batch uploaded: ${uploadedFile.name}`);
+          formData.append('DepartmentId', selectedDepartment ? 
+            departmentOptions.find(d => d.label === selectedDepartment)?.value || '1' : '1');
+          formData.append('SubDepartmentId', selectedSubDepartment ? 
+            subDepartmentOptions.find(s => s.label === selectedSubDepartment)?.value || '1' : '1');
+          formData.append('FileDate', new Date().toISOString().split('T')[0]);
+          formData.append('Confidential', 'false');
+          formData.append('Active', 'true');
+          formData.append('Expiration', 'false');
+          formData.append('publishing_status', 'false');
+        }
+
+        try {
+          const data = isExcelFile 
+            ? await performBatchUpload(formData)
+            : await performDocumentUpload(formData);
+          
+          // Log batch upload activity
+          try {
+            await logOCRActivity(
+              'BATCH_UPLOAD_STARTED',
+              user?.ID || 0,
+              user?.UserName || 'Unknown User',
+              isExcelFile ? 0 : (data?.data?.ID || 0),
+              uploadedFile.name,
+              `Batch upload: ${uploadedFile.name} (${isExcelFile ? 'Excel' : 'Document'})`,
+              true
+            );
+          } catch (logError) {
+            console.warn('Failed to log batch upload activity:', logError);
+          }
+          
+          // Update file status
+          setFiles(prevFiles => 
+            prevFiles.map(file => 
+              file.id === uploadedFile.id 
+                ? { ...file, status: 'Success' as const }
+                : file
+            )
+          );
+          
+          console.log(`Uploaded ${uploadedFile.name}:`, data);
+        } catch (error) {
+          console.error(`Failed to upload ${uploadedFile.name}:`, error);
+          toast.error(`Failed to upload ${uploadedFile.name}`);
+        }
+      }
     }
+    
+    // Log batch upload completion
+    try {
+      await logOCRActivity(
+        'BATCH_UPLOAD_COMPLETED',
+        user?.ID || 0,
+        user?.UserName || 'Unknown User',
+        0,
+        `${files.length} files`,
+        `Completed batch upload of ${files.length} files`,
+        true
+      );
+    } catch (logError) {
+      console.warn('Failed to log batch upload completion activity:', logError);
+    }
+    
+    toast.success(`Batch upload completed! Processed ${files.length} files.`);
   };
 
   if (loadingDepartments) {
@@ -130,7 +204,7 @@ export const BatchUploadPanel = () => {
       <header>
         <h2 className="text-3xl font-bold text-blue-800">Batch Upload</h2>
         <p className="mt-2 text-gray-600">
-          Upload and manage batch document files here
+          Upload multiple documents (Excel, PDF, Images, Word, Text) for batch processing
         </p>
       </header>
 
@@ -200,16 +274,17 @@ export const BatchUploadPanel = () => {
       >
         <p className="text-sm">
           {selectedSubDepartment
-            ? 'Drag & drop files here or click to upload'
+            ? 'Drag & drop files here or click to upload (Excel, PDF, Images, Word, Text)'
             : 'Please select a department and document type first'}
         </p>
         <input
           type="file"
-          accept=".xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+          accept=".xlsx, .xls, .pdf, .png, .jpg, .jpeg, .doc, .docx, .txt, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, application/pdf, image/png, image/jpeg, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain"
           className="hidden"
           ref={fileInputRef}
           onChange={handleFileUpload}
           disabled={!selectedSubDepartment}
+          multiple
         />
       </div>
 

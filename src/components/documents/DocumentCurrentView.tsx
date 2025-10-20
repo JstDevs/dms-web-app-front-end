@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
 import { useState } from 'react';
+import { logDocumentActivity } from '@/utils/activityLogger';
+import { useAuth } from '@/contexts/AuthContext';
 
 const DocumentCurrentView = ({
   document,
@@ -20,6 +22,7 @@ const DocumentCurrentView = ({
 }) => {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
+  const { user } = useAuth();
 
   const currentDocumentInfo = document?.document[0];
   const documentsDepartment = departmentOptions.find(
@@ -47,6 +50,20 @@ const DocumentCurrentView = ({
 
         // Clean up the blob URL
         window.URL.revokeObjectURL(url);
+        
+        // Log document download activity
+        try {
+          await logDocumentActivity(
+            'DOWNLOADED',
+            user!.ID,
+            user!.UserName,
+            currentDocumentInfo.ID,
+            currentDocumentInfo.FileName,
+            `Downloaded by ${user!.UserName}`
+          );
+        } catch (logError) {
+          console.warn('Failed to log document download activity:', logError);
+        }
       } catch (error) {
         console.error('Download failed:', error);
       }

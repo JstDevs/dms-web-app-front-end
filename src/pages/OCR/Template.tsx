@@ -33,6 +33,8 @@ import { DeleteDialog } from '@/components/ui/DeleteDialog';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { logOCRActivity } from '@/utils/activityLogger';
+import { useAuth } from '@/contexts/AuthContext';
 // import { PDFDocument } from 'pdf-lib';
 type OCRUnrecordedFields = {
   id: number;
@@ -67,6 +69,7 @@ export const TemplateOCR = () => {
   );
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   // Form state
   const [templateName, setTemplateName] = useState('');
@@ -381,9 +384,41 @@ export const TemplateOCR = () => {
     try {
       if (currentView === 'edit' && selectedTemplate) {
         await updateTemplate(selectedTemplate.ID, formDataToSend);
+        
+        // Log template update activity
+        try {
+          await logOCRActivity(
+            'TEMPLATE_UPDATED',
+            user!.ID,
+            user!.UserName,
+            0, // No specific document ID for templates
+            templateName,
+            `Template: ${templateName}`,
+            true
+          );
+        } catch (logError) {
+          console.warn('Failed to log template update activity:', logError);
+        }
+        
         toast.success('Template updated successfully!');
       } else {
         await createTemplate(formDataToSend);
+        
+        // Log template creation activity
+        try {
+          await logOCRActivity(
+            'TEMPLATE_CREATED',
+            user!.ID,
+            user!.UserName,
+            0, // No specific document ID for templates
+            templateName,
+            `Template: ${templateName}`,
+            true
+          );
+        } catch (logError) {
+          console.warn('Failed to log template creation activity:', logError);
+        }
+        
         toast.success('Template created successfully!');
       }
 
@@ -495,7 +530,26 @@ export const TemplateOCR = () => {
 
   const handleDeleteTemplate = async (templateId: number) => {
     try {
+      const templateToDelete = templates.find(t => t.ID === templateId);
       await deleteTemplate(templateId);
+      
+      // Log template deletion activity
+      if (templateToDelete) {
+        try {
+          await logOCRActivity(
+            'TEMPLATE_DELETED',
+            user!.ID,
+            user!.UserName,
+            0, // No specific document ID for templates
+            templateToDelete.name,
+            `Template: ${templateToDelete.name}`,
+            true
+          );
+        } catch (logError) {
+          console.warn('Failed to log template deletion activity:', logError);
+        }
+      }
+      
       toast.success('Template deleted successfully!');
       loadTemplates();
     } catch (error) {

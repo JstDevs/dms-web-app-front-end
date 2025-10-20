@@ -19,6 +19,7 @@ import { CurrentDocument } from '@/types/Document';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { Button } from '@chakra-ui/react';
+import { logCollaborationActivity } from '@/utils/activityLogger';
 
 interface DocumentCollaborationProps {
   document: CurrentDocument | null;
@@ -135,6 +136,21 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
       );
 
       if (response.data.success) {
+        // Log comment activity
+        try {
+          await logCollaborationActivity(
+            'COMMENT_ADDED',
+            loggedUser!.ID,
+            loggedUser!.UserName,
+            document.document[0].ID,
+            document.document[0].FileName,
+            loggedUser!.UserName,
+            'general'
+          );
+        } catch (logError) {
+          console.warn('Failed to log comment activity:', logError);
+        }
+
         setComment('');
         showMessage('Comment added successfully!');
         fetchComments(); // Refresh comments
@@ -165,6 +181,20 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
       );
 
       if (response.data.success) {
+        // Log comment deletion activity
+        try {
+          await logCollaborationActivity(
+            'COMMENT_DELETED',
+            loggedUser!.ID,
+            loggedUser!.UserName,
+            document.document[0].ID,
+            document.document[0].FileName,
+            loggedUser!.UserName
+          );
+        } catch (logError) {
+          console.warn('Failed to log comment deletion activity:', logError);
+        }
+
         showMessage('Comment removed successfully!');
         fetchComments(); // Refresh comments
       }
@@ -201,6 +231,21 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
       );
 
       if (response.data.success) {
+        // Log collaborator addition activity
+        try {
+          await logCollaborationActivity(
+            'COLLABORATOR_ADDED',
+            loggedUser!.ID,
+            loggedUser!.UserName,
+            document.document[0].ID,
+            document.document[0].FileName,
+            user.UserName,
+            selectedPermission
+          );
+        } catch (logError) {
+          console.warn('Failed to log collaborator addition activity:', logError);
+        }
+
         setShowUserSelector(false);
         showMessage(`${user.UserName} added as collaborator successfully!`);
         fetchCollaborators(); // Refresh collaborators
@@ -223,6 +268,20 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
       );
 
       if (response.data.success) {
+        // Log collaborator removal activity
+        try {
+          await logCollaborationActivity(
+            'COLLABORATOR_REMOVED',
+            loggedUser!.ID,
+            loggedUser!.UserName,
+            document.document[0].ID,
+            document.document[0].FileName,
+            collaborator.CollaboratorName
+          );
+        } catch (logError) {
+          console.warn('Failed to log collaborator removal activity:', logError);
+        }
+
         showMessage(
           `${collaborator.CollaboratorName} removed as collaborator successfully!`
         );
