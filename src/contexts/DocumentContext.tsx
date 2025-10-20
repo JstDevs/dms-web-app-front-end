@@ -49,9 +49,11 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchDocumentList = React.useCallback(
     async (userId: number, page: number = 1) => {
+      // console.log('🔍 fetchDocumentList called with:', { userId, page });
       try {
         setDocumentList((prev) => ({ ...prev, loading: true, error: null }));
         const { data } = await fetchDocuments(userId, page);
+        // console.log('🔍 API Response:', data);
 
         setDocumentList((prev) => ({
           ...prev,
@@ -62,7 +64,12 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({
           totalPages: data.pagination.totalPages || 1,
           loading: false,
         }));
+        // console.log('🔍 Document list updated:', {
+        //   documentCount: data.documents?.length,
+        //   totalDocuments: data.pagination.totalItems
+        // });
       } catch (err) {
+        // console.log('🔍 fetchDocumentList error:', err);
         setDocumentList((prev) => ({
           ...prev,
           error: 'Failed to fetch documents',

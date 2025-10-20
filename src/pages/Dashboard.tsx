@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import axios from '@/api/axios';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
+// import { fetchDocuments } from '@/pages/Document/utils/uploadAPIs'; // Unused import
 //
 
 //
@@ -16,6 +17,15 @@ const Dashboard: React.FC = () => {
   const { selectedRole } = useAuth();
   // Recent Activity moved to AuditTrail page
   
+// Add this after line 16 in Dashboard.tsx
+// console.log('🔍 Auth Context Debug:', {
+//   selectedRole: selectedRole,
+//   hasSelectedRole: !!selectedRole,
+//   hasID: !!selectedRole?.ID,
+//   idValue: selectedRole?.ID,
+//   idType: typeof selectedRole?.ID
+// });
+
   // Filters for analytics
   const [selectedYear] = useState<string>(new Date().getFullYear().toString());
   const [startDate, setStartDate] = useState<string>('');
@@ -45,10 +55,39 @@ const Dashboard: React.FC = () => {
 
   // Effect to fetch document list on role change
   useEffect(() => {
+    // console.log('🔍 Dashboard useEffect triggered:', {
+    //   selectedRole: selectedRole,
+    //   selectedRoleID: selectedRole?.ID,
+    //   hasSelectedRole: !!selectedRole,
+    //   fetchDocumentList: typeof fetchDocumentList
+    // });
+    
     if (selectedRole?.ID) {
-      fetchDocumentList(Number(selectedRole.ID), documentList?.currentPage);
+      // console.log('🔍 Calling fetchDocumentList with userId:', selectedRole.ID);
+      
+      // Test direct API call
+      // const testDirectAPI = async () => {
+      //   try {
+      //     console.log('🔍 Testing direct API call...');
+      //     const response = await fetchDocuments(Number(selectedRole.ID), 1);
+      //     console.log('🔍 Direct API response:', response);
+      //     console.log('🔍 Direct API documents:', response.data.documents);
+      //     console.log('🔍 First document keys:', Object.keys(response.data.documents[0] || {}));
+      //     console.log('🔍 First document newdoc keys:', Object.keys(response.data.documents[0]?.newdoc || {}));
+      //     console.log('🔍 First document PageCount:', response.data.documents[0]?.newdoc?.PageCount);
+      //   } catch (error) {
+      //     console.log('🔍 Direct API error:', error);
+      //   }
+      // };
+      
+      // testDirectAPI();
+      
+      // Use the same API call that's working in MyDocuments
+      fetchDocumentList(Number(selectedRole.ID), 1);
+    } else {
+      // console.log('🔍 No selectedRole.ID, not fetching documents');
     }
-  }, [selectedRole, documentList?.currentPage]);
+  }, [selectedRole]);
 
   // Update sub-departments when department selection changes
   useEffect(() => {
@@ -185,11 +224,46 @@ const Dashboard: React.FC = () => {
   // Compute total pages from loaded documents
   const totalPagesFromDocuments = useMemo(() => {
     const docs = documentList?.documents || [];
-    return docs.reduce((sum: number, doc: any) => {
-      const pageCount = typeof doc?.PageCount === 'number' ? doc.PageCount : 0;
-      return sum + (pageCount || 0);
+    // console.log('🔍 Computing pages from documents:', {
+    //   documentCount: docs.length,
+    //   documents: docs,
+    //   pageCounts: docs.map(doc => ({
+    //     id: doc.ID,
+    //     fileName: doc.FileName,
+    //     pageCount: doc.PageCount,
+    //     pageCountType: typeof doc.PageCount
+    //   })),
+    //   firstDocumentKeys: docs.length > 0 ? Object.keys(docs[0]) : [],
+    //   firstDocument: docs.length > 0 ? docs[0] : null
+    // });
+    
+    const totalPages = docs.reduce((sum: number, doc: any) => {
+      // Check both direct PageCount and nested newdoc.PageCount
+      const pageCount = typeof doc?.PageCount === 'number' ? doc.PageCount : 
+                       typeof doc?.newdoc?.PageCount === 'number' ? doc.newdoc.PageCount : 0;
+      
+      // If PageCount is null, assume 1 page per document
+      const actualPageCount = pageCount || (doc?.newdoc ? 1 : 0);
+      
+      // console.log(`🔍 Document ${doc?.newdoc?.FileName || doc?.FileName}: PageCount = ${actualPageCount} (original: ${doc?.newdoc?.PageCount})`);
+      return sum + actualPageCount;
     }, 0);
+    
+    // console.log('🔍 Total pages calculated:', totalPages);
+    return totalPages;
   }, [documentList?.documents]);
+
+// console.log('🔍 Document List Debug:', {
+//   documentList: documentList,
+//   documents: documentList?.documents,
+//   firstDocument: documentList?.documents?.[0],
+//   pageCounts: documentList?.documents?.map(doc => ({
+//     id: doc.ID,
+//     fileName: doc.FileName,
+//     pageCount: doc.PageCount,
+//     pageCountType: typeof doc.PageCount
+//   }))
+// });
 
   const statCards = [
     {
