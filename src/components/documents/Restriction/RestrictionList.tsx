@@ -44,7 +44,8 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
   const restrictionsByCollaborator =
     document?.collaborations?.reduce((acc, collaborator) => {
       acc[collaborator.CollaboratorID] = restrictions.filter(
-        (restriction) => restriction.UserID === collaborator.CollaboratorID
+        (restriction) => restriction.UserID === collaborator.CollaboratorID || 
+                       Number(restriction.UserID) === collaborator.CollaboratorID
       );
       return acc;
     }, {} as Record<number, Restriction[]>) || {};
@@ -319,6 +320,41 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
                                       {processingRestriction === restriction.ID
                                         ? 'Removing...'
                                         : 'Remove'}
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {/* Fallback when types are not recognized but there are items */}
+                        {fieldRestrictions.length === 0 &&
+                          areaRestrictions.length === 0 &&
+                          collaboratorRestrictions.length > 0 && (
+                          <div>
+                            <h5 className="font-medium text-gray-900 mb-3">All Restrictions ({collaboratorRestrictions.length})</h5>
+                            <div className="space-y-3">
+                              {collaboratorRestrictions.map((restriction) => (
+                                <div key={restriction.ID} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <Lock className="h-4 w-4 text-gray-600" />
+                                        <span className="font-medium text-gray-900">{restriction.Field}</span>
+                                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                                          {restriction.restrictedType}
+                                        </span>
+                                      </div>
+                                      {restriction.Reason && (
+                                        <p className="text-sm text-gray-600 mb-2"><span className="font-medium">Reason:</span> {restriction.Reason}</p>
+                                      )}
+                                      <p className="text-xs text-gray-500">
+                                        Created on {formatDate(restriction.CreatedDate)} by {restriction.CreatedBy}
+                                      </p>
+                                    </div>
+                                    <button onClick={() => onRemoveRestriction(restriction.ID)} disabled={processingRestriction === restriction.ID} className="ml-4 flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium transition-colors">
+                                      {processingRestriction === restriction.ID ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
+                                      {processingRestriction === restriction.ID ? 'Removing...' : 'Remove'}
                                     </button>
                                   </div>
                                 </div>

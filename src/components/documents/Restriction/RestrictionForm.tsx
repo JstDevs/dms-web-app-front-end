@@ -259,12 +259,15 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
   const availableFields =
     document?.OCRDocumentReadFields?.map((field) => field.Field) || [];
 
-  const isCustomArea = formData.field === 'custom_area';
+  // Determine restriction type
+    const isCustomArea = formData.field === 'custom_area';
+  const isFieldRestriction = formData.field === 'field_restriction' || (formData.field && formData.field !== 'custom_area' && availableFields.includes(formData.field));
+  const hasSelectedField = formData.field && formData.field !== 'field_restriction' && formData.field !== 'custom_area' && availableFields.includes(formData.field);
+  
   const canSubmit =
-    formData.field &&
     formData.userId &&
     formData.reason.trim() &&
-    (!isCustomArea || selectedArea);
+    ((isCustomArea && selectedArea) || (isFieldRestriction && hasSelectedField));
 
   return (
     <div className="p-6">
@@ -293,7 +296,7 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
-                onClick={() => onFormChange({ field: '' })}
+                onClick={() => onFormChange({ field: 'field_restriction' })}
               >
                 <div className="flex items-center gap-3">
                   <div className="bg-blue-500 rounded-full p-2">
@@ -358,24 +361,49 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
         </div>
 
         {/* Field Selection - Only show if field restriction is selected */}
-        {formData.field && formData.field !== 'custom_area' && (
+        {isFieldRestriction && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <label className="block text-sm font-medium text-blue-800 mb-3">
               Select Document Field *
             </label>
-            <select
-              value={formData.field}
-              onChange={(e) => onFormChange({ field: e.target.value })}
-              className="w-full border border-blue-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-              disabled={isSubmitting}
-            >
-              <option value="">Choose a field to restrict</option>
-              {availableFields.map((field) => (
-                <option key={field} value={field}>
-                  {field}
-                </option>
-              ))}
-            </select>
+            {availableFields.length === 0 ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-yellow-600" />
+                  <p className="text-sm text-yellow-800">
+                    No OCR fields detected for this document. You can still create custom area restrictions.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <select
+                  value={formData.field}
+                  onChange={(e) => onFormChange({ field: e.target.value })}
+                  className="w-full border border-blue-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                  disabled={isSubmitting}
+                >
+                  <option value="field_restriction">Choose a field to restrict</option>
+                  {availableFields.map((field) => (
+                    <option key={field} value={field}>
+                      {field}
+                    </option>
+                  ))}
+                </select>
+                
+                {/* Show selected field */}
+                {hasSelectedField && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-800">
+                        Selected field: <span className="font-mono">{formData.field}</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -459,6 +487,19 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
               </div>
               <p className="text-sm text-yellow-800">
                 Please select an area on the document preview to proceed.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {isFieldRestriction && !hasSelectedField && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <div className="bg-yellow-400 rounded-full p-1">
+                <Target className="h-3 w-3 text-white" />
+              </div>
+              <p className="text-sm text-yellow-800">
+                Please select a specific field to restrict.
               </p>
             </div>
           </div>

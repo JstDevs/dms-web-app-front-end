@@ -94,14 +94,45 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
         String(document?.document[0].ID)
       );
       if (response.success && response.data) {
-        const restrictionsWithNames = response.data.map((restriction) => ({
-          ...restriction,
-          CollaboratorName:
-            document?.collaborations?.find(
-              (collab) => collab.CollaboratorID === restriction.UserID
-            )?.CollaboratorName || 'Unknown User',
-        }));
-        setRestrictions(restrictionsWithNames);
+        const restrictionsWithNames = response.data.map((restriction) => {
+          const rawType = (restriction.restrictedType || '').toString().toLowerCase();
+          const normalizedType: 'open' | 'field' =
+            rawType === 'open' || rawType === 'field'
+              ? (rawType as 'open' | 'field')
+              : (restriction.Field === 'Custom Area' ? 'open' : 'field');
+
+        return {
+            ...restriction,
+            restrictedType: normalizedType,
+            CollaboratorName:
+              document?.collaborations?.find(
+                (collab) => collab.CollaboratorID === restriction.UserID
+              )?.CollaboratorName || 'Unknown User',
+          };
+        });
+        
+        // Filter restrictions to only show those for current collaborators
+        const collaboratorIds = document?.collaborations?.map(c => c.CollaboratorID) || [];
+        const filteredRestrictions = restrictionsWithNames.filter(restriction => 
+          collaboratorIds.includes(Number(restriction.UserID)) || collaboratorIds.includes(restriction.UserID)
+        );
+        
+        console.log('All restrictions:', restrictionsWithNames.length);
+        console.log('Filtered restrictions:', filteredRestrictions.length);
+        console.log('Collaborator IDs (numbers):', collaboratorIds);
+        console.log('Restriction UserIDs (strings):', restrictionsWithNames.map(r => r.UserID));
+        console.log('Data type check:', {
+          collaboratorIds: collaboratorIds.map(id => typeof id),
+          restrictionUserIDs: restrictionsWithNames.map(r => typeof r.UserID)
+        });
+        
+        // If no restrictions match collaborators, show all restrictions (fallback)
+        if (filteredRestrictions.length === 0 && restrictionsWithNames.length > 0) {
+          console.warn('No restrictions match current collaborators, showing all restrictions');
+          setRestrictions(restrictionsWithNames);
+        } else {
+          setRestrictions(filteredRestrictions);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch restrictions:', error);
@@ -167,7 +198,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
       );
 
       if (response.success) {
-        // Log restriction addition activity
+        // Log restriction addition activity (optional - silent fail)
         try {
           await logSecurityActivity(
             'RESTRICTION_ADDED',
@@ -179,7 +210,8 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
             formData.reason
           );
         } catch (logError) {
-          console.warn('Failed to log restriction activity:', logError);
+          // Activity logging is optional, fail silently
+          // console.warn('Activity logging failed (optional):', logError);
         }
 
         const action =
@@ -187,6 +219,12 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
             ? 'Custom area restriction'
             : `Field "${formData.field}" restriction`;
         showMessage(`${action} added successfully!`);
+        
+        console.log('Restriction added successfully:', {
+          field: formData.field,
+          userId: formData.userId,
+          reason: formData.reason
+        });
 
         // Reset form
         setFormData({
@@ -270,6 +308,11 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
   const customAreaRestrictions = restrictions.filter(
     (r) => r.restrictedType === 'open'
   );
+  
+  // Calculate unique collaborators with restrictions
+  const collaboratorsWithRestrictions = new Set(
+    restrictions.map(r => r.UserID)
+  ).size;
 
   return (
     <div className="space-y-6">
@@ -289,7 +332,15 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
               <div className="flex items-center gap-2 text-black">
                 <Shield className="h-5 w-5" />
                 <span className="font-semibold">{restrictions.length}</span>
-                <span className="text-sm">Active</span>
+                <span className="text-sm">
+                  {restrictions.length === 0 ? 'No restrictions' : 'Active'}
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {restrictions.length === 0 
+                  ? 'All collaborators have full access'
+                  : `${collaboratorsWithRestrictions} collaborator${collaboratorsWithRestrictions !== 1 ? 's' : ''} restricted`
+                }
               </div>
             </div>
           </div>
@@ -326,6 +377,9 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                   <p className="text-2xl font-bold text-green-900">
                     {fieldRestrictions.length}
                   </p>
+                  <p className="text-xs text-green-500 mt-1">
+                    OCR fields
+                  </p>
                 </div>
               </div>
             </div>
@@ -341,6 +395,9 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                   </p>
                   <p className="text-2xl font-bold text-orange-900">
                     {customAreaRestrictions.length}
+                  </p>
+                  <p className="text-xs text-orange-500 mt-1">
+                    Drawn areas
                   </p>
                 </div>
               </div>
@@ -410,9 +467,12 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
             <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
               <Shield size={24} className="text-gray-400" />
             </div>
-            <p className="text-gray-500 font-medium">No restrictions yet</p>
+            <p className="text-gray-500 font-medium">No restrictions found</p>
             <p className="text-sm text-gray-400 mt-1">
-              Create your first restriction to control document access
+              {document?.collaborations?.length === 0 
+                ? 'Add collaborators to the document to create restrictions'
+                : 'Create your first restriction to control document access'
+              }
             </p>
           </div>
         )}
