@@ -14,7 +14,6 @@ import {
   Loader,
 } from 'lucide-react';
 import FieldRestrictions from '@/components/documents/DocumentRestriction';
-
 import DocumentCurrentView from '@/components/documents/DocumentCurrentView';
 
 type TabType =
@@ -36,14 +35,6 @@ const DocumentView: React.FC = () => {
       fetchDocument(documentId);
     }
   }, [documentId]);
-
-  // useEffect(() => {
-  // if (currentDocument) {
-  // setDocumentContent(currentDocument.content);
-  // }
-  // }, [currentDocument]);
-
-  console.log({ currentDocument });
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -67,29 +58,45 @@ const DocumentView: React.FC = () => {
   const tabs = [
     { id: 'document', name: 'Document', icon: <ClipboardList size={16} /> },
     { id: 'versions', name: 'Versions', icon: <History size={16} /> },
-    {
-      id: 'collaboration',
-      name: 'Collaboration',
-      icon: <MessageSquare size={16} />,
-    },
+    { id: 'collaboration', name: 'Collaboration', icon: <MessageSquare size={16} /> },
     { id: 'approval', name: 'Approvals', icon: <CheckCircle size={16} /> },
     { id: 'audit', name: 'Audit Trail', icon: <ClipboardList size={16} /> },
-    {
-      id: 'restrictions',
-      name: 'Restrictions',
-      icon: <ClipboardList size={16} />,
-    },
+    { id: 'restrictions', name: 'Restrictions', icon: <ClipboardList size={16} /> },
   ];
+
   if (loading)
     return (
-      <div className="flex items-center justify-center">
-        <Loader />
+      <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in">
+        <div className="relative">
+          {/* Spinning border */}
+          <div className="h-12 w-12 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
+          {/* Center Loader Icon */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader size={22} className="text-blue-600 animate-pulse" />
+          </div>
+        </div>
+
+        <p className="mt-4 text-gray-600 text-sm font-medium tracking-wide">
+          Loading Document...
+        </p>
+
+        {/* Animated progress bar */}
+        <div className="mt-6 w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-500 animate-[progress_2s_ease-in-out_infinite]" />
+        </div>
+
+        {/* Skeleton preview */}
+        <div className="mt-10 w-3/4 space-y-3">
+          <div className="h-5 bg-gray-200 rounded-lg animate-pulse"></div>
+          <div className="h-5 bg-gray-200 rounded-lg animate-pulse w-5/6"></div>
+          <div className="h-5 bg-gray-200 rounded-lg animate-pulse w-4/6"></div>
+        </div>
       </div>
     );
 
   if (!currentDocument)
     return (
-      <div className="flex items-center justify-center ">
+      <div className="flex items-center justify-center min-h-[50vh] text-gray-500">
         Document not found
       </div>
     );
@@ -104,7 +111,7 @@ const DocumentView: React.FC = () => {
           >
             <ChevronLeft size={20} />
           </button>
-          <h1 className="text-2xl font-semibold text-gray-900 ">
+          <h1 className="text-2xl font-semibold text-gray-900">
             {currentDocument?.document[0]?.FileName}
           </h1>
         </div>
