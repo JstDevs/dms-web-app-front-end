@@ -1,7 +1,8 @@
 import { Button } from '@chakra-ui/react';
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState, useMemo } from 'react';
 import { OCRField } from './OCR/Fields/ocrFieldService';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { Search, X } from 'lucide-react';
 
 type FieldSettingsPanelProps = {
   // showFieldsPanel: boolean;
@@ -38,6 +39,7 @@ export const FieldSettingsPanel = forwardRef(
     ref: React.Ref<any>
   ) => {
     const [selectedField, setSelectedField] = useState<number | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const [fields, setFields] = useState<
       {
         ID: number;
@@ -101,6 +103,22 @@ export const FieldSettingsPanel = forwardRef(
       // setShowFieldsPanel(false);
       onCancel(fields);
     };
+
+    // Filter fields based on search term
+    const filteredFields = useMemo(() => {
+      if (!searchTerm.trim()) {
+        return fields;
+      }
+      
+      return fields.filter(field =>
+        field.Field.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        field.ID.toString().includes(searchTerm)
+      );
+    }, [fields, searchTerm]);
+
+    const clearSearch = () => {
+      setSearchTerm('');
+    };
     // 🔁 Expose `handleCancel` to parent
     useImperativeHandle(ref, () => ({
       cancelFields: handleCancel,
@@ -108,14 +126,49 @@ export const FieldSettingsPanel = forwardRef(
     const allocationPermissions = useModulePermissions(7); // 1 = MODULE_ID
     return (
       <div className="bg-white border rounded-xl p-3 sm:p-6 space-y-4 mt-6 shadow-md">
+        {/* Search Bar */}
+        <div className="mb-4">
+          <div className="relative max-w-md">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search fields by name or ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
+            {searchTerm && (
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <button
+                  onClick={clearSearch}
+                  className="text-gray-400 hover:text-gray-600"
+                  title="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
+          {searchTerm && (
+            <p className="mt-2 text-sm text-gray-600">
+              Showing {filteredFields.length} of {fields.length} fields
+            </p>
+          )}
+        </div>
+
         {/* Dynamic Fields */}
         <div className="space-y-3">
-          {fields.map((field, index) => (
+          {filteredFields.map((field, index) => {
+            // Find the original index in the fields array for proper state management
+            const originalIndex = fields.findIndex(f => f.ID === field.ID);
+            return (
             <div
               key={field.ID}
-              onClick={() => setSelectedField(index)}
+              onClick={() => setSelectedField(originalIndex)}
               className={`grid grid-cols-1 sm:grid-cols-5 gap-3 px-3 py-3 rounded-lg cursor-pointer transition-all ${
-                selectedField === index
+                selectedField === originalIndex
                   ? 'bg-blue-100 border border-blue-600'
                   : 'bg-gray-50'
               }`}
@@ -128,7 +181,7 @@ export const FieldSettingsPanel = forwardRef(
                 <input
                   type="checkbox"
                   checked={field.active}
-                  onChange={() => toggleFieldActive(index)}
+                  onChange={() => toggleFieldActive(originalIndex)}
                   className="h-4 w-4"
                 />
               </div>
@@ -142,7 +195,7 @@ export const FieldSettingsPanel = forwardRef(
                   value={field.Description}
                   disabled={!field.active}
                   onChange={(e) =>
-                    handleDescriptionChange(index, e.target.value)
+                    handleDescriptionChange(originalIndex, e.target.value)
                   }
                 />
               </div>
@@ -152,29 +205,48 @@ export const FieldSettingsPanel = forwardRef(
                 <label className="text-sm flex items-center gap-1">
                   <input
                     type="radio"
-                    name={`type-${index}`}
+                    name={`type-${originalIndex}`}
                     value="text"
                     checked={field.Type === 'text'}
                     disabled={!field.active}
-                    onChange={() => handleTypeChange(index, 'text')}
+                    onChange={() => handleTypeChange(originalIndex, 'text')}
                   />
                   Text
                 </label>
                 <label className="text-sm flex items-center gap-1">
                   <input
                     type="radio"
-                    name={`type-${index}`}
+                    name={`type-${originalIndex}`}
                     value="date"
                     checked={field.Type === 'date'}
                     disabled={!field.active}
-                    onChange={() => handleTypeChange(index, 'date')}
+                    onChange={() => handleTypeChange(originalIndex, 'date')}
                   />
                   Date
                 </label>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
+
+        {/* No Results Message */}
+        {filteredFields.length === 0 && fields.length > 0 && (
+          <div className="text-center py-8">
+            <h3 className="text-lg font-medium text-gray-500 mb-2">
+              No fields match your search
+            </h3>
+            <p className="text-sm text-gray-400">
+              Try adjusting your search terms or{' '}
+              <button
+                onClick={clearSearch}
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                clear the search
+              </button>
+            </p>
+          </div>
+        )}
 
         {/* Footer */}
         {fields.length > 0 ? (
