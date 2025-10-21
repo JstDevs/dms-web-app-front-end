@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   MessageSquare,
@@ -11,6 +11,10 @@ import {
   CheckCircle,
   X,
   Trash2,
+  Upload,
+  FileText,
+  Lock,
+  AlertTriangle,
 } from 'lucide-react';
 import axios from '@/api/axios';
 import { useUsers } from '@/pages/Users/useUser';
@@ -21,6 +25,8 @@ import toast from 'react-hot-toast';
 import { Button } from '@chakra-ui/react';
 import { logCollaborationActivity } from '@/utils/activityLogger';
 import { useDocument } from '@/contexts/DocumentContext';
+import { editDocument } from '@/pages/Document/utils/uploadAPIs';
+import { buildDocumentFormData } from '@/pages/Document/utils/documentHelpers';
 
 interface DocumentCollaborationProps {
   document: CurrentDocument | null;
@@ -72,6 +78,15 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
     null
   );
   const [loading, setLoading] = useState(true);
+
+  // File upload & finalize states
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [showUploadSection, setShowUploadSection] = useState(false);
+  const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (document) {
@@ -321,6 +336,161 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
     });
   };
 
+  // -------- Version Upload Handlers --------
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setShowUploadSection(true);
+    }
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setShowUploadSection(true);
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleUploadNewVersion = async () => {
+    if (!selectedFile || !document) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const currentDoc = document.document[0];
+
+      const docData = {
+        ID: currentDoc.ID,
+        FileName: currentDoc.FileName,
+        FileDescription: currentDoc.FileDescription,
+        Description: currentDoc.Description,
+        FileDate: currentDoc.FileDate,
+        Remarks: currentDoc.Remarks,
+        Expiration: currentDoc.Expiration,
+        ExpirationDate: currentDoc.ExpirationDate,
+        Confidential: currentDoc.Confidential,
+        DepartmentId: currentDoc.DepartmentId,
+        SubDepartmentId: currentDoc.SubDepartmentId,
+        Active: currentDoc.Active,
+        publishing_status: currentDoc.publishing_status,
+        // Dynamic fields (coerce null to undefined)
+        Text1: currentDoc.Text1 || undefined,
+        Text2: currentDoc.Text2 || undefined,
+        Text3: currentDoc.Text3 || undefined,
+        Text4: currentDoc.Text4 || undefined,
+        Text5: currentDoc.Text5 || undefined,
+        Text6: currentDoc.Text6 || undefined,
+        Text7: currentDoc.Text7 || undefined,
+        Text8: currentDoc.Text8 || undefined,
+        Text9: currentDoc.Text9 || undefined,
+        Text10: currentDoc.Text10 || undefined,
+        Date1: currentDoc.Date1 || undefined,
+        Date2: currentDoc.Date2 || undefined,
+        Date3: currentDoc.Date3 || undefined,
+        Date4: currentDoc.Date4 || undefined,
+        Date5: currentDoc.Date5 || undefined,
+        Date6: currentDoc.Date6 || undefined,
+        Date7: currentDoc.Date7 || undefined,
+        Date8: currentDoc.Date8 || undefined,
+        Date9: currentDoc.Date9 || undefined,
+        Date10: currentDoc.Date10 || undefined,
+      } as any;
+
+      const formData = buildDocumentFormData(docData, selectedFile, false, currentDoc.ID);
+
+      // Simulate progress for UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      const response = await editDocument(formData);
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (response.status) {
+        try {
+          await logCollaborationActivity(
+            'VERSION_CREATED',
+            loggedUser!.ID,
+            loggedUser!.UserName,
+            document.document[0].ID,
+            document.document[0].FileName,
+            `New version uploaded: ${selectedFile.name}`
+          );
+          await fetchDocument(String(document.document[0].ID));
+        } catch (logError) {
+          console.warn('Failed to log version creation activity:', logError);
+        }
+
+        showMessage('New version uploaded successfully!');
+        setSelectedFile(null);
+        setShowUploadSection(false);
+        setUploadProgress(0);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } else {
+        showMessage(response.message || 'Failed to upload new version', true);
+      }
+    } catch (error) {
+      console.error('Failed to upload new version:', error);
+      showMessage('Failed to upload new version. Please try again.', true);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleFinalizeVersion = async () => {
+    if (!document) return;
+
+    setIsFinalizing(true);
+    setShowFinalizeModal(false);
+    try {
+      try {
+        await logCollaborationActivity(
+          'VERSION_FINALIZED',
+          loggedUser!.ID,
+          loggedUser!.UserName,
+          document.document[0].ID,
+          document.document[0].FileName,
+          'Version finalized'
+        );
+        await fetchDocument(String(document.document[0].ID));
+      } catch (logError) {
+        console.warn('Failed to log finalization activity:', logError);
+      }
+      showMessage('Version finalized successfully! Check the Audit Trail tab to see the activity.');
+      toast.success('Version finalized successfully!', { duration: 4000, position: 'top-right' });
+    } catch (error) {
+      console.error('Failed to finalize version:', error);
+      showMessage('Failed to finalize version. Please try again.', true);
+      toast.error('Failed to finalize version. Please try again.');
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
+  const cancelUpload = () => {
+    setSelectedFile(null);
+    setShowUploadSection(false);
+    setUploadProgress(0);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   if (!document) return null;
 
   if (loading) {
@@ -359,6 +529,98 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
       <div className="flex flex-col lg:flex-row min-h-[600px]">
         {/* Comments Section */}
         <div className="w-full lg:w-2/3 border-r border-gray-200">
+          {/* Version Management */}
+          <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center">
+                <Upload className="h-5 w-5 text-blue-600 mr-2" />
+                <h3 className="text-sm font-semibold text-gray-700">Version Management</h3>
+              </div>
+              <button
+                onClick={() => setShowUploadSection(!showUploadSection)}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              >
+                <Upload size={14} />
+                Upload New Version
+              </button>
+            </div>
+
+            {showUploadSection && (
+              <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    selectedFile ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                  }`}
+                >
+                  {selectedFile ? (
+                    <div className="space-y-2">
+                      <FileText className="h-8 w-8 text-green-600 mx-auto" />
+                      <p className="text-sm font-medium text-green-800">{selectedFile.name}</p>
+                      <p className="text-xs text-green-600">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="h-8 w-8 text-gray-400 mx-auto" />
+                      <p className="text-sm text-gray-600">
+                        Drag and drop a file here, or{' '}
+                        <button onClick={() => fileInputRef.current?.click()} className="text-blue-600 hover:text-blue-700 font-medium">browse</button>
+                      </p>
+                      <p className="text-xs text-gray-500">Supports PDF, DOC, DOCX, images</p>
+                    </div>
+                  )}
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelect}
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                  className="hidden"
+                />
+
+                {isUploading && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Uploading...</span>
+                      <span className="text-gray-500">{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedFile && !isUploading && (
+                  <div className="flex gap-2">
+                    <button onClick={handleUploadNewVersion} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                      <Upload size={14} />
+                      Upload Version
+                    </button>
+                    <button onClick={cancelUpload} className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium">
+                      <X size={14} />
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Finalize Version Button */}
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => setShowFinalizeModal(true)}
+                disabled={isFinalizing}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-medium ${
+                  isFinalizing ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-amber-600 text-white hover:bg-amber-700 hover:shadow-md'
+                }`}
+              >
+                {isFinalizing ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+                {isFinalizing ? 'Finalizing...' : 'Finalize Current Version'}
+              </button>
+            </div>
+          </div>
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
             <div className="flex items-center">
               <MessageSquare className="h-5 w-5 text-blue-600 mr-2" />
@@ -678,6 +940,47 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
           </div>
         </div>
       </div>
+    {/* Finalize Confirmation Modal */}
+    {showFinalizeModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
+              <Lock className="h-6 w-6 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Finalize Version</h3>
+              <p className="text-sm text-gray-600">Confirm this action</p>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-gray-700 mb-3">Are you sure you want to finalize the current version of:</p>
+            <div className="bg-gray-50 rounded-lg p-3 mb-3">
+              <p className="font-medium text-gray-900">{document?.document[0].FileName}</p>
+              <p className="text-sm text-gray-600">Version {document?.versions[0]?.VersionNumber || '1.0'}</p>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">Important</p>
+                  <p className="text-sm text-amber-700">This action will mark the version as finalized and cannot be undone. The activity will be logged in the audit trail.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setShowFinalizeModal(false)} disabled={isFinalizing} className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">Cancel</button>
+            <button onClick={handleFinalizeVersion} disabled={isFinalizing} className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium">
+              {isFinalizing ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+              {isFinalizing ? 'Finalizing...' : 'Yes, Finalize Version'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 };
