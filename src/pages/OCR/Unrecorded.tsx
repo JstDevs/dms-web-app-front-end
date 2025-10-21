@@ -1,7 +1,7 @@
 import { Select } from '@/components/ui/Select';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { Button } from '@chakra-ui/react';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { useTemplates } from './utils/useTemplates';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +14,7 @@ import { useDocument } from '@/contexts/DocumentContext';
 import { CurrentDocument } from '@/types/Document';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { logOCRActivity } from '@/utils/activityLogger';
+import { Search, X, FileText, Loader2, Eye, Play } from 'lucide-react';
 
 interface FormData {
   department: string;
@@ -28,6 +29,13 @@ interface FormData {
     subdepartment: string;
     template: string;
   };
+}
+
+interface ProcessingState {
+  isLoadingDocuments: boolean;
+  isProcessingOCR: boolean;
+  isPreviewing: boolean;
+  searchTerm: string;
 }
 
 export interface Rect {
@@ -47,6 +55,14 @@ const OCRUnrecordedUI = () => {
     isLoaded: false,
     previewUrl: '',
   });
+  
+  const [processingState, setProcessingState] = useState<ProcessingState>({
+    isLoadingDocuments: false,
+    isProcessingOCR: false,
+    isPreviewing: false,
+    searchTerm: '',
+  });
+  
   const imgRef = useRef<HTMLImageElement>(null);
 
   const {
@@ -58,12 +74,24 @@ const OCRUnrecordedUI = () => {
     { value: string; label: string }[]
   >([]);
   const { templateOptions } = useTemplates();
-  const { selectedRole } = useAuth();
-  const { unrecordedDocuments, fetchUnrecorded } = useUnrecordedDocuments();
+  const { selectedRole, user } = useAuth();
+  const { unrecordedDocuments, fetchUnrecorded, loading: loadingDocuments } = useUnrecordedDocuments();
   const [currentUnrecoredDocument, setCurrentUnrecordedDocument] =
     useState<CurrentDocument | null>(null);
-  const { loading, fetchDocument } = useDocument();
+  const { fetchDocument } = useDocument();
   const unrecordedPermissions = useModulePermissions(9); // 1 = MODULE_ID
+  
+  // Filter documents based on search term
+  const filteredDocuments = useMemo(() => {
+    if (!processingState.searchTerm.trim()) {
+      return unrecordedDocuments;
+    }
+    
+    return unrecordedDocuments.filter(doc =>
+      doc.FileName.toLowerCase().includes(processingState.searchTerm.toLowerCase())
+    );
+  }, [unrecordedDocuments, processingState.searchTerm]);
+  
   // Update sub-departments when department selection changes
   useEffect(() => {
     if (formData.department && departmentOptions.length > 0) {
@@ -88,6 +116,23 @@ const OCRUnrecordedUI = () => {
     }
   }, [formData.department, departmentOptions]);
 
+  // Handle toast messages when documents are loaded
+  useEffect(() => {
+    if (!loadingDocuments && formData.isLoaded) {
+      if (unrecordedDocuments.length > 0) {
+        toast.success(`Found ${unrecordedDocuments.length} document(s)`);
+      } else {
+        toast('No documents found for the selected criteria', {
+          icon: 'ℹ️',
+          style: {
+            background: '#3B82F6',
+            color: '#fff',
+          },
+        });
+      }
+    }
+  }, [loadingDocuments, formData.isLoaded, unrecordedDocuments.length]);
+
   const handleOCR = async () => {
     const selectedDocument = unrecordedDocuments.find(
       (doc) => doc.FileName === formData.selectedDoc?.FileName
@@ -97,13 +142,25 @@ const OCRUnrecordedUI = () => {
     )?.label;
 
     if (!selectedDocument) {
-      toast.error('No document selected');
+      toast.error('Please select a document to process');
       return;
     }
 
+    if (!selectedTemplateName) {
+      toast.error('Please select a template for OCR processing');
+      return;
+    }
+
+    if (!selectedRole?.ID) {
+      toast.error('User role not found. Please refresh and try again.');
+      return;
+    }
+
+    setProcessingState(prev => ({ ...prev, isProcessingOCR: true }));
+
     const payload = {
       templateName: selectedTemplateName,
-      userId: Number(selectedRole?.ID),
+      userId: Number(selectedRole.ID),
       linkId: selectedDocument.LinkID,
     };
 
@@ -115,8 +172,8 @@ const OCRUnrecordedUI = () => {
       try {
         await logOCRActivity(
           'OCR_PROCESSED',
-          selectedRole!.ID,
-          selectedRole!.UserName,
+          selectedRole.ID,
+          user?.UserName || 'Unknown',
           selectedDocument.ID,
           selectedDocument.FileName,
           selectedTemplateName,
@@ -130,19 +187,19 @@ const OCRUnrecordedUI = () => {
       fetchUnrecorded(
         formData.department,
         formData.subdepartment,
-        String(selectedRole?.ID)
+        String(selectedRole.ID)
       );
 
-      toast.success('OCR processing started successfully!');
-    } catch (error) {
-      console.error(error);
+      toast.success(`OCR processing started for "${selectedDocument.FileName}"`);
+    } catch (error: any) {
+      console.error('OCR processing failed:', error);
       
       // Log OCR failure activity
       try {
         await logOCRActivity(
           'OCR_FAILED',
-          selectedRole!.ID,
-          selectedRole!.UserName,
+          selectedRole.ID,
+          user?.UserName || 'Unknown',
           selectedDocument.ID,
           selectedDocument.FileName,
           selectedTemplateName,
@@ -152,7 +209,10 @@ const OCRUnrecordedUI = () => {
         console.warn('Failed to log OCR failure activity:', logError);
       }
       
-      toast.error('Failed to start OCR');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Unknown error occurred';
+      toast.error(`Failed to start OCR: ${errorMessage}`);
+    } finally {
+      setProcessingState(prev => ({ ...prev, isProcessingOCR: false }));
     }
   };
 
@@ -161,13 +221,21 @@ const OCRUnrecordedUI = () => {
       toast.error('Please select a role');
       return;
     }
+
+    if (!formData.department || !formData.subdepartment || !formData.template) {
+      toast.error('Please select department, document type, and template');
+      return;
+    }
+
     setFormData({ ...formData, isLoaded: false });
+    
     try {
-      fetchUnrecorded(
+      await fetchUnrecorded(
         formData.department,
         formData.subdepartment,
-        String(selectedRole?.ID)
+        String(selectedRole.ID)
       );
+      
       setFormData((prev) => ({
         ...prev,
         lastFetchedValues: {
@@ -176,11 +244,10 @@ const OCRUnrecordedUI = () => {
           template: prev.template,
         },
       }));
-      unrecordedDocuments.length > 0 &&
-        toast.success('Documents loaded successfully');
-    } catch (error) {
-      console.log(error);
-      toast.error('Failed to load document');
+    } catch (error: any) {
+      console.error('Failed to load documents:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to load documents';
+      toast.error(`Failed to load documents: ${errorMessage}`);
     } finally {
       setFormData({ ...formData, isLoaded: true });
     }
@@ -194,14 +261,24 @@ const OCRUnrecordedUI = () => {
   };
 
   const handlePreviewDoc = async () => {
-    if (!formData.selectedDoc) return;
+    if (!formData.selectedDoc) {
+      toast.error('Please select a document to preview');
+      return;
+    }
+    
+    setProcessingState(prev => ({ ...prev, isPreviewing: true }));
+    
     try {
       const res = await fetchDocument(formData.selectedDoc.ID.toString());
       console.log(res, 'handlePreviewDoc');
       setCurrentUnrecordedDocument(res);
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to start OCR');
+      toast.success('Document preview loaded');
+    } catch (error: any) {
+      console.error('Failed to preview document:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to load document preview';
+      toast.error(`Failed to preview document: ${errorMessage}`);
+    } finally {
+      setProcessingState(prev => ({ ...prev, isPreviewing: false }));
     }
   };
 
@@ -269,56 +346,150 @@ const OCRUnrecordedUI = () => {
 
             {unrecordedPermissions?.Add && (
               <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleLoad}
                 disabled={
                   !formData.department ||
                   !formData.subdepartment ||
                   !formData.template ||
-                  isSameAsLastFetch
+                  isSameAsLastFetch ||
+                  loadingDocuments
                 }
               >
-                Get Documents
+                {loadingDocuments ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Loading Documents...
+                  </>
+                ) : (
+                  'Get Documents'
+                )}
               </Button>
             )}
           </div>
 
-          {unrecordedDocuments.length > 0 &&
-            unrecordedDocuments?.map((doc) => (
-              <div
-                key={doc.ID}
-                onClick={() => handleDocSelection(doc)}
-                className={`cursor-pointer text-sm px-2 py-1 rounded hover:bg-blue-100 ${
-                  formData.selectedDoc?.FileName === doc.FileName
-                    ? 'bg-blue-200'
-                    : ''
-                }`}
-              >
-                {doc.FileName}
+          {/* Search Bar */}
+          {unrecordedDocuments.length > 0 && (
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
               </div>
-            ))}
+              <input
+                type="text"
+                placeholder="Search documents..."
+                value={processingState.searchTerm}
+                onChange={(e) => setProcessingState(prev => ({ ...prev, searchTerm: e.target.value }))}
+                className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              />
+              {processingState.searchTerm && (
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <button
+                    onClick={() => setProcessingState(prev => ({ ...prev, searchTerm: '' }))}
+                    className="text-gray-400 hover:text-gray-600"
+                    title="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
+          {/* Document List */}
+          {filteredDocuments.length > 0 && (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {filteredDocuments.map((doc) => (
+                <div
+                  key={doc.ID}
+                  onClick={() => handleDocSelection(doc)}
+                  className={`cursor-pointer p-3 rounded-lg border transition-all duration-200 hover:shadow-md ${
+                    formData.selectedDoc?.FileName === doc.FileName
+                      ? 'bg-blue-50 border-blue-300 shadow-md'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <FileText className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {doc.FileName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        ID: {doc.ID}
+                      </p>
+                    </div>
+                    {formData.selectedDoc?.FileName === doc.FileName && (
+                      <div className="flex-shrink-0">
+                        <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* No Documents Message */}
           {unrecordedDocuments.length === 0 && formData.isLoaded && (
-            <div className="text-xl text-center px-2 py-1  ">
-              No Documents Found
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-500 mb-2">
+                No Documents Found
+              </h3>
+              <p className="text-sm text-gray-400">
+                Try adjusting your search criteria or check back later
+              </p>
+            </div>
+          )}
+
+          {/* Search Results Message */}
+          {unrecordedDocuments.length > 0 && filteredDocuments.length === 0 && processingState.searchTerm && (
+            <div className="text-center py-8">
+              <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-500 mb-2">
+                No Documents Match Your Search
+              </h3>
+              <p className="text-sm text-gray-400">
+                Try adjusting your search terms
+              </p>
             </div>
           )}
 
           {formData.selectedDoc && (
             <div className="flex gap-4 max-sm:flex-col w-full flex-1">
               <Button
-                className="bg-gray-100 hover:bg-gray-200  px-4 py-2 rounded text-sm flex-1 "
+                className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded text-sm flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handlePreviewDoc}
-                disabled={!formData.selectedDoc || loading}
+                disabled={!formData.selectedDoc || processingState.isPreviewing}
               >
-                {loading ? 'Loading...' : 'Preview Doc'}
+                {processingState.isPreviewing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Preview Doc
+                  </>
+                )}
               </Button>
               <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm flex-1 "
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleOCR}
-                disabled={!formData.selectedDoc}
+                disabled={!formData.selectedDoc || processingState.isProcessingOCR}
               >
-                Start OCR
+                {processingState.isProcessingOCR ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Start OCR
+                  </>
+                )}
               </Button>
             </div>
           )}
@@ -326,31 +497,40 @@ const OCRUnrecordedUI = () => {
 
         {/* Right Panel - Document Preview */}
         <div className="w-full lg:w-1/2 p-2 sm:p-4 bg-white">
-          {currentUnrecoredDocument?.document[0]?.filepath &&
-          formData.selectedDoc ? (
-            <div className="w-full max-h-[60vh] overflow-auto border rounded-md">
-              <div
-                className="relative"
-                style={{ width: '100%', minWidth: '100%', height: '100%' }}
-              >
-                <img
-                  ref={imgRef}
-                  src={currentUnrecoredDocument?.document[0]?.filepath || ''}
-                  alt="Document Preview"
-                  className="block"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    minWidth: '100%',
-                  }}
-                  draggable={false}
-                />
+          {formData.selectedDoc ? (
+            currentUnrecoredDocument?.document[0]?.filepath ? (
+              <div className="w-full max-h-[60vh] overflow-auto border rounded-md bg-gray-50">
+                <div className="relative">
+                  <img
+                    ref={imgRef}
+                    src={currentUnrecoredDocument?.document[0]?.filepath || ''}
+                    alt="Document Preview"
+                    className="block w-full h-auto"
+                    draggable={false}
+                  />
+                  <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
+                    {formData.selectedDoc.FileName}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : processingState.isPreviewing ? (
+              <div className="flex flex-col items-center justify-center h-64 border rounded-md bg-gray-50">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
+                <p className="text-gray-600">Loading document preview...</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 border rounded-md bg-gray-50">
+                <Eye className="w-12 h-12 text-gray-400 mb-4" />
+                <p className="text-gray-600 mb-2">Document selected</p>
+                <p className="text-sm text-gray-500">Click "Preview Doc" to view</p>
+              </div>
+            )
           ) : (
-            <p className="text-gray-400 text-center">
-              Load document to preview
-            </p>
+            <div className="flex flex-col items-center justify-center h-64 border rounded-md bg-gray-50">
+              <FileText className="w-12 h-12 text-gray-400 mb-4" />
+              <p className="text-gray-600 mb-2">No document selected</p>
+              <p className="text-sm text-gray-500">Select a document from the list to preview</p>
+            </div>
           )}
         </div>
       </div>
