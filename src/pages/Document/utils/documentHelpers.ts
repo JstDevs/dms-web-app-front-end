@@ -4,7 +4,8 @@ const buildDocumentFormData = (
   doc: Partial<DocumentUploadProp>,
   file: File | null,
   isNew: boolean,
-  editId?: number
+  editId?: number,
+  dynamicFields?: { [key: string]: any }
 ) => {
   const formData = new FormData();
 
@@ -43,6 +44,32 @@ const buildDocumentFormData = (
   formData.append("confidential", String(doc.Confidential || false));
   formData.append("active", String(doc.Active || true));
   formData.append("publishing_status", String(doc.publishing_status || false));
+
+  // Dynamic fields - append all text and date fields
+  for (let i = 1; i <= 10; i++) {
+    const textField = `Text${i}`;
+    const dateField = `Date${i}`;
+    
+    if (doc[textField as keyof DocumentUploadProp]) {
+      formData.append(textField.toLowerCase(), String(doc[textField as keyof DocumentUploadProp]));
+    }
+    
+    if (doc[dateField as keyof DocumentUploadProp]) {
+      const dateValue = doc[dateField as keyof DocumentUploadProp];
+      if (dateValue) {
+        formData.append(dateField.toLowerCase(), new Date(dateValue as string).toISOString().slice(0, 10));
+      }
+    }
+  }
+
+  // Add dynamic fields from field allocations
+  if (dynamicFields) {
+    Object.entries(dynamicFields).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '') {
+        formData.append(key, String(value));
+      }
+    });
+  }
 
   return formData;
 };

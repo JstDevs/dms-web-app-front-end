@@ -5,13 +5,13 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@chakra-ui/react';
 import {
   // BookCheck,
-  DeleteIcon,
   Edit,
   FileIcon,
   Search,
   Trash,
   Trash2,
   UploadCloud,
+  Loader2,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -30,6 +30,8 @@ import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { logDocumentActivity } from '@/utils/activityLogger';
 import { PaginationControls } from '@/components/ui/PaginationControls';
+import { useFieldAllocations } from './utils/useFieldAllocations';
+import { DynamicFieldsSection } from './components/DynamicFields';
 interface DocumentWrapper {
   newdoc: DocumentUploadProp;
   isRestricted: boolean;
@@ -39,8 +41,9 @@ const allowedTypes = [
   'image/png',
   'image/jpeg',
   'application/pdf',
-  // 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-  // 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'text/plain', // .txt
 ];
 export default function DocumentUpload() {
   const [documents, setDocuments] = useState<DocumentWrapper[]>([]);
@@ -49,6 +52,8 @@ export default function DocumentUpload() {
   const [editId, setEditId] = useState<number | null>(null);
   const [paginationData, setPaginationData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [dynamicFieldValues, setDynamicFieldValues] = useState<{ [key: string]: string | null }>({});
   const [newDoc, setNewDoc] = useState<Partial<DocumentUploadProp>>({
     FileName: '',
     FileDescription: '',
@@ -90,9 +95,21 @@ export default function DocumentUpload() {
   // const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const { departmentOptions, getSubDepartmentOptions, loading } =
     useNestedDepartmentOptions();
-  const { selectedRole } = useAuth();
+  const { selectedRole, user } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
   const uploadPermissions = useModulePermissions(3); // 1 = MODULE_ID
+  
+  // Field allocations hook
+  const {
+    userPermissions,
+    loading: fieldsLoading,
+    error: fieldsError,
+    getActiveFields,
+  } = useFieldAllocations({
+    departmentId: newDoc.DepartmentId || null,
+    subDepartmentId: newDoc.SubDepartmentId || null,
+    userId: selectedRole?.ID || null,
+  });
   const loadDocuments = async () => {
     try {
       const { data } = await fetchDocuments(
@@ -115,39 +132,64 @@ export default function DocumentUpload() {
 
       // Validate type
       if (!allowedTypes.includes(file.type)) {
-        toast.error('❌ Invalid file type. Only PNG, JPEG, PDF are allowed.');
+        toast.error('❌ Invalid file type. Allowed types: PNG, JPEG, PDF, DOCX, XLSX, TXT');
         e.target.value = ''; // reset input
         return;
       }
 
-      // Validate size (10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('❌ File is too large. Max size is 10MB.');
+      // Validate size (50MB for better support)
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error('❌ File is too large. Max size is 50MB.');
         e.target.value = ''; // reset input
         return;
       }
 
       setSelectedFile(file);
+      setUploadProgress(0);
     }
   };
 
   const handleAddDocument = async () => {
     // console.log({ newDoc, selectedFile });
     setIsLoading(true);
+    setUploadProgress(0);
     try {
-      const formData = buildDocumentFormData(newDoc, selectedFile, true);
-      console.log({ formData });
+      // Prepare dynamic fields data
+      const dynamicFieldsData: { [key: string]: any } = {};
+      Object.entries(dynamicFieldValues).forEach(([key, value]) => {
+        if (value !== null && value !== '') {
+          dynamicFieldsData[key] = value;
+        }
+      });
+
+      const formData = buildDocumentFormData(newDoc, selectedFile, true, undefined, dynamicFieldsData);
+      console.log({ formData, dynamicFieldsData });
+      
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
       const response = await uploadFile(formData);
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
       if (response.status) {
         // Log document creation activity
         try {
           await logDocumentActivity(
             'CREATED',
             selectedRole!.ID,
-            selectedRole!.UserName,
+            user!.UserName,
             response.data?.ID || 0,
             newDoc.FileName || 'Unknown Document',
-            `Uploaded by ${selectedRole!.UserName}`
+            `Uploaded by ${user!.UserName}`
           );
         } catch (logError) {
           console.warn('Failed to log document creation activity:', logError);
@@ -164,6 +206,7 @@ export default function DocumentUpload() {
     } finally {
       resetForm();
       setIsLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -185,10 +228,10 @@ export default function DocumentUpload() {
           await logDocumentActivity(
             'UPDATED',
             selectedRole!.ID,
-            selectedRole!.UserName,
+            user!.UserName,
             editId,
             newDoc.FileName || 'Unknown Document',
-            `Updated by ${selectedRole!.UserName}`
+            `Updated by ${user!.UserName}`
           );
         } catch (logError) {
           console.warn('Failed to log document update activity:', logError);
@@ -268,9 +311,10 @@ export default function DocumentUpload() {
       Date9: null,
       Date10: null,
     });
+    setDynamicFieldValues({});
     handleRemoveFile();
-
     setEditId(null);
+    setUploadProgress(0);
   };
 
   const handleEdit = (id: number) => {
@@ -293,10 +337,10 @@ export default function DocumentUpload() {
           await logDocumentActivity(
             'DELETED',
             selectedRole!.ID,
-            selectedRole!.UserName,
+            user!.UserName,
             id,
             documentToDelete.newdoc.FileName,
-            `Deleted by ${selectedRole!.UserName}`
+            `Deleted by ${user!.UserName}`
           );
         } catch (logError) {
           console.warn('Failed to log document deletion activity:', logError);
@@ -328,7 +372,19 @@ export default function DocumentUpload() {
       newDoc.FileDescription &&
       newDoc.FileDate &&
       newDoc.FileName;
-    return editId ? baseValidation : baseValidation && selectedFile;
+    
+    // Check if user has permission to add documents
+    const hasPermission = userPermissions.Add;
+    
+    // Check required dynamic fields
+    const activeFields = getActiveFields();
+    const requiredFields = activeFields.filter(field => field.Add);
+    const requiredFieldsValid = requiredFields.every(field => {
+      const value = dynamicFieldValues[`field_${field.ID}`];
+      return value !== null && value !== '';
+    });
+    
+    return editId ? baseValidation && hasPermission : baseValidation && selectedFile && hasPermission && requiredFieldsValid;
   };
 
   const handlePublish = async (docWrapper: DocumentWrapper) => {
@@ -369,6 +425,13 @@ export default function DocumentUpload() {
     if (fileInputRef.current) {
       fileInputRef.current.value = ''; // Clear the input value
     }
+  };
+
+  const handleDynamicFieldChange = (fieldId: number, value: string) => {
+    setDynamicFieldValues(prev => ({
+      ...prev,
+      [`field_${fieldId}`]: value
+    }));
   };
 
   return (
@@ -577,7 +640,7 @@ export default function DocumentUpload() {
                       drag and drop
                     </p>
                     <p className="text-xs text-gray-500">
-                      PNG, JPEG, PDF up to 10MB
+                      PNG, JPEG, PDF, DOCX, XLSX, TXT up to 50MB
                     </p>
                   </div>
                   <input
@@ -585,6 +648,7 @@ export default function DocumentUpload() {
                     className="hidden"
                     ref={fileInputRef}
                     onChange={handleAttach}
+                    accept=".png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,image/png,image/jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
                     required
                   />
                 </div>
@@ -692,6 +756,33 @@ export default function DocumentUpload() {
           )}
         </div>
 
+        {/* Dynamic Fields Section */}
+        {!fieldsLoading && !fieldsError && getActiveFields().length > 0 && (
+          <DynamicFieldsSection
+            fields={getActiveFields()}
+            values={dynamicFieldValues}
+            onChange={handleDynamicFieldChange}
+            requiredFields={getActiveFields().filter(field => field.Add).map(field => field.ID)}
+          />
+        )}
+
+        {/* Loading indicator for fields */}
+        {fieldsLoading && (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Loading field configuration...</span>
+          </div>
+        )}
+
+        {/* Fields error */}
+        {fieldsError && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <p className="text-yellow-800 text-sm">
+              ⚠️ Unable to load field configuration. You can still upload with basic fields.
+            </p>
+          </div>
+        )}
+
         {/* Submit Button */}
         <div className="flex justify-center gap-4 max-sm:flex-col">
           <Button
@@ -708,11 +799,16 @@ export default function DocumentUpload() {
               className="w-full sm:w-2/3 md:w-1/3 px-2 bg-blue-600 text-white hover:bg-blue-700"
               disabled={!isFormValid() || isLoading}
             >
-              {isLoading
-                ? 'Uploading...'
-                : editId
-                ? 'Update Document'
-                : 'Add Document'}
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  {uploadProgress > 0 ? `Uploading... ${uploadProgress}%` : 'Uploading...'}
+                </div>
+              ) : editId ? (
+                'Update Document'
+              ) : (
+                'Add Document'
+              )}
             </Button>
           )}
         </div>
