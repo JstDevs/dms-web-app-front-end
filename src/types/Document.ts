@@ -233,7 +233,15 @@ export interface DocumentContextType {
   loading: boolean;
   error: string | null;
   fetchDocument: (id: string) => Promise<CurrentDocument>;
-  fetchDocumentList: (userId: number, page?: number) => Promise<void>;
+  fetchDocumentList: (
+    userId: number, 
+    page?: number, 
+    searchTerm?: string, 
+    department?: string, 
+    subDepartment?: string, 
+    startDate?: string, 
+    endDate?: string
+  ) => Promise<void>;
   filterDocuments: (filterFn: (doc: any) => boolean) => void;
   updateDocument: (updatedDocument: CurrentDocument) => void;
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useDocument } from '../contexts/DocumentContext';
 import { Folder, BarChart3, FileText, RotateCcw, ChevronDown } from 'lucide-react';
 // import { Button } from '@chakra-ui/react'; // Uncomment if using Chakra UI buttons
@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import axios from '@/api/axios';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 // import { fetchDocuments } from '@/pages/Document/utils/uploadAPIs'; // Unused import
 //
 
@@ -51,43 +52,165 @@ const Dashboard: React.FC = () => {
   const [activeUsersCount, setActiveUsersCount] = useState<number>(0);
   const [confidentialDocsCount, setConfidentialDocsCount] = useState<number>(0);
 
+  // Loading states
+  const [isDocumentsLoading, setIsDocumentsLoading] = useState<boolean>(false);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState<boolean>(false);
+  const [isFilterLoading, setIsFilterLoading] = useState<boolean>(false);
+
   const COLORS = ['#5fad56', '#f2c14e', '#f78154', '#4d9078'];
 
-  // Effect to fetch document list on role change
-  useEffect(() => {
-    // console.log('🔍 Dashboard useEffect triggered:', {
-    //   selectedRole: selectedRole,
-    //   selectedRoleID: selectedRole?.ID,
-    //   hasSelectedRole: !!selectedRole,
-    //   fetchDocumentList: typeof fetchDocumentList
-    // });
+  // Debounced function to prevent rapid API calls
+  const debouncedFetchData = useCallback(
+    (() => {
+      let timeoutId: number;
+      return (fetchFn: () => Promise<void>, delay: number = 200) => {
+        clearTimeout(timeoutId);
+        timeoutId = window.setTimeout(fetchFn, delay);
+      };
+    })(),
+    []
+  );
+
+  // Combined function to fetch both documents and analytics
+  const fetchAllData = useCallback(async () => {
+    if (!selectedRole?.ID) return;
     
-    if (selectedRole?.ID) {
-      // console.log('🔍 Calling fetchDocumentList with userId:', selectedRole.ID);
+    setIsDocumentsLoading(true);
+    setIsAnalyticsLoading(true);
+    setIsFilterLoading(true);
+    
+    try {
+      // Fetch documents and analytics in parallel
+      const [documentsResult, analyticsResult] = await Promise.allSettled([
+        // Documents API call
+        fetchDocumentList(
+          Number(selectedRole.ID), 
+          1, 
+          undefined, 
+          selectedDepartment || undefined, 
+          selectedSubDepartment || undefined, 
+          startDate || undefined, 
+          endDate || undefined
+        ),
+        // Analytics API call
+        (async () => {
+          const hasRange = Boolean(startDate && endDate);
+          const startAt = startDate ? new Date(startDate + 'T00:00:00.000Z').toISOString() : undefined;
+          const endAt = endDate ? new Date(endDate + 'T23:59:59.999Z').toISOString() : undefined;
+
+          const paramsWhenRange = hasRange
+            ? {
+                startDate: startDate,
+                endDate: endDate,
+                start_date: startDate,
+                end_date: endDate,
+                from: startDate,
+                to: endDate,
+                startAt,
+                endAt,
+                ...(selectedDepartment && { department: selectedDepartment }),
+                ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
+              }
+            : { 
+                year: selectedYear,
+                ...(selectedDepartment && { department: selectedDepartment }),
+                ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
+              };
+
+          const { data } = await axios.get(`/documents/activities-dashboard`, {
+            params: paramsWhenRange,
+          });
+          
+          if (!data?.success) throw new Error('Failed to fetch activities');
+
+          const auditTrails = data?.data?.auditTrails || [];
+          const startBound = startDate ? new Date(startDate + 'T00:00:00') : null;
+          const endBound = endDate ? new Date(endDate + 'T23:59:59.999') : null;
+          const withinRange = (d: string) => {
+            const ts = new Date(d);
+            if (startBound && ts < startBound) return false;
+            if (endBound && ts > endBound) return false;
+            return true;
+          };
+          const filteredActivities = startBound || endBound
+            ? auditTrails.filter((a: any) => withinRange(a.ActionDate))
+            : auditTrails;
+
+          const allActivities = filteredActivities as any[];
+
+          // File types
+          const typeCounter: Record<string, number> = {};
+          for (const act of allActivities) {
+            const rawType = (act.documentNew?.DataType || '').toLowerCase();
+            let typeKey = '';
+            if (rawType) {
+              typeKey = rawType;
+            } else if (act.documentNew?.FileName) {
+              const match = act.documentNew.FileName.split('.').pop();
+              typeKey = (match || 'others').toLowerCase();
+            } else {
+              typeKey = 'others';
+            }
+            const pretty =
+              typeKey === 'pdf' ? 'PDF' :
+              typeKey === 'doc' || typeKey === 'docx' ? 'Word' :
+              typeKey === 'xls' || typeKey === 'xlsx' ? 'Excel' :
+              typeKey.toUpperCase();
+            typeCounter[pretty] = (typeCounter[pretty] || 0) + 1;
+          }
+          const typeData = Object.entries(typeCounter)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 8);
+          setDocumentTypeData(typeData);
+
+          // Stats
+          const uploads = allActivities.filter(a => a.Action === 'CREATED').length;
+          const downloads = allActivities.filter(a => a.Action === 'DOWNLOADED').length;
+          setUploadsCount(uploads);
+          setDownloadsCount(downloads);
+
+          const uniqueUsers = new Set(allActivities.map(a => a.actor?.userName || a.actor?.id));
+          setActiveUsersCount(uniqueUsers.size);
+
+          const confidentialSet = new Set(
+            allActivities
+              .filter(a => a.documentNew?.Confidential)
+              .map(a => a.documentNew?.ID)
+          );
+          setConfidentialDocsCount(confidentialSet.size);
+        })()
+      ]);
+
+      // Handle results
+      if (documentsResult.status === 'rejected') {
+        console.error('Failed to fetch documents:', documentsResult.reason);
+      }
+      if (analyticsResult.status === 'rejected') {
+        console.error('Failed to fetch analytics:', analyticsResult.reason);
+      }
       
-      // Test direct API call
-      // const testDirectAPI = async () => {
-      //   try {
-      //     console.log('🔍 Testing direct API call...');
-      //     const response = await fetchDocuments(Number(selectedRole.ID), 1);
-      //     console.log('🔍 Direct API response:', response);
-      //     console.log('🔍 Direct API documents:', response.data.documents);
-      //     console.log('🔍 First document keys:', Object.keys(response.data.documents[0] || {}));
-      //     console.log('🔍 First document newdoc keys:', Object.keys(response.data.documents[0]?.newdoc || {}));
-      //     console.log('🔍 First document PageCount:', response.data.documents[0]?.newdoc?.PageCount);
-      //   } catch (error) {
-      //     console.log('🔍 Direct API error:', error);
-      //   }
-      // };
-      
-      // testDirectAPI();
-      
-      // Use the same API call that's working in MyDocuments
-      fetchDocumentList(Number(selectedRole.ID), 1);
-    } else {
-      // console.log('🔍 No selectedRole.ID, not fetching documents');
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setIsDocumentsLoading(false);
+      setIsAnalyticsLoading(false);
+      setIsFilterLoading(false);
     }
-  }, [selectedRole]);
+  }, [selectedRole, fetchDocumentList, startDate, endDate, selectedDepartment, selectedSubDepartment, selectedYear]);
+
+  // Effect to fetch all data on role change and filter changes
+  useEffect(() => {
+    if (selectedRole?.ID) {
+      if (startDate || endDate || selectedDepartment || selectedSubDepartment) {
+        // Debounce filter changes
+        debouncedFetchData(fetchAllData, 100);
+      } else {
+        // Immediate for role changes
+        fetchAllData();
+      }
+    }
+  }, [selectedRole, startDate, endDate, selectedDepartment, selectedSubDepartment, fetchAllData, debouncedFetchData]);
 
   // Update sub-departments when department selection changes
   useEffect(() => {
@@ -111,108 +234,6 @@ const Dashboard: React.FC = () => {
     }
   }, [selectedDepartment, departmentOptions]);
 
-  // Fetch activities and aggregate for analytics
-  useEffect(() => {
-    const fetchActivities = async () => {
-      try {
-        // Normalize date params to match potential backend expectations
-        const hasRange = Boolean(startDate && endDate);
-        const startAt = startDate ? new Date(startDate + 'T00:00:00.000Z').toISOString() : undefined;
-        const endAt = endDate ? new Date(endDate + 'T23:59:59.999Z').toISOString() : undefined;
-
-        const paramsWhenRange = hasRange
-          ? {
-              startDate: startDate,
-              endDate: endDate,
-              start_date: startDate,
-              end_date: endDate,
-              from: startDate,
-              to: endDate,
-              startAt,
-              endAt,
-              ...(selectedDepartment && { department: selectedDepartment }),
-              ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
-            }
-          : { 
-              year: selectedYear,
-              ...(selectedDepartment && { department: selectedDepartment }),
-              ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
-            };
-
-        const { data } = await axios.get(`/documents/activities-dashboard`, {
-          params: paramsWhenRange,
-        });
-        
-        if (!data?.success) throw new Error('Failed to fetch activities');
-
-        const auditTrails = data?.data?.auditTrails || [];
-
-        // Client-side date filtering (inclusive) to ensure UI reflects selected range
-        const startBound = startDate ? new Date(startDate + 'T00:00:00') : null;
-        const endBound = endDate ? new Date(endDate + 'T23:59:59.999') : null;
-        const withinRange = (d: string) => {
-          const ts = new Date(d);
-          if (startBound && ts < startBound) return false;
-          if (endBound && ts > endBound) return false;
-          return true;
-        };
-        const filteredActivities = startBound || endBound
-          ? auditTrails.filter((a: any) => withinRange(a.ActionDate))
-          : auditTrails;
-
-        // Aggregate dynamic stats from all filtered activities
-        const allActivities = filteredActivities as any[];
-
-        // File types by DataType or derive from FileName
-        const typeCounter: Record<string, number> = {};
-        for (const act of allActivities) {
-          const rawType = (act.documentNew?.DataType || '').toLowerCase();
-          let typeKey = '';
-          if (rawType) {
-            typeKey = rawType;
-          } else if (act.documentNew?.FileName) {
-            const match = act.documentNew.FileName.split('.').pop();
-            typeKey = (match || 'others').toLowerCase();
-          } else {
-            typeKey = 'others';
-          }
-          const pretty =
-            typeKey === 'pdf' ? 'PDF' :
-            typeKey === 'doc' || typeKey === 'docx' ? 'Word' :
-            typeKey === 'xls' || typeKey === 'xlsx' ? 'Excel' :
-            typeKey.toUpperCase();
-          typeCounter[pretty] = (typeCounter[pretty] || 0) + 1;
-        }
-        const typeData = Object.entries(typeCounter)
-          .map(([name, value]) => ({ name, value }))
-          .sort((a, b) => b.value - a.value)
-          .slice(0, 8);
-        setDocumentTypeData(typeData);
-
-        // Uploads/Downloads counts
-        const uploads = allActivities.filter(a => a.Action === 'CREATED').length;
-        const downloads = allActivities.filter(a => a.Action === 'DOWNLOADED').length;
-        setUploadsCount(uploads);
-        setDownloadsCount(downloads);
-
-        // Active users by unique actor
-        const uniqueUsers = new Set(allActivities.map(a => a.actor?.userName || a.actor?.id));
-        setActiveUsersCount(uniqueUsers.size);
-
-        // Confidential documents count (unique documents marked confidential)
-        const confidentialSet = new Set(
-          allActivities
-            .filter(a => a.documentNew?.Confidential)
-            .map(a => a.documentNew?.ID)
-        );
-        setConfidentialDocsCount(confidentialSet.size);
-      } catch (error) {
-        console.error('Failed to fetch activities', error);
-      }
-    };
-
-    fetchActivities();
-  }, [selectedYear, startDate, endDate, selectedDepartment, selectedSubDepartment]);
 
   const handleResetFilters = () => {
     setStartDate('');
@@ -221,21 +242,9 @@ const Dashboard: React.FC = () => {
     setSelectedSubDepartment('');
   };
 
-  // Compute total pages from loaded documents
+  // Compute total pages from loaded documents (server-side filtered)
   const totalPagesFromDocuments = useMemo(() => {
     const docs = documentList?.documents || [];
-    // console.log('🔍 Computing pages from documents:', {
-    //   documentCount: docs.length,
-    //   documents: docs,
-    //   pageCounts: docs.map(doc => ({
-    //     id: doc.ID,
-    //     fileName: doc.FileName,
-    //     pageCount: doc.PageCount,
-    //     pageCountType: typeof doc.PageCount
-    //   })),
-    //   firstDocumentKeys: docs.length > 0 ? Object.keys(docs[0]) : [],
-    //   firstDocument: docs.length > 0 ? docs[0] : null
-    // });
     
     const totalPages = docs.reduce((sum: number, doc: any) => {
       // Check both direct PageCount and nested newdoc.PageCount
@@ -245,25 +254,11 @@ const Dashboard: React.FC = () => {
       // If PageCount is null, assume 1 page per document
       const actualPageCount = pageCount || (doc?.newdoc ? 1 : 0);
       
-      // console.log(`🔍 Document ${doc?.newdoc?.FileName || doc?.FileName}: PageCount = ${actualPageCount} (original: ${doc?.newdoc?.PageCount})`);
       return sum + actualPageCount;
     }, 0);
     
-    // console.log('🔍 Total pages calculated:', totalPages);
     return totalPages;
   }, [documentList?.documents]);
-
-// console.log('🔍 Document List Debug:', {
-//   documentList: documentList,
-//   documents: documentList?.documents,
-//   firstDocument: documentList?.documents?.[0],
-//   pageCounts: documentList?.documents?.map(doc => ({
-//     id: doc.ID,
-//     fileName: doc.FileName,
-//     pageCount: doc.PageCount,
-//     pageCountType: typeof doc.PageCount
-//   }))
-// });
 
   const statCards = [
     {
@@ -271,12 +266,14 @@ const Dashboard: React.FC = () => {
       count: documentList?.totalDocuments,
       icon: <Folder className="h-8 w-8 text-green-500" />,
       color: 'border-green-100',
+      isLoading: isDocumentsLoading || isFilterLoading,
     },
     {
       title: 'Pages',
       count: totalPagesFromDocuments,
       icon: <FileText className="h-8 w-8 text-purple-500" />,
       color: 'border-purple-100',
+      isLoading: isDocumentsLoading || isFilterLoading,
     },
   ];
 
@@ -292,9 +289,18 @@ const Dashboard: React.FC = () => {
             className={`${stat.color} bg-slate-50 rounded-xl border border-gray-200 shadow-lg p-4 flex items-center transition-transform hover:scale-105 cursor-default`}
           >
             <div className="mr-4">{stat.icon}</div>
-            <div>
+            <div className="flex-1">
               <h3 className="font-medium text-gray-900">{stat.title}</h3>
-              <p className="text-2xl font-bold text-gray-900">{stat.count}</p>
+              <div className="flex items-center">
+                {stat.isLoading ? (
+                  <div className="flex items-center">
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    <span className="text-gray-500">Loading...</span>
+                  </div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">{stat.count || 0}</p>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -411,26 +417,35 @@ const Dashboard: React.FC = () => {
               File Types
             </h3>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={documentTypeData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {documentTypeData.map((_, index: number) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => [`${value}`, 'Count']} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          {isAnalyticsLoading || isFilterLoading ? (
+            <div className="flex items-center justify-center h-[300px]">
+              <div className="flex flex-col items-center">
+                <LoadingSpinner size="lg" className="mb-2" />
+                <span className="text-gray-500">Loading chart data...</span>
+              </div>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={documentTypeData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name}: ${value}`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {documentTypeData.map((_, index: number) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`${value}`, 'Count']} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Stats Overview */}
@@ -438,24 +453,33 @@ const Dashboard: React.FC = () => {
           <h3 className="text-lg font-semibold text-slate-800 mb-4">
             Quick Stats
           </h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-              <span className="text-gray-700">Total Uploads</span>
-              <span className="text-2xl font-bold text-blue-600">{uploadsCount}</span>
+          {isAnalyticsLoading || isFilterLoading ? (
+            <div className="flex items-center justify-center h-[200px]">
+              <div className="flex flex-col items-center">
+                <LoadingSpinner size="lg" className="mb-2" />
+                <span className="text-gray-500">Loading statistics...</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-              <span className="text-gray-700">Total Downloads</span>
-              <span className="text-2xl font-bold text-green-600">{downloadsCount}</span>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+                <span className="text-gray-700">Total Uploads</span>
+                <span className="text-2xl font-bold text-blue-600">{uploadsCount}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+                <span className="text-gray-700">Total Downloads</span>
+                <span className="text-2xl font-bold text-green-600">{downloadsCount}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+                <span className="text-gray-700">Active Users</span>
+                <span className="text-2xl font-bold text-purple-600">{activeUsersCount}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700">Confidential Docs</span>
+                <span className="text-2xl font-bold text-red-600">{confidentialDocsCount}</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-              <span className="text-gray-700">Active Users</span>
-              <span className="text-2xl font-bold text-purple-600">{activeUsersCount}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-700">Confidential Docs</span>
-              <span className="text-2xl font-bold text-red-600">{confidentialDocsCount}</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

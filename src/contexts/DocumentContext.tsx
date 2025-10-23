@@ -48,11 +48,19 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchDocumentList = React.useCallback(
-    async (userId: number, page: number = 1) => {
-      // console.log('🔍 fetchDocumentList called with:', { userId, page });
+    async (
+      userId: number, 
+      page: number = 1, 
+      searchTerm?: string, 
+      department?: string, 
+      subDepartment?: string, 
+      startDate?: string, 
+      endDate?: string
+    ) => {
+      // console.log('🔍 fetchDocumentList called with:', { userId, page, searchTerm, department, subDepartment, startDate, endDate });
       try {
         setDocumentList((prev) => ({ ...prev, loading: true, error: null }));
-        const { data } = await fetchDocuments(userId, page);
+        const { data } = await fetchDocuments(userId, page, searchTerm, department, subDepartment, startDate, endDate);
         // console.log('🔍 API Response:', data);
 
         setDocumentList((prev) => ({
