@@ -85,7 +85,7 @@ const DocumentView: React.FC = () => {
     { id: 'collaboration', name: 'Collaboration', icon: <MessageSquare size={16} /> },
     { id: 'approval', name: 'Approvals', icon: <CheckCircle size={16} /> },
     { id: 'audit', name: 'Audit Trail', icon: <ClipboardList size={16} /> },
-    { id: 'restrictions', name: 'Restrictions', icon: <ClipboardList size={16} /> },
+    { id: 'restrictions', name: 'Masking', icon: <ClipboardList size={16} /> },
   ];
 
   if (loading)

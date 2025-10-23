@@ -57,7 +57,7 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
           Active Restrictions ({restrictions.length})
         </h3>
         <p className="text-sm text-gray-600">
-          Manage existing field and area restrictions for each collaborator
+          Manage existing field and area maskings for each collaborator
         </p>
       </div>
 
@@ -121,10 +121,10 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
                       <div className="flex items-center gap-4 mt-1">
                         <span className="text-sm text-gray-600">
                           {collaboratorRestrictions.length > 0
-                            ? `${collaboratorRestrictions.length} restriction${
+                            ? `${collaboratorRestrictions.length} masking${
                                 collaboratorRestrictions.length !== 1 ? 's' : ''
                               }`
-                            : 'No restrictions'}
+                            : 'No maskings'}
                         </span>
                         {fieldRestrictions.length > 0 && (
                           <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">

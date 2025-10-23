@@ -274,10 +274,10 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
           <Plus className="h-5 w-5 text-blue-500" />
-          Add New Restriction
+          Add New Masking
         </h3>
         <p className="text-sm text-gray-600">
-          Choose between field-specific restrictions or custom document areas
+          Choose between field-specific restrictions or custom document area masking
         </p>
       </div>
 
@@ -307,7 +307,7 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
                       Field Restriction
                     </h4>
                     <p className="text-sm text-gray-500">
-                      Restrict specific OCR-detected fields
+                      Mask specific fields with existing templates
                     </p>
                   </div>
                 </div>
@@ -329,7 +329,7 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
                   <div>
                     <h4 className="font-medium text-gray-900">Custom Area</h4>
                     <p className="text-sm text-gray-500">
-                      Draw custom areas on the document
+                      Draw custom area masks on the document
                     </p>
                   </div>
                 </div>
@@ -371,7 +371,7 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
                 <div className="flex items-center gap-2">
                   <Target className="h-4 w-4 text-yellow-600" />
                   <p className="text-sm text-yellow-800">
-                    No OCR fields detected for this document. You can still create custom area restrictions.
+                    No fields detected for this document. You can still create custom area restrictions.
                   </p>
                 </div>
               </div>
