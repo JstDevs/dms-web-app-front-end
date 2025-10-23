@@ -510,7 +510,7 @@ const MyDocuments: React.FC = () => {
       ) : loading ? (
         <div className="flex flex-col items-center justify-center bg-gray-50 text-blue-700 rounded-md p-8 shadow-md">
           <svg
-            className="animate-spin h-10 w-10 text-green-500 mb-3"
+            className="animate-spin h-10 w-10 text-blue-500 mb-3"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -529,8 +529,8 @@ const MyDocuments: React.FC = () => {
               d="M4 12a8 8 0 018-8v8H4z"
             ></path>
           </svg>
-          <p className="text-lg text-green-600 font-medium">Please Wait...</p>
-          <p className="text-sm text-green-600 mt-2">Almost there! Thanks for your patience...</p>
+          <p className="text-lg text-blue-600 font-medium">Please Wait...</p>
+          <p className="text-sm text-blue-600 mt-2">Almost there! Thanks for your patience...</p>
         </div>
       ) :
       (
