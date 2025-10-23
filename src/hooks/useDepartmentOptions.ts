@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '@/redux/store';
 import { fetchDepartments } from '@/redux/thunk/DepartmentThunk';
@@ -16,19 +16,28 @@ export const useDepartmentOptions = () => {
   );
 
   useEffect(() => {
-    dispatch(fetchDepartments());
-    dispatch(fetchSubDepartments());
+    // Only fetch if we don't have data yet
+    if (departments.length === 0) {
+      dispatch(fetchDepartments());
+    }
+    if (subDepartments.length === 0) {
+      dispatch(fetchSubDepartments());
+    }
   }, [dispatch, departments.length, subDepartments.length]);
 
-  const departmentOptions = departments.map((dept) => ({
-    value: String(dept.ID),
-    label: dept.Name,
-  }));
+  const departmentOptions = useMemo(() => 
+    departments.map((dept) => ({
+      value: String(dept.ID),
+      label: dept.Name,
+    })), [departments]
+  );
 
-  const subDepartmentOptions = subDepartments.map((sub) => ({
-    value: String(sub.ID),
-    label: sub.Name,
-  }));
+  const subDepartmentOptions = useMemo(() => 
+    subDepartments.map((sub) => ({
+      value: String(sub.ID),
+      label: sub.Name,
+    })), [subDepartments]
+  );
 
   return { departmentOptions, subDepartmentOptions };
 };

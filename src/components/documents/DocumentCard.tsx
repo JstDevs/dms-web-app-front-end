@@ -37,7 +37,7 @@ interface DocumentCardProps {
   };
 }
 
-const DocumentCard: React.FC<DocumentCardProps> = ({
+const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   document,
   onClick,
   permissions,
@@ -235,6 +235,8 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
       <div className="absolute inset-0 bg-gradient-to-t from-blue-50/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
     </div>
   );
-};
+});
+
+DocumentCard.displayName = 'DocumentCard';
 
 export default DocumentCard;
