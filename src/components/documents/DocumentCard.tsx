@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import {
   Calendar,
   Lock,
-  Eye,
-  FileText,
   Clock,
   CheckCircle,
   AlertCircle,
@@ -25,7 +23,6 @@ interface DocumentCardProps {
     Confidential: boolean;
     publishing_status: boolean;
     Expiration: boolean;
-    approvalstatus: boolean;
   };
   onClick: () => void;
   permissions: {
@@ -51,19 +48,46 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     Confidential,
     publishing_status,
     Expiration,
-    approvalstatus,
     ID,
   } = document;
 
   const [isRequesting, setIsRequesting] = useState(false);
-  const [requestError, setRequestError] = useState('');
   const [requestSent, setRequestSent] = useState(false);
+  const [actualApprovalStatus, setActualApprovalStatus] = useState<'approved' | 'rejected' | 'pending' | null>(null);
   const { user: loggedUser } = useAuth();
+
+  // Fetch actual approval status from approval requests
+  React.useEffect(() => {
+    const fetchApprovalStatus = async () => {
+      try {
+        const response = await axios.get(`/documents/documents/${ID}/approvals`);
+        if (response.data.success && response.data.data.length > 0) {
+          const requests = response.data.data;
+          const hasApproved = requests.some((req: any) => req.Status === 'APPROVED' || req.Status === '1');
+          const hasRejected = requests.some((req: any) => req.Status === 'REJECTED');
+          
+          if (hasApproved) {
+            setActualApprovalStatus('approved');
+          } else if (hasRejected) {
+            setActualApprovalStatus('rejected');
+          } else {
+            setActualApprovalStatus('pending');
+          }
+        } else {
+          setActualApprovalStatus('pending');
+        }
+      } catch (error) {
+        console.error('Failed to fetch approval status:', error);
+        setActualApprovalStatus('pending');
+      }
+    };
+
+    fetchApprovalStatus();
+  }, [ID]);
 
   const handleRequestApproval = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsRequesting(true);
-    setRequestError('');
 
     try {
       const response = await axios.post(
@@ -82,11 +106,9 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
         setRequestSent(true);
       } else {
         toast.error(response.data.message);
-        setRequestError(response.data.message);
       }
     } catch (error) {
       console.error('Error requesting approval:', error);
-      setRequestError('Failed to send approval request. Please try again.');
       toast.error('Failed to send approval request');
     } finally {
       setIsRequesting(false);
@@ -94,7 +116,34 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   };
 
   const getStatusBadge = () => {
-    if (!approvalstatus) {
+    // Use actual approval status from API if available
+    if (actualApprovalStatus === 'approved') {
+      if (publishing_status) {
+        return (
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+            <CheckCircle className="w-3 h-3" />
+            Published
+          </div>
+        );
+      }
+      return (
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+          <CheckCircle className="w-3 h-3" />
+          Approved
+        </div>
+      );
+    }
+
+    if (actualApprovalStatus === 'rejected') {
+      return (
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+          <AlertCircle className="w-3 h-3" />
+          Rejected
+        </div>
+      );
+    }
+
+    if (actualApprovalStatus === 'pending') {
       return (
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
           <Clock className="w-3 h-3" />
@@ -103,6 +152,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
       );
     }
 
+    // Fallback to publishing_status
     if (publishing_status) {
       return (
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
@@ -112,10 +162,11 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
       );
     }
 
+    // Default: pending approval
     return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
-        <FileText className="w-3 h-3" />
-        Draft
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+        <Clock className="w-3 h-3" />
+        Pending Approval
       </div>
     );
   };
@@ -198,7 +249,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
         {/* Actions - pushed to bottom with mt-auto */}
         <div className="mt-auto pt-4 border-t border-gray-100">
           <div className="flex justify-end">
-            {!approvalstatus &&
+            {(actualApprovalStatus === 'pending' || actualApprovalStatus === null) &&
               !requestSent &&
               permissions.Add &&
               permissions.Edit &&

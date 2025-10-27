@@ -69,7 +69,7 @@ const DocumentView: React.FC = () => {
       case 'collaboration':
         return <DocumentCollaboration document={currentDocument} />;
       case 'approval':
-        return <DocumentApproval document={currentDocument} />;
+        return <DocumentApproval document={currentDocument} onRefresh={() => documentId && fetchDocument(documentId)} />;
       case 'audit':
         return <DocumentAuditTrail document={currentDocument} />;
       case 'restrictions':

@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface DocumentApprovalProps {
   document: CurrentDocument | null;
+  onRefresh?: () => void;
 }
 
 interface ApprovalRequest {
@@ -25,13 +26,13 @@ interface ApprovalRequest {
   RequestedDate: string;
   ApproverID: string;
   ApproverName: string;
-  Status: 'PENDING' | '1' | '0';
+  Status: 'PENDING' | 'APPROVED' | 'REJECTED' | '1' | '0';
   ApprovalDate: string | null;
   Comments: string | null;
   RejectionReason: string | null;
 }
 
-const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
+const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document, onRefresh }) => {
   const [approvalComment, setApprovalComment] = useState('');
   const [processingApproval, setProcessingApproval] = useState<number | null>(
     null
@@ -93,7 +94,8 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
       if (response.data.success) {
         showMessage(`Approval granted successfully!`);
         setApprovalComment('');
-        fetchApprovalRequests(); // Refresh the data
+        fetchApprovalRequests(); // Refresh approval requests
+        onRefresh?.(); // Refresh the document data
       }
     } catch (error: any) {
       console.error('Failed to approve request:', error);
@@ -126,7 +128,8 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
       if (response.data.success) {
         showMessage(`Request has been rejected.`);
         setApprovalComment('');
-        fetchApprovalRequests(); // Refresh the data
+        fetchApprovalRequests(); // Refresh approval requests
+        onRefresh?.(); // Refresh the document data
       }
     } catch (error: any) {
       console.error('Failed to reject request:', error);
@@ -150,8 +153,10 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'APPROVED':
+      case '1':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'REJECTED':
+      case '0':
         return <XCircle className="h-5 w-5 text-red-500" />;
       case 'PENDING':
         return <Clock className="h-5 w-5 text-yellow-500" />;
@@ -163,13 +168,30 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'APPROVED':
+      case '1':
         return 'bg-green-100 text-green-800';
       case 'REJECTED':
+      case '0':
         return 'bg-red-100 text-red-800';
       case 'PENDING':
         return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+      case '1':
+        return 'Approved';
+      case 'REJECTED':
+      case '0':
+        return 'Rejected';
+      case 'PENDING':
+        return 'Pending';
+      default:
+        return status.toLowerCase();
     }
   };
 
@@ -231,12 +253,12 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
               </span>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                 <CheckCircle className="h-4 w-4 mr-1" />
-                {approvalRequests.filter((r) => r.Status === '1').length}{' '}
+                {approvalRequests.filter((r) => r.Status === 'APPROVED' || r.Status === '1').length}{' '}
                 Approved
               </span>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
                 <XCircle className="h-4 w-4 mr-1" />
-                {approvalRequests.filter((r) => r.Status === '0').length}{' '}
+                {approvalRequests.filter((r) => r.Status === 'REJECTED' || r.Status === '0').length}{' '}
                 Rejected
               </span>
             </div>
@@ -284,8 +306,8 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
                     )}`}
                   >
                     {getStatusIcon(request.Status)}
-                    <span className="ml-1 capitalize">
-                      {request.Status.toLowerCase()}
+                    <span className="ml-1">
+                      {getStatusText(request.Status)}
                     </span>
                   </span>
                 </div>
@@ -373,7 +395,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
                   <div className="flex items-center gap-3">
                     <div
                       className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                        request.Status === '1'
+                        request.Status === 'APPROVED' || request.Status === '1'
                           ? 'bg-gradient-to-r from-green-500 to-emerald-500'
                           : 'bg-gradient-to-r from-red-500 to-pink-500'
                       }`}
@@ -388,7 +410,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
                         Requested: {formatDate(request.RequestedDate)}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {request.Status === '1' ? 'Approved' : 'Rejected'}:{' '}
+                        {(request.Status === 'APPROVED' || request.Status === '1') ? 'Approved' : 'Rejected'}:{' '}
                         {formatDate(request.ApprovalDate)}
                       </p>
                     </div>
@@ -399,8 +421,8 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
                     )}`}
                   >
                     {getStatusIcon(request.Status)}
-                    <span className="ml-1 capitalize">
-                      {request.Status.toLowerCase()}
+                    <span className="ml-1">
+                      {getStatusText(request.Status)}
                     </span>
                   </span>
                 </div>
@@ -408,7 +430,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({ document }) => {
                 {(request.Comments || request.RejectionReason) && (
                   <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
                     <p className="text-xs font-medium text-gray-700 mb-1">
-                      {request.Status === '1'
+                      {(request.Status === 'APPROVED' || request.Status === '1')
                         ? 'Comment:'
                         : 'Reason for rejection:'}
                     </p>
