@@ -1,9 +1,8 @@
 import { Select } from '@/components/ui/Select';
 import { Badge, Button } from '@chakra-ui/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Rect } from './Unrecorded';
 import toast from 'react-hot-toast';
-import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
 import {
   createTemplate,
   deleteTemplate,
@@ -26,8 +25,10 @@ import {
   FolderOpen,
   Image,
   Plus,
+  Search,
   Trash2,
   Users,
+  X,
 } from 'lucide-react';
 import { DeleteDialog } from '@/components/ui/DeleteDialog';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
@@ -69,6 +70,7 @@ export const TemplateOCR = () => {
   );
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
 
   // Form state
@@ -141,6 +143,24 @@ export const TemplateOCR = () => {
       }
     }
   }, [formData.department, departmentOptions]);
+
+  // Filter templates based on search term
+  const filteredTemplates = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return templates;
+    }
+    
+    return templates.filter(template =>
+      template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      template.header.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      template.Department?.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      template.SubDepartment?.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      template.fields.some(field => 
+        field.fieldName.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    );
+  }, [templates, searchTerm]);
+  
   // Load templates on component mount
   useEffect(() => {
     loadTemplates();
@@ -590,6 +610,39 @@ export const TemplateOCR = () => {
         )}
       </div>
 
+      {/* Search Section */}
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search templates by name, header, department, or field..."
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={20} />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Search Results Counter */}
+          {searchTerm && (
+            <div className="text-sm text-gray-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+              {filteredTemplates.length} of {templates.length} templates found
+            </div>
+          )}
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -599,7 +652,7 @@ export const TemplateOCR = () => {
         </div>
       ) : (
         <div className="grid gap-4 lg:gap-6">
-          {templates.map((template) => (
+          {filteredTemplates.map((template) => (
             <Card
               key={template.ID}
               className="group hover:shadow-xl transition-all duration-300 border border-gray-200 shadow-sm hover:-translate-y-1 bg-white"
@@ -740,6 +793,26 @@ export const TemplateOCR = () => {
               </CardContent>
             </Card>
           ))}
+          
+          {/* Empty Search Results */}
+          {filteredTemplates.length === 0 && searchTerm && (
+            <div className="text-center py-16">
+              <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <Search size={28} className="text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No templates found</h3>
+              <p className="text-gray-600 mb-4">
+                No templates match your search for <span className="font-semibold">"{searchTerm}"</span>
+              </p>
+              <button
+                onClick={() => setSearchTerm('')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              >
+                <X size={16} />
+                Clear search
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
