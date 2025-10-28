@@ -12,26 +12,36 @@ export interface ActivityLogData {
 
 // Centralized activity logging function
 export const logActivity = async (activityData: ActivityLogData) => {
+  // Create activity object
+  const activity = {
+    id: Date.now() + Math.random(),
+    action: activityData.action,
+    userId: activityData.userId,
+    userName: activityData.userName,
+    documentId: activityData.documentId || 0,
+    documentName: activityData.documentName || '',
+    details: activityData.details || '',
+    metadata: activityData.metadata || {},
+    timestamp: new Date().toISOString(),
+    ipAddress: '',
+    userAgent: navigator.userAgent
+  };
+  
+  // ALWAYS store in localStorage as backup
+  const existingActivities = JSON.parse(localStorage.getItem('userActivities') || '[]');
+  existingActivities.push(activity);
+  
+  // Keep only last 200 activities to prevent localStorage bloat
+  if (existingActivities.length > 200) {
+    existingActivities.splice(0, existingActivities.length - 200);
+  }
+  
+  localStorage.setItem('userActivities', JSON.stringify(existingActivities));
+  console.log('Activity logged to localStorage:', activityData.action);
+  
+  // Try to send to backend too
   try {
-    // Try to send to backend first
     await axios.post('/audit/activity', {
-      action: activityData.action,
-      userId: activityData.userId,
-      userName: activityData.userName,
-      documentId: activityData.documentId || 0,
-      documentName: activityData.documentName || '',
-      details: activityData.details || '',
-      metadata: activityData.metadata || {},
-      timestamp: new Date().toISOString(),
-      ipAddress: '', // Will be filled by backend
-      userAgent: navigator.userAgent
-    });
-  } catch (error) {
-    console.warn('Backend logging failed, storing locally:', error);
-    
-    // Fallback: Store in localStorage for demo purposes
-    const activity = {
-      id: Date.now() + Math.random(),
       action: activityData.action,
       userId: activityData.userId,
       userName: activityData.userName,
@@ -42,18 +52,10 @@ export const logActivity = async (activityData: ActivityLogData) => {
       timestamp: new Date().toISOString(),
       ipAddress: '',
       userAgent: navigator.userAgent
-    };
-    
-    
-    const existingActivities = JSON.parse(localStorage.getItem('userActivities') || '[]');
-    existingActivities.push(activity);
-    
-    // Keep only last 200 activities to prevent localStorage bloat
-    if (existingActivities.length > 200) {
-      existingActivities.splice(0, existingActivities.length - 200);
-    }
-    
-    localStorage.setItem('userActivities', JSON.stringify(existingActivities));
+    });
+    console.log('Activity also logged to backend:', activityData.action);
+  } catch (error) {
+    console.warn('Backend logging failed (but stored in localStorage):', error);
   }
 };
 
@@ -83,16 +85,35 @@ export const logCollaborationActivity = async (
   documentId: number,
   documentName: string,
   collaboratorName?: string,
-  permissionLevel?: string
+  permissionLevel?: string,
+  commentText?: string
 ) => {
+  let details = '';
+  const metadata: Record<string, any> = {};
+  
+  // Handle comment activities
+  if (action === 'COMMENT_ADDED' || action === 'COMMENT_DELETED') {
+    if (commentText) {
+      details = commentText.length > 100 ? commentText.substring(0, 100) + '...' : commentText;
+      metadata.fullComment = commentText;
+    }
+  } 
+  // Handle collaborator activities
+  else if (collaboratorName) {
+    details = `Collaborator: ${collaboratorName}`;
+    if (permissionLevel) {
+      metadata.permissionLevel = permissionLevel;
+    }
+  }
+  
   await logActivity({
     action,
     userId,
     userName,
     documentId,
     documentName,
-    details: collaboratorName ? `Collaborator: ${collaboratorName}` : '',
-    metadata: { permissionLevel }
+    details,
+    metadata
   });
 };
 

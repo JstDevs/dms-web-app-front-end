@@ -161,8 +161,9 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
             loggedUser!.UserName,
             document.document[0].ID,
             document.document[0].FileName,
-            loggedUser!.UserName,
-            'general'
+            undefined,
+            undefined,
+            comment.trim()
           );
           
           // Refresh document data to show the new audit trail entry
@@ -203,13 +204,17 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
       if (response.data.success) {
         // Log comment deletion activity
         try {
+          // Find the deleted comment to get its text for logging
+          const deletedComment = comments.find(c => c.ID.toString() === commentId);
           await logCollaborationActivity(
             'COMMENT_DELETED',
             loggedUser!.ID,
             loggedUser!.UserName,
             document.document[0].ID,
             document.document[0].FileName,
-            loggedUser!.UserName
+            undefined,
+            undefined,
+            deletedComment?.Comment
           );
           
           // Refresh document data to show the new audit trail entry

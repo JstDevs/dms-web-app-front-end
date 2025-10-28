@@ -35,6 +35,8 @@ interface Activity {
   ActionDate: string;
   IPAddress: string;
   UserAgent: string;
+  Details?: string;
+  Metadata?: Record<string, any>;
   actor: {
     id: number;
     userName: string;
@@ -204,6 +206,7 @@ const AuditTrail: React.FC = () => {
         setSelectedSubDepartment('');
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDepartment, departmentOptions]);
 
   // Fetch activities with filters + pagination
@@ -211,9 +214,14 @@ const AuditTrail: React.FC = () => {
     const fetchActivities = async () => {
       setLoading(true);
       try {
+        // Debug: Check what's in localStorage
+        const localData = localStorage.getItem('userActivities');
+        console.log('localStorage userActivities:', localData ? JSON.parse(localData) : 'No data');
         const hasRange = Boolean(startDate && endDate);
         const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-        const defaultStart = '1970-01-01';
+        // Use 30 days ago as default instead of 1970 to avoid loading too much old data
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const defaultStart = thirtyDaysAgo;
         const defaultEnd = todayStr;
 
         const effectiveStart = hasRange ? startDate : defaultStart;
@@ -243,6 +251,7 @@ const AuditTrail: React.FC = () => {
         // Fetch both document activities and user activities
         const [documentResponse, userActivityResponse] = await Promise.allSettled([
           axios.get(`/documents/activities-dashboard`, { params }),
+          // This endpoint may not exist yet - handled gracefully by axios interceptor
           axios.get(`/audit/user-activities`, { 
             params: {
               startDate: effectiveStart,
@@ -258,24 +267,53 @@ const AuditTrail: React.FC = () => {
         // Process document activities
         if (documentResponse.status === 'fulfilled' && documentResponse.value.data?.success) {
           const documentActivities = documentResponse.value.data?.data?.auditTrails || [];
-          allActivities = [...allActivities, ...documentActivities];
+          // console.log('Document activities from API:', documentActivities);
+          
+          // Map backend fields to our Activity interface
+          const mappedActivities = documentActivities.map((activity: any) => ({
+            ...activity,
+            // Map action names from backend to our activity types
+            Action: activity.Action === 'COMMENTED' ? 'COMMENT_ADDED' : 
+                   activity.Action === 'RESTRICTION_APPLIED' ? 'RESTRICTION_ADDED' :
+                   activity.Action,
+            Details: activity.ActivityDetails || activity.Details || activity.details || '',
+            // Ensure actor field exists
+            actor: activity.actor || activity.ActionBy || {
+              id: activity.ActionBy || activity.actionBy,
+              userName: activity.userName || activity.user_name || 'Unknown'
+            }
+          }));
+          
+          allActivities = [...allActivities, ...mappedActivities];
         }
 
         // Process user activities (login/logout)
         let userActivities: any[] = [];
         
+        // Always check localStorage first for login/logout activities
+        const localActivities = JSON.parse(localStorage.getItem('userActivities') || '[]');
+        // console.log('localStorage userActivities:', localActivities);
+        
+        // Also try to get from API if available
         if (userActivityResponse.status === 'fulfilled' && userActivityResponse.value.data?.success) {
-          userActivities = userActivityResponse.value.data?.data || [];
+          const apiActivities = userActivityResponse.value.data?.data || [];
+          // console.log('Got user activities from API:', apiActivities);
+          // Merge with localStorage (prefer API if duplicates)
+          userActivities = [...localActivities, ...apiActivities];
         } else {
-          // Fallback: Get from localStorage for demo purposes
-          const localActivities = JSON.parse(localStorage.getItem('userActivities') || '[]');
-          userActivities = localActivities.filter((activity: any) => {
-            const activityDate = new Date(activity.timestamp);
-            const startDate = new Date(effectiveStart + 'T00:00:00.000Z');
-            const endDate = new Date(effectiveEnd + 'T23:59:59.999Z');
-            return activityDate >= startDate && activityDate <= endDate;
-          });
+          // Use localStorage as fallback
+          userActivities = localActivities;
         }
+        
+        // Filter by date range
+        userActivities = userActivities.filter((activity: any) => {
+          const activityDate = new Date(activity.timestamp);
+          const startDate = new Date(effectiveStart + 'T00:00:00.000Z');
+          const endDate = new Date(effectiveEnd + 'T23:59:59.999Z');
+          return activityDate >= startDate && activityDate <= endDate;
+        });
+        
+        // console.log('Filtered user activities:', userActivities);
 
         // Transform user activities to match Activity interface
         const transformedUserActivities = userActivities.map((activity: any) => ({
@@ -287,6 +325,8 @@ const AuditTrail: React.FC = () => {
           ActionDate: activity.timestamp || activity.actionDate,
           IPAddress: activity.ipAddress || '',
           UserAgent: activity.userAgent || '',
+          Details: activity.details || activity.Details || '',
+          Metadata: activity.metadata || activity.Metadata || {},
           actor: {
             id: activity.userId || activity.userID,
             userName: activity.userName || activity.user_name
@@ -299,12 +339,34 @@ const AuditTrail: React.FC = () => {
             Confidential: false
           }
         }));
+        
+        // Debug: Log user activities if found
+        if (userActivities.length > 0) {
+          // console.log(`Found ${userActivities.length} user activities from localStorage`);
+          // console.log('Transformed user activities:', transformedUserActivities);
+        }
+        
         allActivities = [...allActivities, ...transformedUserActivities];
+        // console.log('Total allActivities:', allActivities.length);
+        
+        // Log a sample login/logout activity if found
+        const loginLogoutActivities = allActivities.filter(a => a.Action === 'LOGIN' || a.Action === 'LOGOUT');
+        // console.log('Login/Logout activities found:', loginLogoutActivities.length);
+        if (loginLogoutActivities.length > 0) {
+          // console.log('Sample login/logout:', loginLogoutActivities[0]);
+        }
 
         // Sort all activities by date
-        const sortedActivities = allActivities.sort((a, b) => 
-          new Date(b.ActionDate).getTime() - new Date(a.ActionDate).getTime()
-        );
+        const sortedActivities = allActivities.sort((a, b) => {
+          try {
+            const dateA = new Date(a.ActionDate).getTime();
+            const dateB = new Date(b.ActionDate).getTime();
+            return dateB - dateA;
+          } catch (error) {
+            console.warn('Error sorting activities:', error);
+            return 0;
+          }
+        });
 
         // Apply client-side filtering
         let filteredActivities = sortedActivities;
@@ -322,7 +384,10 @@ const AuditTrail: React.FC = () => {
 
         setTotalItems(filteredActivities.length);
         const startIndex = (currentPage - 1) * itemsPerPage;
-        setActivities(filteredActivities.slice(startIndex, startIndex + itemsPerPage));
+        const paginatedActivities = filteredActivities.slice(startIndex, startIndex + itemsPerPage);
+        // console.log(`Page ${currentPage}: Showing ${paginatedActivities.length} activities out of ${filteredActivities.length} total`);
+        // console.log('Activities on this page:', paginatedActivities.map(a => a.Action));
+        setActivities(paginatedActivities);
 
       } catch (error) {
         console.error('Failed to fetch activities', error);
@@ -648,7 +713,7 @@ const AuditTrail: React.FC = () => {
                         <div>
                           <div className="flex items-center space-x-2">
                             <p className="text-sm font-medium text-slate-800">
-                              <span className="text-blue-600">{activity.actor.userName}</span>{' '}
+                              <span className="text-blue-600">{activity.actor?.userName || 'Unknown User'}</span>{' '}
                               {formatActivityType(activity.Action)}
                             </p>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -671,6 +736,11 @@ const AuditTrail: React.FC = () => {
                               </span>
                             )}
                           </p>
+                          {activity.Details && (
+                            <p className="text-xs text-gray-500 mt-1 italic">
+                              {activity.Details}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="text-xs text-slate-500">{formatTimeAgo(activity.ActionDate)}</div>
@@ -724,7 +794,7 @@ const AuditTrail: React.FC = () => {
                               </div>
                               <div>
                                 <p className="text-sm font-medium text-slate-800">
-                                  <span className="text-blue-600">{activity.actor.userName}</span>{' '}
+                                  <span className="text-blue-600">{activity.actor?.userName || 'Unknown User'}</span>{' '}
                                   {formatActivityType(activity.Action)}
                                 </p>
                                 <p className="text-sm text-slate-600">
@@ -735,6 +805,11 @@ const AuditTrail: React.FC = () => {
                                     </span>
                                   )}
                                 </p>
+                                {activity.Details && (
+                                  <p className="text-xs text-gray-500 mt-1 italic">
+                                    {activity.Details}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <div className="text-xs text-slate-500">{formatTimeAgo(activity.ActionDate)}</div>
