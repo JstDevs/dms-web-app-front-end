@@ -491,6 +491,7 @@ const MyDocuments: React.FC = () => {
           // onItemsPerPageChange={setItemsPerPage}
         />
       )}
+      
     </div>
   );
 };

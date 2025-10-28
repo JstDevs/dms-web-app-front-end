@@ -168,7 +168,7 @@ const DocumentCurrentView = ({
                   {currentDocumentInfo?.DataType || 'N/A'}
                 </p>
               </div>
-
+              
               {/* Confidential Status */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
@@ -253,9 +253,9 @@ const DocumentCurrentView = ({
               </div>
 
               {/* File Description - Full Width */}
-              <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
+               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-teal-500 to-green-500 flex items-center justify-center">
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-teal-500 to-sky-500 flex items-center justify-center">
                     <FileText className="h-4 w-4 text-white" />
                   </div>
                   <h4 className="text-sm font-medium text-gray-700">
@@ -267,6 +267,28 @@ const DocumentCurrentView = ({
                     'No description available'}
                 </p>
               </div>
+
+              {/* Fields */ }
+               <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-yellow-500 to-gray-500 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-white" />
+                  </div>
+                  <h4 className="text-sm font-medium text-gray-700">
+                    Fields
+                  </h4>
+                </div>
+                <p className="text-gray-900 font-medium"> 
+                  Display all the fields over here
+                  
+                  {/* 
+                  {currentDocumentInfo?.FileDescription ||
+                    'No description available'} 
+                  */}
+                </p>
+              </div>
+
+              {/* End of Lists here */}
             </div>
           </div>
         </>

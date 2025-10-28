@@ -239,6 +239,9 @@ export const AllocationPanel = () => {
             </h2>
             {/* <SlidersHorizontal className="w-5 h-5 text-blue-600" /> */}
           </div>
+          <div>
+            Test text here
+          </div>
           <FieldSettingsPanel
             ref={fieldPanelRef}
             fieldsInfo={fields}
