@@ -37,7 +37,7 @@ export const logActivity = async (activityData: ActivityLogData) => {
   }
   
   localStorage.setItem('userActivities', JSON.stringify(existingActivities));
-  console.log('Activity logged to localStorage:', activityData.action);
+  // console.log('Activity logged to localStorage:', activityData.action);
   
   // Try to send to backend too
   try {
@@ -53,7 +53,7 @@ export const logActivity = async (activityData: ActivityLogData) => {
       ipAddress: '',
       userAgent: navigator.userAgent
     });
-    console.log('Activity also logged to backend:', activityData.action);
+    // console.log('Activity also logged to backend:', activityData.action);
   } catch (error) {
     console.warn('Backend logging failed (but stored in localStorage):', error);
   }
