@@ -11,10 +11,19 @@ import {
   Download,
 } from 'lucide-react';
 import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { logDocumentActivity } from '@/utils/activityLogger';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useAuth } from '@/contexts/AuthContext';
+import axios from '@/api/axios';
+
+interface Field {
+  LinkID: number;
+  FieldNumber: number;
+  Active: number;
+  Description: string;
+  DataType: string;
+}
 
 const DocumentCurrentView = ({
   document,
@@ -22,11 +31,87 @@ const DocumentCurrentView = ({
   document: CurrentDocument | null;
 }) => {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [fields, setFields] = useState<Field[]>([]);
+  const [fieldsLoading, setFieldsLoading] = useState(false);
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const { user } = useAuth();
   const { fetchDocument } = useDocument();
 
   const currentDocumentInfo = document?.document[0];
+
+
+  // Fetch fields based on SubDepartmentId (LinkID)
+  useEffect(() => {
+    const fetchFields = async () => {
+      if (!currentDocumentInfo?.SubDepartmentId) {
+        setFields([]);
+        return;
+      }
+
+      setFieldsLoading(true);
+      try {
+        const response = await axios.get(
+          `/fields/by-link/${currentDocumentInfo.SubDepartmentId}`
+        );
+        
+        const activeFields = response.data.data.filter(
+          (field: Field) => field.Active === 1
+        );
+        
+        // If API returns empty, check if we have document data to display
+        if (activeFields.length === 0) {
+          // Create a temporary display for any fields that have values
+          const tempFields: Field[] = [];
+          
+          // Check Text fields (1-10)
+          for (let i = 1; i <= 10; i++) {
+            const textKey = `Text${i}` as keyof typeof currentDocumentInfo;
+            const textValue = currentDocumentInfo?.[textKey];
+            if (textValue && textValue !== null && textValue !== '') {
+              tempFields.push({
+                LinkID: currentDocumentInfo?.SubDepartmentId || 0,
+                FieldNumber: i,
+                Active: 1,
+                Description: `Field ${i}`,
+                DataType: 'Text'
+              });
+            }
+          }
+          
+          // Check Date fields (1-10)
+          for (let i = 1; i <= 10; i++) {
+            const dateKey = `Date${i}` as keyof typeof currentDocumentInfo;
+            const dateValue = currentDocumentInfo?.[dateKey];
+            if (dateValue && dateValue !== null && dateValue !== '') {
+              tempFields.push({
+                LinkID: currentDocumentInfo?.SubDepartmentId || 0,
+                FieldNumber: i,
+                Active: 1,
+                Description: `Field ${i}`,
+                DataType: 'Date'
+              });
+            }
+          }
+          
+          // Sort fields by FieldNumber to ensure correct order
+          tempFields.sort((a, b) => a.FieldNumber - b.FieldNumber);
+          
+          setFields(tempFields);
+        } else {
+          setFields(activeFields);
+        }
+      } catch (error) {
+        console.error('Failed to fetch fields:', error);
+        setFields([]);
+      } finally {
+        setFieldsLoading(false);
+      }
+    };
+
+    fetchFields();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDocumentInfo?.SubDepartmentId]);
+
   const documentsDepartment = departmentOptions.find(
     (department) =>
       department.value === String(currentDocumentInfo?.DepartmentId)
@@ -35,6 +120,36 @@ const DocumentCurrentView = ({
     (subDepartment) =>
       subDepartment.value === String(currentDocumentInfo?.SubDepartmentId)
   );
+
+  // Get field values from the document
+  const getFieldValue = (fieldNumber: number, dataType: string): string => {
+    const doc = currentDocumentInfo;
+    if (!doc) {
+      return '';
+    }
+
+    if (dataType === 'Text') {
+      const textField = doc[`Text${fieldNumber}` as keyof typeof doc];
+      return textField ? String(textField) : '';
+    } else if (dataType === 'Date') {
+      const dateField = doc[`Date${fieldNumber}` as keyof typeof doc];
+      return dateField ? String(dateField) : '';
+    }
+    return '';
+  };
+
+  const formatDateValue = (dateValue: string) => {
+    if (!dateValue) return '';
+    try {
+      return new Date(dateValue).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return dateValue;
+    }
+  };
 
   const handleDownload = async () => {
     if (currentDocumentInfo?.filepath) {
@@ -55,7 +170,7 @@ const DocumentCurrentView = ({
         
         // Log document download activity
         try {
-          console.log('🔍 Logging download activity for document:', currentDocumentInfo.ID);
+          // console.log('🔍 Logging download activity for document:', currentDocumentInfo.ID);
           await logDocumentActivity(
             'DOWNLOADED',
             user!.ID,
@@ -268,24 +383,57 @@ const DocumentCurrentView = ({
                 </p>
               </div>
 
-              {/* Fields */ }
-               <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
-                <div className="flex items-center gap-3 mb-2">
+              {/* Fields - All in one box */}
+              <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-4">
                   <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-yellow-500 to-gray-500 flex items-center justify-center">
                     <FileText className="h-4 w-4 text-white" />
                   </div>
-                  <h4 className="text-sm font-medium text-gray-700">
+                  <h3 className="text-lg font-medium text-gray-900">
                     Fields
-                  </h4>
+                  </h3>
                 </div>
-                <p className="text-gray-900 font-medium"> 
-                  Display all the fields over here
-                  
-                  {/* 
-                  {currentDocumentInfo?.FileDescription ||
-                    'No description available'} 
-                  */}
-                </p>
+                
+                {fieldsLoading ? (
+                  <div className="py-4">
+                    <p className="text-gray-500 text-sm">Loading fields...</p>
+                  </div>
+                ) : fields.length > 0 ? (
+                  <div className="space-y-4">
+                    {fields.map((field) => {
+                      const fieldValue = getFieldValue(field.FieldNumber, field.DataType);
+                      // console.log('🔍 Rendering field:', field.Description, 'Value:', fieldValue);
+                      return (
+                        <div
+                          key={`${field.LinkID}-${field.FieldNumber}`}
+                          className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="text-sm font-semibold text-gray-700">
+                                  {field.Description}
+                                </h4>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                  {field.DataType}
+                                </span>
+                              </div>
+                              <p className="text-gray-900 font-medium">
+                                {field.DataType === 'Date'
+                                  ? formatDateValue(fieldValue)
+                                  : fieldValue || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-4">
+                    <p className="text-gray-500 text-sm">No fields available</p>
+                  </div>
+                )}
               </div>
 
               {/* End of Lists here */}
