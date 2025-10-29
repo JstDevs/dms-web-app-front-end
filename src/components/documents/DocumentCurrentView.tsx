@@ -154,14 +154,14 @@ const DocumentCurrentView = ({
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Document Type */}
+              {/* File Format */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
                     <FileText className="h-4 w-4 text-white" />
                   </div>
                   <h4 className="text-sm font-medium text-gray-700">
-                    Document Type
+                    File Format
                   </h4>
                 </div>
                 <p className="text-gray-900 font-medium">

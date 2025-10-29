@@ -571,6 +571,40 @@ export default function DocumentUpload() {
             ></textarea>
           </div>
 
+          {/* Field Text */}
+          {/* <div className="col-span-1 sm:col-span-2">
+            <label className="text-sm sm:text-base">
+              Field Text 1 <span className="text-red-500">*</span>{' '}
+            </label>
+            <Input
+              className="w-full"
+              value={newDoc.FileDescription || ''}
+              onChange={(e) =>
+                setNewDoc({ ...newDoc, FileDescription: e.target.value })
+              }
+              required
+              placeholder="Enter file description"
+            />
+          </div>
+
+          {/* Field Date */}
+          {/* <div className="col-span-1 sm:col-span-2">
+            <label className="text-sm sm:text-base">
+              Field Date 1 <span className="text-red-500">*</span>{' '}
+            </label>
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FileDate || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FileDate: date ? date.toISOString() : undefined,
+                });
+              }}
+            />
+          </div> */}
+
           {/* Attachment */}
           {!editId && (
             <div className="col-span-1 sm:col-span-2">
@@ -815,9 +849,9 @@ export default function DocumentUpload() {
       </div>
 
       {/* Document List Section */}
-      <div className="space-y-4">
+      {/* <div className="space-y-4"> */}
         {/* Search and Title */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+        {/* <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
           <h2 className="text-lg font-semibold w-full sm:w-auto">
             Document List
           </h2>
@@ -988,7 +1022,7 @@ export default function DocumentUpload() {
           onPageChange={setCurrentPage}
           // onItemsPerPageChange={setItemsPerPage}
         />
-      </div>
+      </div> */}
     </div>
   );
 }

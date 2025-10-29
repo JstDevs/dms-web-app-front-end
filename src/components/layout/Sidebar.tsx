@@ -73,7 +73,16 @@ const navItems: NavItem[] = [
           { name: 'Document Type', path: '/departments/sub', moduleId: 2 },
           { name: 'Fields', path: '/ocr/fields', moduleId: 11 },
           { name: 'Allocation', path: '/digitalization/allocation', moduleId: 7 },
+          // { name: 'Masking Template', path: '/ocr/template', moduleId: 10 },
+        ]
+      },
+      {
+        name: 'Template Settings',
+        icon: FileText,
+        path: '/ocr/template',
+        submenu: [
           { name: 'OCR Template', path: '/ocr/template', moduleId: 10 },
+          { name: 'Masking Template', path: '/ocr/template', moduleId: 10 },
         ]
       },
       {
@@ -81,7 +90,7 @@ const navItems: NavItem[] = [
         icon: FileText,
         path: '/documents/upload',
         submenu: [
-          { name: 'Collaboration Access', path: '/yyy', moduleId: 9 },
+          // { name: 'Collaboration Access', path: '/yyy', moduleId: 9 },
           { name: 'Approval Matrix', icon: Grid3x3, path: '/approval-matrix', moduleId: 9 },
           { name: 'Masking Setup', path: '/ocr/unrecorded', moduleId: 9 },
         ]
@@ -94,9 +103,9 @@ const navItems: NavItem[] = [
           { name: 'Profile', path: '/settings', moduleId: 12 },
           { name: 'Users', path: '/users/members', moduleId: 5 },
           { name: 'User Access', path: '/users/access', moduleId: 6 },
+          { name: 'Audit Trail', path: '/audit-trail', moduleId: 1 },
         ]
       },
-      { name: 'Audit Trail', path: '/audit-trail', moduleId: 1 },
     ],
   },  
 ];

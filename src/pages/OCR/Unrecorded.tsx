@@ -296,10 +296,10 @@ const OCRUnrecordedUI = () => {
       {/* HEADER */}
       <header className="text-left flex-1 py-4 px-3 sm:px-6">
         <h1 className="text-3xl font-bold text-blue-800">
-          Unrecorded Documents
+          Masking Setup
         </h1>
         <p className="mt-2 text-gray-600">
-          Manage all unrecorded documents here
+          Manage masking templates to documents for restrictions.
         </p>
       </header>
 
