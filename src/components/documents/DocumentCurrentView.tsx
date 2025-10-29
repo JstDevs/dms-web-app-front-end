@@ -53,13 +53,19 @@ const DocumentCurrentView = ({
         const response = await axios.get(
           `/fields/by-link/${currentDocumentInfo.SubDepartmentId}`
         );
-        
-        const activeFields = response.data.data.filter(
-          (field: Field) => field.Active === 1
-        );
-        
-        // If API returns empty, check if we have document data to display
-        if (activeFields.length === 0) {
+
+        const fieldsData: Field[] = Array.isArray(response?.data?.data)
+          ? response.data.data
+          : [];
+
+        // Normalize Active flag in case API sends strings/booleans
+        const activeFields = fieldsData.filter((field: Field) => {
+          const activeValue = (field as unknown as { Active: unknown }).Active;
+          return activeValue === 1 || activeValue === '1' || activeValue === true || activeValue === 'true';
+        });
+
+        // Only use fallback when there are truly no configured fields at all
+        if (fieldsData.length === 0) {
           // Create a temporary display for any fields that have values
           const tempFields: Field[] = [];
           
