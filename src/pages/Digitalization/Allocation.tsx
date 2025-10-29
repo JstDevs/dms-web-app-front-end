@@ -3,10 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { FieldSettingsPanel } from '../FieldSetting';
 import { Button } from '@chakra-ui/react';
 // import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
-import useAccessLevelRole from '../Users/Users Access/useAccessLevelRole';
-import { useOCRFields } from '../OCR/Fields/useOCRFields';
 import toast from 'react-hot-toast';
-import { allocateFieldsToUsers } from './utils/allocationServices';
+import { allocateFieldsToUsers, fetchFieldsByLink, Field } from './utils/allocationServices';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { useUsers } from '../Users/useUser';
@@ -28,6 +26,14 @@ type updatedFields = {
   Type: string;
   Description: string;
 }[];
+
+type FieldInfo = {
+  ID: number;
+  Field: string;
+  Type?: string;
+  updatedAt: string;
+  createdAt: string;
+};
 export const AllocationPanel = () => {
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedSubDept, setSelectedSubDept] = useState('');
@@ -42,10 +48,11 @@ export const AllocationPanel = () => {
     getSubDepartmentOptions,
     loading: loadingDepartments,
   } = useNestedDepartmentOptions();
-  const { accessOptions } = useAccessLevelRole();
   const { users: usersList } = useUsers();
-  const { fields, loading, error } = useOCRFields();
   const fieldPanelRef = useRef<any>(null);
+  const [fieldsLoading, setFieldsLoading] = useState(false);
+  const [fieldsInfo, setFieldsInfo] = useState<FieldInfo[]>([]);
+  const [fieldsError, setFieldsError] = useState<string | null>(null);
 
   const [subDepartmentOptions, setSubDepartmentOptions] = useState<
     { value: string; label: string }[]
@@ -90,6 +97,41 @@ export const AllocationPanel = () => {
       }
     }
   }, [selectedDept, departmentOptions]);
+
+  // Fetch fields when Document Type is selected
+  useEffect(() => {
+    const fetchFields = async () => {
+      if (!selectedSubDept) {
+        setFieldsInfo([]);
+        return;
+      }
+
+      setFieldsLoading(true);
+      setFieldsError(null);
+      try {
+        const fields = await fetchFieldsByLink(Number(selectedSubDept));
+        
+        // Transform fields from database to FieldInfo format expected by FieldSettingsPanel
+        const transformedFields: FieldInfo[] = fields.map((field: Field) => ({
+          ID: field.FieldNumber,
+          Field: field.Description,
+          Type: field.DataType.toLowerCase(), // Convert to lowercase to match 'text' or 'date'
+          updatedAt: '',
+          createdAt: '',
+        }));
+        
+        setFieldsInfo(transformedFields);
+      } catch (error) {
+        console.error('Failed to fetch fields:', error);
+        setFieldsError('Failed to load fields');
+        setFieldsInfo([]);
+      } finally {
+        setFieldsLoading(false);
+      }
+    };
+
+    fetchFields();
+  }, [selectedSubDept]);
   const togglePermission = (username: string, field: PermissionKey) => {
     setUsers((prev) =>
       prev.map((user) =>
@@ -206,14 +248,8 @@ export const AllocationPanel = () => {
       fieldPanelRef.current?.cancelFields?.();
     }
   };
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
   console.log({ selectedDept });
+  console.log({ fieldsInfo });
   const userOptions = usersList?.map((user) => ({
     label: user.UserName,
     value: user.ID,
@@ -239,22 +275,35 @@ export const AllocationPanel = () => {
             </h2>
             {/* <SlidersHorizontal className="w-5 h-5 text-blue-600" /> */}
           </div>
-          <div>
-            Test text here
-          </div>
-          <FieldSettingsPanel
-            ref={fieldPanelRef}
-            fieldsInfo={fields}
-            onSave={(updatedFields) => {
-              setSavedFieldsData(updatedFields);
-              // 🔁 Handle save to backend or store here
-              console.log('Received from child:', updatedFields);
-              toast.success('Fields saved successfully');
-            }}
-            onCancel={(resetFields) => {
-              setSavedFieldsData(resetFields);
-            }}
-          />
+          {fieldsLoading ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Loading fields...</p>
+            </div>
+          ) : fieldsError ? (
+            <div className="text-center py-8">
+              <p className="text-red-500">{fieldsError}</p>
+            </div>
+          ) : fieldsInfo.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">
+                Please select Department and Document Type to view fields
+              </p>
+            </div>
+          ) : (
+            <FieldSettingsPanel
+              ref={fieldPanelRef}
+              fieldsInfo={fieldsInfo}
+              onSave={(updatedFields) => {
+                setSavedFieldsData(updatedFields);
+                // 🔁 Handle save to backend or store here
+                console.log('Received from child:', updatedFields);
+                toast.success('Fields saved successfully');
+              }}
+              onCancel={(resetFields) => {
+                setSavedFieldsData(resetFields);
+              }}
+            />
+          )}
         </div>
 
         {/* Right Panel - User Permissions */}

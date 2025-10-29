@@ -7,7 +7,7 @@ import { Search, X } from 'lucide-react';
 type FieldSettingsPanelProps = {
   // showFieldsPanel: boolean;
   // setShowFieldsPanel: (value: boolean) => void;
-  fieldsInfo: OCRField[];
+  fieldsInfo: (OCRField & { Type?: string })[];
   onSave: (
     updatedFields: {
       ID: number;
@@ -55,7 +55,7 @@ export const FieldSettingsPanel = forwardRef(
         setFields(
           fieldsInfo.map((f) => ({
             ...f,
-            Type: 'text', // default to text
+            Type: f.Type || 'text', // Use Type from fieldsInfo or default to text
             Description: '',
             active: false,
           }))
