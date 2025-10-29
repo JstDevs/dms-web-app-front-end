@@ -414,6 +414,18 @@ export const AllocationPanel = () => {
                       Confidential
                     </th>
                     <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Comment
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Collaborate
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Finalize
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
+                      Masking
+                    </th>
+                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -435,6 +447,10 @@ export const AllocationPanel = () => {
                           'delete',
                           'print',
                           'confidential',
+                          'comment',
+                          'collaborate',
+                          'finalize',
+                          'masking',
                         ] as PermissionKey[]
                       ).map((field) => (
                         <td key={field} className="text-center">
