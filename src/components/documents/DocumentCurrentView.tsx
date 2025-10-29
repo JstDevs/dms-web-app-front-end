@@ -263,97 +263,125 @@ const DocumentCurrentView = ({
 
           {/* Document Information */}
           <div className="px-6 py-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-              <Info className="h-5 w-5 text-blue-500" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2 relative group">
+            <div className="relative">
+              <Info className="h-5 w-5 text-blue-500 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110" />
+              <div className="absolute -inset-1 rounded-full bg-blue-500/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </div>
+            <span className="bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
               Document Information
-            </h3>
+            </span>
+          </h3>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* File Format */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-white" />
-                  </div>
-                  <h4 className="text-sm font-medium text-gray-700">
-                    File Format
-                  </h4>
+              <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-purple-400 transition-all duration-300">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center shadow-inner">
+                  <FileText className="h-5 w-5 text-white drop-shadow-sm" />
                 </div>
-                <p className="text-gray-900 font-medium">
-                  {currentDocumentInfo?.DataType || 'N/A'}
-                </p>
+                <h4 className="text-base font-semibold text-gray-800 tracking-wide">
+                  File Format
+                </h4>
               </div>
+
+              <p
+                className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
+                  currentDocumentInfo?.DataType ? 'text-gray-900' : 'text-gray-500 italic'
+                }`}
+              >
+                {currentDocumentInfo?.DataType || 'N/A'}
+              </p>
+            </div>
+
               
               {/* Confidential Status */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
-                <div className="flex items-center gap-3 mb-2">
+              <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300">
+                <div className="flex items-center gap-3 mb-3">
                   <div
-                    className={`h-8 w-8 rounded-lg flex items-center justify-center ${
+                    className={`h-10 w-10 rounded-lg flex items-center justify-center shadow-inner transition-all duration-300 ${
                       currentDocumentInfo?.Confidential
                         ? 'bg-gradient-to-r from-red-500 to-pink-500'
                         : 'bg-gradient-to-r from-green-500 to-emerald-500'
                     }`}
                   >
-                    <Shield className="h-4 w-4 text-white" />
+                    <Shield className="h-5 w-5 text-white drop-shadow-sm" />
                   </div>
-                  <h4 className="text-sm font-medium text-gray-700">
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
                     Confidential
                   </h4>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-all duration-300 ${
                       currentDocumentInfo?.Confidential
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-green-100 text-green-800'
+                        ? 'bg-red-100 text-red-800 border border-red-200'
+                        : 'bg-green-100 text-green-800 border border-green-200'
                     }`}
                   >
-                    {currentDocumentInfo?.Confidential ? 'Yes' : 'No'}
+                    <span
+                      className={`h-2 w-2 rounded-full mr-2 ${
+                        currentDocumentInfo?.Confidential ? 'bg-red-500' : 'bg-green-500'
+                      }`}
+                    ></span>
+                    {currentDocumentInfo?.Confidential ? 'Yes, Confidential' : 'No, Public'}
                   </span>
                 </div>
               </div>
 
               {/* Department */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
-                    <Building className="h-4 w-4 text-white" />
+              <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center shadow-inner">
+                    <Building className="h-5 w-5 text-white drop-shadow-sm" />
                   </div>
-                  <h4 className="text-sm font-medium text-gray-700">
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
                     Department
                   </h4>
                 </div>
-                <p className="text-gray-900 font-medium">
+
+                <p
+                  className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
+                    documentsDepartment?.label ? 'text-gray-900' : 'text-gray-500 italic'
+                  }`}
+                >
                   {documentsDepartment?.label || 'N/A'}
                 </p>
               </div>
 
               {/* Document Type */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
-                    <Building className="h-4 w-4 text-white" />
+              <div className="bg-gradient-to-b from bg-gray-50 border to border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-indigo-400 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-inner">
+                    <Building className="h-5 w-5 text-white drop-shadow-sm" />
                   </div>
-                  <h4 className="text-sm font-medium text-gray-700">
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
                     Document Type
                   </h4>
                 </div>
-                <p className="text-gray-900 font-medium">
-                  {documentsSubDepartment?.label || 'N/A'}
-                </p>
+                <p className={`text-gray-9900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${documentsDepartment?.label ? 'text-gray-900' : 'text-gray-500 italic'}`}
+                >
+                  {documentsDepartment?.label || 'N/A'}
+                  </p>
               </div>
 
               {/* File Date */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center">
-                    <Calendar className="h-4 w-4 text-white" />
+              <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-orange-400 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center shadow-inner">
+                    <Calendar className="h-5 w-5 text-white drop-shadow-sm" />
                   </div>
-                  <h4 className="text-sm font-medium text-gray-700">
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
                     File Date
                   </h4>
                 </div>
-                <p className="text-gray-900 font-medium">
+                <p
+                  className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
+                    currentDocumentInfo?.FileDate ? 'text-gray-900' : 'text-gray-500 italic'
+                  }`}
+                >
                   {currentDocumentInfo?.FileDate
                     ? new Date(currentDocumentInfo.FileDate).toLocaleDateString(
                         'en-US',
@@ -368,57 +396,63 @@ const DocumentCurrentView = ({
               </div>
 
               {/* File Description - Full Width */}
-               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-teal-500 to-sky-500 flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-white" />
+              <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-teal-400 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-teal-500 to-sky-500 flex items-center justify-center shadow-inner">
+                    <FileText className="h-5 w-5 text-white drop-shadow-sm" />
                   </div>
-                  <h4 className="text-sm font-medium text-gray-700">
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
                     File Description
                   </h4>
                 </div>
-                <p className="text-gray-900 font-medium">
-                  {currentDocumentInfo?.FileDescription ||
-                    'No description available'}
+
+                <p
+                  className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
+                    currentDocumentInfo?.FileDescription
+                      ? 'text-gray-900'
+                      : 'text-gray-500 italic'
+                  }`}
+                >
+                  {currentDocumentInfo?.FileDescription || 'No description available'}
                 </p>
               </div>
 
               {/* Fields - All in one box */}
-              <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-yellow-500 to-gray-500 flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-white" />
+              <div className="md:col-span-2 bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 backdrop-blur">
+                <div className="flex items-center gap-3 mb-5 border-b border-gray-200 pb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-yellow-500 to-gray-600 flex items-center justify-center shadow-inner">
+                    <FileText className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900">
+                  <h3 className="text-xl font-semibold text-gray-800 tracking-wide">
                     Fields
                   </h3>
                 </div>
-                
+
                 {fieldsLoading ? (
-                  <div className="py-4">
-                    <p className="text-gray-500 text-sm">Loading fields...</p>
+                  <div className="py-6 text-center">
+                    <div className="animate-pulse text-gray-500 text-sm">Loading fields...</div>
                   </div>
                 ) : fields.length > 0 ? (
                   <div className="space-y-4">
                     {fields.map((field) => {
                       const fieldValue = getFieldValue(field.FieldNumber, field.DataType);
-                      // console.log('🔍 Rendering field:', field.Description, 'Value:', fieldValue);
+
                       return (
                         <div
                           key={`${field.LinkID}-${field.FieldNumber}`}
-                          className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+                          className="group bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-yellow-400 transition-all duration-300"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="text-sm font-semibold text-gray-700">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h4 className="text-base font-semibold text-gray-800 group-hover:text-yellow-600 transition-colors">
                                   {field.Description}
                                 </h4>
-                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md">
                                   {field.DataType}
                                 </span>
                               </div>
-                              <p className="text-gray-900 font-medium">
+                              <p className="text-gray-900 font-medium bg-gray-50 border border-gray-100 px-3 py-2 rounded-lg">
                                 {field.DataType === 'Date'
                                   ? formatDateValue(fieldValue)
                                   : fieldValue || 'N/A'}
@@ -430,8 +464,8 @@ const DocumentCurrentView = ({
                     })}
                   </div>
                 ) : (
-                  <div className="py-4">
-                    <p className="text-gray-500 text-sm">No fields available</p>
+                  <div className="py-6 text-center text-gray-500 text-sm">
+                    No fields available
                   </div>
                 )}
               </div>
