@@ -5,6 +5,7 @@ import { Button } from '@chakra-ui/react';
 // import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
 import toast from 'react-hot-toast';
 import { allocateFieldsToUsers, fetchFieldsByLink, Field } from './utils/allocationServices';
+import { fetchAvailableFields } from '../Document/utils/fieldAllocationService';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { useUsers } from '../Users/useUser';
@@ -33,6 +34,7 @@ type FieldInfo = {
   Type?: string;
   updatedAt: string;
   createdAt: string;
+  IsActive?: boolean;
 };
 export const AllocationPanel = () => {
   const [selectedDept, setSelectedDept] = useState('');
@@ -53,6 +55,7 @@ export const AllocationPanel = () => {
   const [fieldsLoading, setFieldsLoading] = useState(false);
   const [fieldsInfo, setFieldsInfo] = useState<FieldInfo[]>([]);
   const [fieldsError, setFieldsError] = useState<string | null>(null);
+  const [hasFetchedFields, setHasFetchedFields] = useState(false);
 
   const [subDepartmentOptions, setSubDepartmentOptions] = useState<
     { value: string; label: string }[]
@@ -103,28 +106,55 @@ export const AllocationPanel = () => {
     const fetchFields = async () => {
       if (!selectedSubDept) {
         setFieldsInfo([]);
+        setHasFetchedFields(false);
         return;
       }
 
       setFieldsLoading(true);
       setFieldsError(null);
       try {
+        // eslint-disable-next-line no-console
+        console.log('Fetching available fields for Dept/SubDept:', selectedDept, selectedSubDept);
+        // 1) Try allocation available-fields first
+        const available = await fetchAvailableFields(Number(selectedDept), Number(selectedSubDept));
+        // eslint-disable-next-line no-console
+        console.log('available-fields response length', available?.length || 0);
+
+        if (available && available.length > 0) {
+          const mapped: FieldInfo[] = available.map((f: any) => ({
+            ID: Number(f.ID ?? f.FieldNumber ?? 0),
+            Field: String(f.Field ?? f.Description ?? ''),
+            Type: (f.Type ?? f.DataType ?? 'text').toLowerCase(),
+            updatedAt: '',
+            createdAt: '',
+            IsActive: f.Active === 1 || f.Active === true, // Track active status
+          }));
+          setFieldsInfo(mapped);
+          setHasFetchedFields(true);
+          return;
+        }
+
+        // 2) Fallback to by-link if available-fields returns empty
+        // eslint-disable-next-line no-console
+        console.log('Fallback: fetching fields by LinkID:', selectedSubDept);
         const fields = await fetchFieldsByLink(Number(selectedSubDept));
         
-        // Transform fields from database to FieldInfo format expected by FieldSettingsPanel
+        // Only include active fields (Active === 1) and add IsActive flag
         const transformedFields: FieldInfo[] = fields.map((field: Field) => ({
           ID: field.FieldNumber,
           Field: field.Description,
-          Type: field.DataType.toLowerCase(), // Convert to lowercase to match 'text' or 'date'
+          Type: field.DataType.toLowerCase(),
           updatedAt: '',
           createdAt: '',
+          IsActive: field.Active === 1, // Track if field is active from DB
         }));
-        
         setFieldsInfo(transformedFields);
+        setHasFetchedFields(true);
       } catch (error) {
         console.error('Failed to fetch fields:', error);
         setFieldsError('Failed to load fields');
         setFieldsInfo([]);
+        setHasFetchedFields(true);
       } finally {
         setFieldsLoading(false);
       }
@@ -285,9 +315,13 @@ export const AllocationPanel = () => {
             </div>
           ) : fieldsInfo.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">
-                Please select Department and Document Type to view fields
-              </p>
+              {hasFetchedFields ? (
+                <p className="text-gray-500">No active fields found for this document type.</p>
+              ) : (
+                <p className="text-gray-500">
+                  Please select Department and Document Type to view fields
+                </p>
+              )}
             </div>
           ) : (
             <FieldSettingsPanel

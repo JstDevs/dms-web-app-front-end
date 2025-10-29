@@ -38,7 +38,6 @@ export const FieldSettingsPanel = forwardRef(
     }: FieldSettingsPanelProps,
     ref: React.Ref<any>
   ) => {
-    const [selectedField, setSelectedField] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [fields, setFields] = useState<
       {
@@ -56,8 +55,8 @@ export const FieldSettingsPanel = forwardRef(
           fieldsInfo.map((f) => ({
             ...f,
             Type: f.Type || 'text', // Use Type from fieldsInfo or default to text
-            Description: '',
-            active: false,
+            Description: f.Field, // Set default description to field name
+            active: (f as any).IsActive !== false, // Check based on IsActive flag from DB
           }))
         );
       }
@@ -160,40 +159,27 @@ export const FieldSettingsPanel = forwardRef(
 
         {/* Dynamic Fields */}
         <div className="space-y-3">
-          {filteredFields.map((field, index) => {
+          {filteredFields.map((field) => {
             // Find the original index in the fields array for proper state management
             const originalIndex = fields.findIndex(f => f.ID === field.ID);
             return (
             <div
               key={field.ID}
-              onClick={() => setSelectedField(originalIndex)}
-              className={`grid grid-cols-1 sm:grid-cols-5 gap-3 px-3 py-3 rounded-lg cursor-pointer transition-all ${
-                selectedField === originalIndex
-                  ? 'bg-blue-100 border border-blue-600'
-                  : 'bg-gray-50'
-              }`}
+              className="flex items-center gap-3 px-3 py-3 rounded-lg bg-gray-50"
             >
-              {/* Field Label + Toggle */}
-              <div className="flex justify-between items-center sm:col-span-1">
-                <span className="text-sm font-medium text-gray-700">
-                  {field.Field}
-                </span>
+              {/* Checkbox + Description Input */}
+              <div className="flex items-center gap-3 flex-1">
                 <input
                   type="checkbox"
                   checked={field.active}
                   onChange={() => toggleFieldActive(originalIndex)}
-                  className="h-4 w-4"
+                  className="h-4 w-4 cursor-pointer flex-shrink-0"
                 />
-              </div>
-
-              {/* Description Input */}
-              <div className="sm:col-span-2">
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border rounded text-sm"
-                  placeholder="Add comment/description"
+                  className="flex-1 px-3 py-2 border rounded text-sm"
+                  placeholder="Field name"
                   value={field.Description}
-                  disabled={!field.active}
                   onChange={(e) =>
                     handleDescriptionChange(originalIndex, e.target.value)
                   }
@@ -201,26 +187,26 @@ export const FieldSettingsPanel = forwardRef(
               </div>
 
               {/* Radio Buttons */}
-              <div className="flex flex-col sm:flex-row items-start justify-center sm:items-center gap-2 sm:gap-4 sm:col-span-2">
-                <label className="text-sm flex items-center gap-1">
+              <div className="flex items-center gap-4 flex-shrink-0">
+                <label className="text-sm flex items-center gap-1 cursor-pointer">
                   <input
                     type="radio"
                     name={`type-${originalIndex}`}
                     value="text"
                     checked={field.Type === 'text'}
-                    disabled={!field.active}
                     onChange={() => handleTypeChange(originalIndex, 'text')}
+                    className="cursor-pointer"
                   />
                   Text
                 </label>
-                <label className="text-sm flex items-center gap-1">
+                <label className="text-sm flex items-center gap-1 cursor-pointer">
                   <input
                     type="radio"
                     name={`type-${originalIndex}`}
                     value="date"
                     checked={field.Type === 'date'}
-                    disabled={!field.active}
                     onChange={() => handleTypeChange(originalIndex, 'date')}
+                    className="cursor-pointer"
                   />
                   Date
                 </label>
@@ -256,7 +242,6 @@ export const FieldSettingsPanel = forwardRef(
                 <Button
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
                   onClick={handleSave}
-                  disabled={fields.every((f) => !f.active)}
                 >
                   Save
                 </Button>
