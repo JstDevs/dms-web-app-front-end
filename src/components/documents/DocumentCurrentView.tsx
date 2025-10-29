@@ -287,7 +287,7 @@ const DocumentCurrentView = ({
               </div>
 
               <p
-                className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
+                className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg ${
                   currentDocumentInfo?.DataType ? 'text-gray-900' : 'text-gray-500 italic'
                 }`}
               >
@@ -298,74 +298,81 @@ const DocumentCurrentView = ({
               
               {/* Confidential Status */}
               <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300">
-                <div className="flex items-center gap-3 mb-3">
-                  <div
-                    className={`h-10 w-10 rounded-lg flex items-center justify-center shadow-inner transition-all duration-300 ${
-                      currentDocumentInfo?.Confidential
-                        ? 'bg-gradient-to-r from-red-500 to-pink-500'
-                        : 'bg-gradient-to-r from-green-500 to-emerald-500'
-                    }`}
-                  >
-                    <Shield className="h-5 w-5 text-white drop-shadow-sm" />
-                  </div>
-                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
-                    Confidential
-                  </h4>
+              <div className="flex items-center gap-3 mb-3">
+                <div
+                  className={`h-10 w-10 rounded-lg flex items-center justify-center shadow-inner transition-all duration-300 ${
+                    currentDocumentInfo?.Confidential
+                      ? 'bg-gradient-to-r from-red-500 to-pink-500'
+                      : 'bg-gradient-to-r from-green-500 to-emerald-500'
+                  }`}
+                >
+                  <Shield className="h-5 w-5 text-white drop-shadow-sm" />
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-all duration-300 ${
-                      currentDocumentInfo?.Confidential
-                        ? 'bg-red-100 text-red-800 border border-red-200'
-                        : 'bg-green-100 text-green-800 border border-green-200'
-                    }`}
-                  >
-                    <span
-                      className={`h-2 w-2 rounded-full mr-2 ${
-                        currentDocumentInfo?.Confidential ? 'bg-red-500' : 'bg-green-500'
-                      }`}
-                    ></span>
-                    {currentDocumentInfo?.Confidential ? 'Yes, Confidential' : 'No, Public'}
-                  </span>
-                </div>
+                <h4 className="text-base font-semibold text-gray-800 tracking-wide">
+                  Confidential
+                </h4>
               </div>
+
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-all duration-300 ${
+                    currentDocumentInfo?.Confidential
+                      ? 'bg-red-100 text-red-800 border border-red-200'
+                      : 'bg-green-100 text-green-800 border border-green-200'
+                  }`}
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full mr-2 ${
+                      currentDocumentInfo?.Confidential ? 'bg-red-500' : 'bg-green-500'
+                    }`}
+                  ></span>
+                  {currentDocumentInfo?.Confidential ? 'Yes, Confidential' : 'No, Public'}
+                </span>
+              </div>
+            </div>
+
+
 
               {/* Department */}
               <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all duration-300">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center shadow-inner">
-                    <Building className="h-5 w-5 text-white drop-shadow-sm" />
-                  </div>
-                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
-                    Department
-                  </h4>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center shadow-inner">
+                  <Building className="h-5 w-5 text-white drop-shadow-sm" />
                 </div>
-
-                <p
-                  className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
-                    documentsDepartment?.label ? 'text-gray-900' : 'text-gray-500 italic'
-                  }`}
-                >
-                  {documentsDepartment?.label || 'N/A'}
-                </p>
+                <h4 className="text-base font-semibold text-gray-800 tracking-wide">
+                  Department
+                </h4>
               </div>
+
+              <p
+                className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg ${
+                  documentsDepartment?.label ? 'text-gray-900' : 'text-gray-500 italic'
+                }`}
+              >
+                {documentsDepartment?.label || 'N/A'}
+              </p>
+            </div>
+
 
               {/* Document Type */}
-              <div className="bg-gradient-to-b from bg-gray-50 border to border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-indigo-400 transition-all duration-300">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-inner">
-                    <Building className="h-5 w-5 text-white drop-shadow-sm" />
-                  </div>
-                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
-                    Document Type
-                  </h4>
+              <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-indigo-400 transition-all duration-300">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-inner">
+                  <Building className="h-5 w-5 text-white drop-shadow-sm" />
                 </div>
-                <p className={`text-gray-9900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${documentsDepartment?.label ? 'text-gray-900' : 'text-gray-500 italic'}`}
-                >
-                  {documentsDepartment?.label || 'N/A'}
-                  </p>
+                <h4 className="text-base font-semibold text-gray-800 tracking-wide">
+                  Document Type
+                </h4>
               </div>
+
+              <p
+                className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg ${
+                  documentsSubDepartment?.label ? 'text-gray-900' : 'text-gray-500 italic'
+                }`}
+              >
+                {documentsSubDepartment?.label || 'N/A'}
+              </p>
+            </div>
 
               {/* File Date */}
               <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-orange-400 transition-all duration-300">
