@@ -1,8 +1,8 @@
 import { Button } from '@chakra-ui/react';
-import { forwardRef, useEffect, useImperativeHandle, useState, useMemo } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { OCRField } from './OCR/Fields/ocrFieldService';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
-import { Search, X } from 'lucide-react';
+ 
 
 type FieldSettingsPanelProps = {
   // showFieldsPanel: boolean;
@@ -39,7 +39,7 @@ export const FieldSettingsPanel = forwardRef(
     }: FieldSettingsPanelProps,
     ref: React.Ref<any>
   ) => {
-    const [searchTerm, setSearchTerm] = useState('');
+    // Removed search bar
     const [fields, setFields] = useState<
       {
         ID: number;
@@ -103,21 +103,7 @@ export const FieldSettingsPanel = forwardRef(
       onCancel(fields);
     };
 
-    // Filter fields based on search term
-    const filteredFields = useMemo(() => {
-      if (!searchTerm.trim()) {
-        return fields;
-      }
-      
-      return fields.filter(field =>
-        field.Field.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        field.ID.toString().includes(searchTerm)
-      );
-    }, [fields, searchTerm]);
-
-    const clearSearch = () => {
-      setSearchTerm('');
-    };
+    const filteredFields = fields;
     // 🔁 Expose `handleCancel` to parent
     useImperativeHandle(ref, () => ({
       cancelFields: handleCancel,
@@ -125,37 +111,7 @@ export const FieldSettingsPanel = forwardRef(
     const allocationPermissions = useModulePermissions(7); // 1 = MODULE_ID
     return (
       <div className="bg-white border rounded-xl p-3 sm:p-6 space-y-4 mt-6 shadow-md">
-        {/* Search Bar */}
-        <div className="mb-4">
-          <div className="relative max-w-md">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search fields by name or ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            />
-            {searchTerm && (
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <button
-                  onClick={clearSearch}
-                  className="text-gray-400 hover:text-gray-600"
-                  title="Clear search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-          </div>
-          {searchTerm && (
-            <p className="mt-2 text-sm text-gray-600">
-              Showing {filteredFields.length} of {fields.length} fields
-            </p>
-          )}
-        </div>
+        {/* Search Bar removed */}
 
         {/* Dynamic Fields */}
         <div className="space-y-3">
@@ -216,23 +172,7 @@ export const FieldSettingsPanel = forwardRef(
           })}
         </div>
 
-        {/* No Results Message */}
-        {filteredFields.length === 0 && fields.length > 0 && (
-          <div className="text-center py-8">
-            <h3 className="text-lg font-medium text-gray-500 mb-2">
-              No fields match your search
-            </h3>
-            <p className="text-sm text-gray-400">
-              Try adjusting your search terms or{' '}
-              <button
-                onClick={clearSearch}
-                className="text-blue-600 hover:text-blue-800 underline"
-              >
-                clear the search
-              </button>
-            </p>
-          </div>
-        )}
+        {/* No Results Message removed with search */}
 
         {/* Footer */}
         {fields.length > 0 ? (

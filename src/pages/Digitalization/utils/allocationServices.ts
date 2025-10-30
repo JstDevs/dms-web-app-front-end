@@ -27,28 +27,13 @@ export const fetchFieldsByLink = async (
 ): Promise<Field[]> => {
   try {
     const response = await axios.get(`/fields/by-link/${linkId}`);
-    // Debug: inspect raw payload shape
-    // eslint-disable-next-line no-console
-    console.log('fetchFieldsByLink response', response?.data);
-    // Filter only active fields (Active === 1)
-    let activeFields: Field[] = Array.isArray(response?.data?.data)
-      ? response.data.data.filter((field: Field) => field.Active === 1)
-      : [];
+    // Return all fields; consumers will normalize Active values
+    if (Array.isArray(response?.data?.data)) return response.data.data as Field[];
 
-    // If empty, try alternate endpoint with query param pattern
-    if (!activeFields.length) {
-      // eslint-disable-next-line no-console
-      console.log('fetchFieldsByLink: trying query param variant');
-      const alt = await axios.get(`/fields/by-link`, { params: { linkId } });
-      // eslint-disable-next-line no-console
-      console.log('fetchFieldsByLink alt response', alt?.data);
-      activeFields = Array.isArray(alt?.data?.data)
-        ? alt.data.data.filter((field: Field) => field.Active === 1)
-        : [];
-    }
-    // eslint-disable-next-line no-console
-    console.log('fetchFieldsByLink activeFields', activeFields?.length);
-    return activeFields;
+    // Fallback alternate endpoint with query param pattern
+    const alt = await axios.get(`/fields/by-link`, { params: { linkId } });
+    if (Array.isArray(alt?.data?.data)) return alt.data.data as Field[];
+    return [];
   } catch (error) {
     console.error("Failed to fetch fields:", error);
     return [];

@@ -113,42 +113,54 @@ export const AllocationPanel = () => {
       setFieldsLoading(true);
       setFieldsError(null);
       try {
-        // eslint-disable-next-line no-console
-        console.log('Fetching available fields for Dept/SubDept:', selectedDept, selectedSubDept);
-        // 1) Try allocation available-fields first
-        const available = await fetchAvailableFields(Number(selectedDept), Number(selectedSubDept));
-        // eslint-disable-next-line no-console
-        console.log('available-fields response length', available?.length || 0);
+        // Load both: available universe + current configuration
+        const [available, current] = await Promise.all([
+          fetchAvailableFields(Number(selectedDept), Number(selectedSubDept)),
+          fetchFieldsByLink(Number(selectedSubDept)),
+        ]);
 
-        if (available && available.length > 0) {
-          const mapped: FieldInfo[] = available.map((f: any) => ({
-            ID: Number(f.ID ?? f.FieldNumber ?? 0),
-            Field: String(f.Field ?? f.Description ?? ''),
-            Type: (f.Type ?? f.DataType ?? 'text').toLowerCase(),
+        // Build map from current by-link
+        const currentMap = new Map<number, Field>(
+          (current || []).map((c: Field) => [Number(c.FieldNumber), c])
+        );
+
+        // Start with available list
+        const baseList: FieldInfo[] = (available || []).map((f: any) => {
+          const fid = Number(f.ID ?? f.FieldNumber ?? 0);
+          const currentMatch = currentMap.get(fid);
+          const activeVal = currentMatch ? (currentMatch as any).Active : (f as any)?.Active;
+          return {
+            ID: fid,
+            Field: String(currentMatch?.Description ?? f.Field ?? f.Description ?? ''),
+            Type: String((currentMatch?.DataType ?? f.Type ?? f.DataType ?? 'text')).toLowerCase(),
             updatedAt: '',
             createdAt: '',
-            IsActive: f.Active === 1 || f.Active === true, // Track active status
-          }));
-          setFieldsInfo(mapped);
-          setHasFetchedFields(true);
-          return;
-        }
+            IsActive:
+              activeVal === 1 || activeVal === '1' || activeVal === true || activeVal === 'true',
+          } as FieldInfo;
+        });
 
-        // 2) Fallback to by-link if available-fields returns empty
-        // eslint-disable-next-line no-console
-        console.log('Fallback: fetching fields by LinkID:', selectedSubDept);
-        const fields = await fetchFieldsByLink(Number(selectedSubDept));
-        
-        // Only include active fields (Active === 1) and add IsActive flag
-        const transformedFields: FieldInfo[] = fields.map((field: Field) => ({
-          ID: field.FieldNumber,
-          Field: field.Description,
-          Type: field.DataType.toLowerCase(),
-          updatedAt: '',
-          createdAt: '',
-          IsActive: field.Active === 1, // Track if field is active from DB
-        }));
-        setFieldsInfo(transformedFields);
+        // Include any current rows that aren't in available (union)
+        const baseIds = new Set(baseList.map(b => b.ID));
+        const union: FieldInfo[] = [
+          ...baseList,
+          ...(current || [])
+            .filter((c: Field) => !baseIds.has(Number(c.FieldNumber)))
+            .map((c: Field) => ({
+              ID: Number(c.FieldNumber),
+              Field: c.Description,
+              Type: String(c.DataType || 'text').toLowerCase(),
+              updatedAt: '',
+              createdAt: '',
+              IsActive:
+                (c as any).Active === 1 ||
+                (c as any).Active === '1' ||
+                (c as any).Active === true ||
+                (c as any).Active === 'true',
+            } as FieldInfo)),
+        ];
+
+        setFieldsInfo(union);
         setHasFetchedFields(true);
       } catch (error) {
         console.error('Failed to fetch fields:', error);
@@ -343,18 +355,48 @@ export const AllocationPanel = () => {
                   setSavedFieldsData(updatedFields);
                   toast.success('Fields updated');
 
-                  // Refresh visible fields from backend to reflect current config
+                  // Refresh by merging available + current so the list always shows all fields
                   setFieldsLoading(true);
-                  const refreshed = await fetchFieldsByLink(Number(selectedSubDept));
-                  const transformed: FieldInfo[] = refreshed.map((field: Field) => ({
-                    ID: field.FieldNumber,
-                    Field: field.Description,
-                    Type: field.DataType.toLowerCase(),
-                    updatedAt: '',
-                    createdAt: '',
-                    IsActive: field.Active === 1,
-                  }));
-                  setFieldsInfo(transformed);
+                  const [available, current] = await Promise.all([
+                    fetchAvailableFields(Number(selectedDept), Number(selectedSubDept)),
+                    fetchFieldsByLink(Number(selectedSubDept)),
+                  ]);
+                  const currentMap = new Map<number, Field>(
+                    (current || []).map((c: Field) => [Number(c.FieldNumber), c])
+                  );
+                  const baseList: FieldInfo[] = (available || []).map((f: any) => {
+                    const fid = Number(f.ID ?? f.FieldNumber ?? 0);
+                    const currentMatch = currentMap.get(fid);
+                    const activeVal = currentMatch ? (currentMatch as any).Active : (f as any)?.Active;
+                    return {
+                      ID: fid,
+                      Field: String(currentMatch?.Description ?? f.Field ?? f.Description ?? ''),
+                      Type: String((currentMatch?.DataType ?? f.Type ?? f.DataType ?? 'text')).toLowerCase(),
+                      updatedAt: '',
+                      createdAt: '',
+                      IsActive:
+                        activeVal === 1 || activeVal === '1' || activeVal === true || activeVal === 'true',
+                    } as FieldInfo;
+                  });
+                  const baseIds = new Set(baseList.map(b => b.ID));
+                  const union: FieldInfo[] = [
+                    ...baseList,
+                    ...(current || [])
+                      .filter((c: Field) => !baseIds.has(Number(c.FieldNumber)))
+                      .map((c: Field) => ({
+                        ID: Number(c.FieldNumber),
+                        Field: c.Description,
+                        Type: String(c.DataType || 'text').toLowerCase(),
+                        updatedAt: '',
+                        createdAt: '',
+                        IsActive:
+                          (c as any).Active === 1 ||
+                          (c as any).Active === '1' ||
+                          (c as any).Active === true ||
+                          (c as any).Active === 'true',
+                      } as FieldInfo)),
+                  ];
+                  setFieldsInfo(union);
                   setHasFetchedFields(true);
                 } catch (err: any) {
                   console.error('Failed to save fields:', err);
