@@ -4,7 +4,7 @@ import { FieldSettingsPanel } from '../FieldSetting';
 import { Button } from '@chakra-ui/react';
 // import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
 import toast from 'react-hot-toast';
-import { allocateFieldsToUsers, fetchFieldsByLink, Field } from './utils/allocationServices';
+import { allocateFieldsToUsers, fetchFieldsByLink, Field, updateFieldsByLink } from './utils/allocationServices';
 import { fetchAvailableFields } from '../Document/utils/fieldAllocationService';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
@@ -327,11 +327,41 @@ export const AllocationPanel = () => {
             <FieldSettingsPanel
               ref={fieldPanelRef}
               fieldsInfo={fieldsInfo}
-              onSave={(updatedFields) => {
-                setSavedFieldsData(updatedFields);
-                // 🔁 Handle save to backend or store here
-                console.log('Received from child:', updatedFields);
-                toast.success('Fields saved successfully');
+              onSave={async (updatedFields) => {
+                try {
+                  // Map ALL fields (active and inactive) so unchecking also persists
+                  const payloadFields = updatedFields.map((f: any) => ({
+                    FieldNumber: Number(f.ID),
+                    Active: Boolean(f.active),
+                    Description: f.Description ?? f.Field ?? '',
+                    DataType: (String(f.Type || '').toLowerCase() === 'date' ? 'Date' : 'Text'),
+                  }));
+
+                  // Persist exact states; no need to use deactivateMissing when sending all
+                  await updateFieldsByLink(Number(selectedSubDept), payloadFields, { deactivateMissing: false });
+
+                  setSavedFieldsData(updatedFields);
+                  toast.success('Fields updated');
+
+                  // Refresh visible fields from backend to reflect current config
+                  setFieldsLoading(true);
+                  const refreshed = await fetchFieldsByLink(Number(selectedSubDept));
+                  const transformed: FieldInfo[] = refreshed.map((field: Field) => ({
+                    ID: field.FieldNumber,
+                    Field: field.Description,
+                    Type: field.DataType.toLowerCase(),
+                    updatedAt: '',
+                    createdAt: '',
+                    IsActive: field.Active === 1,
+                  }));
+                  setFieldsInfo(transformed);
+                  setHasFetchedFields(true);
+                } catch (err: any) {
+                  console.error('Failed to save fields:', err);
+                  toast.error(err?.response?.data?.error || 'Failed to save fields');
+                } finally {
+                  setFieldsLoading(false);
+                }
               }}
               onCancel={(resetFields) => {
                 setSavedFieldsData(resetFields);

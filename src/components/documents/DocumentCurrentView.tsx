@@ -303,7 +303,7 @@ const DocumentCurrentView = ({
 
               
               {/* Confidential Status */}
-              <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300">
+              <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-green-400 transition-all duration-300">
               <div className="flex items-center gap-3 mb-3">
                 <div
                   className={`h-10 w-10 rounded-lg flex items-center justify-center shadow-inner transition-all duration-300 ${

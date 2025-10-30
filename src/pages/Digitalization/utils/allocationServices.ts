@@ -54,3 +54,30 @@ export const fetchFieldsByLink = async (
     return [];
   }
 };
+
+export type UpsertFieldItem = {
+  FieldNumber: number;
+  Active: boolean | number | string;
+  Description?: string | null;
+  DataType?: string; // 'Text' | 'Date'
+};
+
+export const updateFieldsByLink = async (
+  linkId: number,
+  fields: UpsertFieldItem[],
+  options?: { deactivateMissing?: boolean }
+) => {
+  try {
+    const response = await axios.put(`/fields/by-link/${linkId}`,
+      {
+        fields,
+        deactivateMissing: options?.deactivateMissing === true,
+      }
+    );
+    return response?.data?.data ?? [];
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to update fields by link:', error);
+    throw error;
+  }
+};

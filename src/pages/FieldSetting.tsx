@@ -14,6 +14,7 @@ type FieldSettingsPanelProps = {
       Field: string;
       Type: string;
       Description: string;
+      active: boolean;
     }[]
   ) => void;
   onCancel: (
@@ -85,16 +86,15 @@ export const FieldSettingsPanel = forwardRef(
     };
 
     const handleSave = () => {
-      const activeFields = fields
-        .filter((f) => f.active)
-        .map(({ ID, Field, Type, Description }) => ({
-          ID,
-          Field,
-          Type,
-          Description,
-        }));
-      onSave(activeFields); // Pass data to parent
-      // setShowFieldsPanel(false);
+      // Return all fields with their current active state to allow both activation and deactivation
+      const fullPayload = fields.map(({ ID, Field, Type, Description, active }) => ({
+        ID,
+        Field,
+        Type,
+        Description,
+        active,
+      }));
+      onSave(fullPayload);
     };
 
     const handleCancel = () => {
