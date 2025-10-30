@@ -104,10 +104,10 @@ const OCRFieldsManagement = () => {
       <div className="flex justify-between mb-6 max-sm:flex-col flex-wrap gap-4">
         <div className="text-left flex-1 ">
           <h1 className="text-3xl font-bold text-blue-800">
-            Manage OCR Fields
+            Document Fields
           </h1>
           <p className="mt-2 text-gray-600 sm:whitespace-nowrap sm:overflow-hidden sm:text-ellipsis">
-            Manage the fields available for OCR processing
+            Manage the fields available for the documents
           </p>
         </div>
         {ocrFieldsPermissions?.Add && (
@@ -165,17 +165,21 @@ const OCRFieldsManagement = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50  ">
             <tr className="overflow-hidden">
+              {/* 
               <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                 ID
-              </th>
-              <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
+              </th> 
+              */}
+              <th className="px-12 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
                 Field
               </th>
+              {/* 
               <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                Created At
-              </th>
+                Created Date
+              </th> 
+              */}
               <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                Updated At
+                Modified Date
               </th>
               <th className="px-6 py-3 text-right text-base font-semibold text-gray-700 uppercase tracking-wider">
                 Actions
@@ -186,17 +190,29 @@ const OCRFieldsManagement = () => {
             {paginatedFields?.length > 0
               ? paginatedFields?.map((field) => (
                   <tr key={field.ID} className="hover:bg-gray-50">
+                    {/* 
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {field.ID}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    </td> 
+                    */}
+                    <td className="px-12 py-4 whitespace-nowrap text-sm text-gray-500">
                       {field.Field}
                     </td>
+                    {/* 
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(field.createdAt).toLocaleString()}
-                    </td>
+                      {new Date(field.createdAt).toLocaleString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </td> 
+                    */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(field.updatedAt).toLocaleString()}
+                      {new Date(field.updatedAt).toLocaleString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex justify-end">
                       <div className="flex space-x-3">
