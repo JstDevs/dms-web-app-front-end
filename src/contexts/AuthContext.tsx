@@ -120,6 +120,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           console.warn('Failed to log login activity:', logError);
         }
 
+        // Set dashboard welcome flag for first login dashboard visit
+        sessionStorage.setItem('showDashboardWelcome', 'true');
+
         toast.success(`Welcome back, ${user.UserName}!`);
         return user;
       } else {

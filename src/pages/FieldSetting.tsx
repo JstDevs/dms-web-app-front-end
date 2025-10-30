@@ -49,6 +49,7 @@ export const FieldSettingsPanel = forwardRef(
         active: boolean;
       }[]
     >([]);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
       if (fieldsInfo?.length > 0) {
@@ -85,16 +86,22 @@ export const FieldSettingsPanel = forwardRef(
       );
     };
 
-    const handleSave = () => {
-      // Return all fields with their current active state to allow both activation and deactivation
-      const fullPayload = fields.map(({ ID, Field, Type, Description, active }) => ({
-        ID,
-        Field,
-        Type,
-        Description,
-        active,
-      }));
-      onSave(fullPayload);
+    const handleSave = async () => {
+      if (saving) return;
+      setSaving(true);
+      try {
+        // Return all fields with their current active state to allow both activation and deactivation
+        const fullPayload = fields.map(({ ID, Field, Type, Description, active }) => ({
+          ID,
+          Field,
+          Type,
+          Description,
+          active,
+        }));
+        await Promise.resolve(onSave(fullPayload));
+      } finally {
+        setSaving(false);
+      }
     };
 
     const handleCancel = () => {
@@ -182,13 +189,15 @@ export const FieldSettingsPanel = forwardRef(
                 <Button
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
                   onClick={handleSave}
+                  disabled={saving}
                 >
-                  Save
+                  {saving ? 'Saving...' : 'Save'}
                 </Button>
               )}
               <Button
                 className="bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded text-sm w-full"
                 onClick={handleCancel}
+                disabled={saving}
               >
                 Cancel
               </Button>

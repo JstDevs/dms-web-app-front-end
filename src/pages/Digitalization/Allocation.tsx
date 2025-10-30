@@ -290,8 +290,8 @@ export const AllocationPanel = () => {
       fieldPanelRef.current?.cancelFields?.();
     }
   };
-  console.log({ selectedDept });
-  console.log({ fieldsInfo });
+  console.log({ selectedDept, selectedSubDept });
+  // console.log({ fieldsInfo });
   const userOptions = usersList?.map((user) => ({
     label: user.UserName,
     value: user.ID,
