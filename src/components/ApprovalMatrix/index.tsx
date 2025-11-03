@@ -1,30 +1,18 @@
 // components/ApprovalMatrix.js
 import { useState, useEffect } from 'react';
-// import { useDispatch, useSelector } from 'react-redux';
 import { ChevronDown, Plus, Trash2, Save, X } from 'lucide-react';
-// import { useDocumentTypeSelection } from '@/hooks/useDocumentTypeSelection';
-// import { fetchPositions } from '@/features/settings/positionSlice';
-// import { fetchEmployees } from '@/features/settings/employeeSlice';
 import toast from 'react-hot-toast';
 import { useDocumentTypeSelection } from './useDepartmentSelection';
+import { useUsers } from '@/pages/Users/useUser';
+import { getAllUserAccess } from '@/pages/Users/Users Access/userAccessService';
 
 const sequenceLevels = [
   { value: '1', label: '1 - First' },
   { value: '2', label: '2 - Second' },
   { value: '3', label: '3 - Third' },
 ];
-const positions = [
-  { Name: 'Position', id: 1 },
-  { Name: 'Sub - Position', id: 2 },
-  { Name: 'Sub - Sub - Position', id: 3 },
-];
-const employees = [
-  { FirstName: 'Employee', LastName: 'Name', id: 1 },
-  { FirstName: 'Employee 2 ', LastName: 'Name 2', id: 2 },
-  { FirstName: 'Employee 3 ', LastName: 'Name 3', id: 3 },
-];
+
 const ApprovalMatrix = () => {
-  //   const dispatch = useDispatch();
   const {
     selectedDepartment,
     setSelectedDepartment,
@@ -35,25 +23,42 @@ const ApprovalMatrix = () => {
     loadingDepartments,
   } = useDocumentTypeSelection();
 
-  // Redux state
-  //   const { positions } = useSelector((state) => state.positions);
-  //   const { employees } = useSelector((state) => state.employees);
+  // Fetch users and user roles dynamically
+  const { users, loading: loadingUsers } = useUsers();
+  const [userRoles, setUserRoles] = useState<
+    { ID: number; Description: string }[]
+  >([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+
+  // Fetch user roles on component mount
+  useEffect(() => {
+    const fetchUserRoles = async () => {
+      setLoadingRoles(true);
+      try {
+        const result = await getAllUserAccess();
+        const roles = result?.data?.userAccess || [];
+        setUserRoles(roles);
+      } catch (error) {
+        console.error('Failed to fetch user roles:', error);
+        toast.error('Failed to fetch user roles');
+      } finally {
+        setLoadingRoles(false);
+      }
+    };
+
+    fetchUserRoles();
+  }, []);
 
   // Local state
   const [approvalRule, setApprovalRule] = useState('ALL');
   const [numberOfApprovers, setNumberOfApprovers] = useState('');
   const [sequenceLevel, setSequenceLevel] = useState('');
   const [approvers, setApprovers] = useState([
-    { type: 'Position', value: '', amountFrom: '', amountTo: '' },
+    { type: 'User Role', value: '', amountFrom: '', amountTo: '' },
   ]);
 
   // Load existing approval matrix when department/document type is selected
   const [existingMatrix, setExistingMatrix] = useState(null);
-
-  //   useEffect(() => {
-  //     dispatch(fetchPositions());
-  //     dispatch(fetchEmployees());
-  //   }, [dispatch]);
 
   // Load approval matrix when department and document type are selected
   useEffect(() => {
@@ -85,7 +90,7 @@ const ApprovalMatrix = () => {
     setNumberOfApprovers('');
     setSequenceLevel('');
     setApprovers([
-      { type: 'Position', value: '', amountFrom: '', amountTo: '' },
+      { type: 'User Role', value: '', amountFrom: '', amountTo: '' },
     ]);
   };
 
@@ -93,7 +98,7 @@ const ApprovalMatrix = () => {
   const addApprover = () => {
     setApprovers([
       ...approvers,
-      { type: 'Position', value: '', amountFrom: '', amountTo: '' },
+      { type: 'User Role', value: '', amountFrom: '', amountTo: '' },
     ]);
   };
 
@@ -190,10 +195,10 @@ const ApprovalMatrix = () => {
     resetForm();
   };
 
-  if (loadingDepartments) {
+  if (loadingDepartments || loadingUsers || loadingRoles) {
     return (
       <div className="flex justify-center items-center h-64">
-        Loading departments...
+        Loading...
       </div>
     );
   }
@@ -377,24 +382,24 @@ const ApprovalMatrix = () => {
                         <label className="flex items-center space-x-2">
                           <input
                             type="radio"
-                            checked={approver.type === 'Position'}
+                            checked={approver.type === 'User Role'}
                             onChange={() =>
-                              updateApprover(index, 'type', 'Position')
+                              updateApprover(index, 'type', 'User Role')
                             }
                             className="form-radio h-4 w-4 text-blue-600"
                           />
-                          <span>Position</span>
+                          <span>User Role</span>
                         </label>
                         <label className="flex items-center space-x-2">
                           <input
                             type="radio"
-                            checked={approver.type === 'Employee'}
+                            checked={approver.type === 'User'}
                             onChange={() =>
-                              updateApprover(index, 'type', 'Employee')
+                              updateApprover(index, 'type', 'User')
                             }
                             className="form-radio h-4 w-4 text-blue-600"
                           />
-                          <span>Employee</span>
+                          <span>User</span>
                         </label>
                       </div>
 
@@ -423,14 +428,14 @@ const ApprovalMatrix = () => {
                           className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">Select {approver.type}</option>
-                          {(approver.type === 'Position'
-                            ? positions
-                            : employees
+                          {(approver.type === 'User Role'
+                            ? userRoles
+                            : users
                           ).map((item: any) => (
                             <option key={item.ID} value={item.ID}>
-                              {approver.type === 'Position'
-                                ? item.Name
-                                : `${item.FirstName} ${item.LastName}`}
+                              {approver.type === 'User Role'
+                                ? item.Description
+                                : item.UserName}
                             </option>
                           ))}
                         </select>
