@@ -95,6 +95,28 @@ export interface DocumentUploadProp {
   PageCount: number | null;
   publishing_status: boolean;
 
+  FieldText1: string;
+  FieldText2: string;
+  FieldText3: string;
+  FieldText4: string;
+  FieldText5: string;
+  FieldText6: string;
+  FieldText7: string;
+  FieldText8: string;
+  FieldText9: string;
+  FieldText10: string;
+
+  FieldDate1: string;
+  FieldDate2: string;
+  FieldDate3: string;
+  FieldDate4: string;
+  FieldDate5: string;
+  FieldDate6: string;
+  FieldDate7: string;
+  FieldDate8: string;
+  FieldDate9: string;
+  FieldDate10: string;
+
   Text1: string;
   Text2: string;
   Text3: string;

@@ -15,7 +15,11 @@ type PermissionKey =
   | 'edit'
   | 'delete'
   | 'print'
-  | 'confidential';
+  | 'confidential'
+  | 'comment'
+  | 'collaborate'
+  | 'finalize'
+  | 'masking';
 
 type UserPermission = {
   username: string;
@@ -226,6 +230,10 @@ export const AllocationPanel = () => {
         delete: false,
         print: false,
         confidential: false,
+        comment: false,
+        collaborate: false,
+        finalize: false,
+        masking: false,
         isEditing: false,
       },
     ]);
@@ -262,6 +270,10 @@ export const AllocationPanel = () => {
       Delete: user.delete,
       Print: user.print,
       Confidential: user.confidential,
+      Comment: user.comment,
+      Collaborate: user.collaborate,
+      Finalize: user.finalize,
+      Masking: user.masking,
       fields: savedFieldsData.map((field) => ({
         ID: Number(field.ID),
         Field: field.Field,
@@ -269,6 +281,17 @@ export const AllocationPanel = () => {
         Description: field.Description || '',
       })),
     };
+
+    // toast.success('View is ' + user.view);
+    // toast.success('Add is ' + user.add);
+    // toast.success('Edit is ' + user.edit);
+    // toast.success('Delete is ' + user.delete);
+    // toast.success('Print is ' + user.print);
+    // toast.success('Confidential is ' + user.confidential);
+    // toast.success('Comment is ' + user.comment);
+    // toast.success('Collaborate is ' + user.collaborate);
+    // toast.success('Finalize is ' + user.finalize);
+    // toast.success('Masking is ' + user.masking);
 
     try {
       await allocateFieldsToUsers(payload);
@@ -674,7 +697,7 @@ export const AllocationPanel = () => {
           )}
 
           {/* Footer Buttons */}
-          <div className="flex gap-2 mt-4 border-t border-gray-200 pt-4">
+          <div className="flex gap-2 mt-4 border-t border-gray-200 pt-4 ">
             <Button
               onClick={handleAllocation}
               disabled={
@@ -685,7 +708,7 @@ export const AllocationPanel = () => {
               }
               className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm font-medium
                  disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed
-                 bg-blue-600 text-white hover:bg-blue-700
+                 bg-blue-600 text-white hover:bg-blue-700 
               `}
             >
               <PlusCircle className="w-4 h-4" />

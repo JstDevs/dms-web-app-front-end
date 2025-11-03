@@ -89,6 +89,28 @@ export default function DocumentUpload() {
     Date8: null,
     Date9: null,
     Date10: null,
+    // Initialize all text fields
+    FieldText1: '',
+    FieldText2: '',
+    FieldText3: '',
+    FieldText4: '',
+    FieldText5: '',
+    FieldText6: '',
+    FieldText7: '',
+    FieldText8: '',
+    FieldText9: '',
+    FieldText10: '',
+    // Initialize all date fields
+    FieldDate1: '',
+    FieldDate2: '',
+    FieldDate3: '',
+    FieldDate4: '',
+    FieldDate5: '',
+    FieldDate6: '',
+    FieldDate7: '',
+    FieldDate8: '',
+    FieldDate9: '',
+    FieldDate10: '',
   });
   // Add a ref at the top of your component
   const fileInputRef = useRef<HTMLInputElement | null>(null); // Properly type the ref
@@ -158,6 +180,7 @@ export default function DocumentUpload() {
       const dynamicFieldsData: { [key: string]: any } = {};
       Object.entries(dynamicFieldValues).forEach(([key, value]) => {
         if (value !== null && value !== '') {
+          toast.success(`Dynamic Field ${key} Value: ${value}`);
           dynamicFieldsData[key] = value;
         }
       });
@@ -310,6 +333,28 @@ export default function DocumentUpload() {
       Date8: null,
       Date9: null,
       Date10: null,
+      // Reset all text fields
+      FieldText1: '',
+      FieldText2: '',
+      FieldText3: '',
+      FieldText4: '',
+      FieldText5: '',
+      FieldText6: '',
+      FieldText7: '',
+      FieldText8: '',
+      FieldText9: '',
+      FieldText10: '',
+      // Reset all date fields
+      FieldDate1: '',
+      FieldDate2: '',
+      FieldDate3: '',
+      FieldDate4: '',
+      FieldDate5: '',
+      FieldDate6: '',
+      FieldDate7: '',
+      FieldDate8: '',
+      FieldDate9: '',
+      FieldDate10: '',
     });
     setDynamicFieldValues({});
     handleRemoveFile();
@@ -571,39 +616,345 @@ export default function DocumentUpload() {
             ></textarea>
           </div>
 
-          {/* Field Text */}
-          {/* <div className="col-span-1 sm:col-span-2">
+          {/* Field Text 1 */}
+          <div className="col-span-1 sm:col-span-2 ">
             <label className="text-sm sm:text-base">
-              Field Text 1 <span className="text-red-500">*</span>{' '}
+              Field Text 1 {' '}
             </label>
             <Input
               className="w-full"
-              value={newDoc.FileDescription || ''}
+              value={newDoc.FieldText1 || ''}
               onChange={(e) =>
-                setNewDoc({ ...newDoc, FileDescription: e.target.value })
+                setNewDoc({ ...newDoc, FieldText1: e.target.value })
               }
-              required
-              placeholder="Enter file description"
+               
+              placeholder="Enter field value"
             />
           </div>
 
-          {/* Field Date */}
-          {/* <div className="col-span-1 sm:col-span-2">
+          {/* Field Date 1 */}
+          <div className="col-span-1 sm:col-span-2 ">
             <label className="text-sm sm:text-base">
-              Field Date 1 <span className="text-red-500">*</span>{' '}
+              Field Date 1  {' '}
             </label>
             <Input
               type="date"
-              value={formatDateForInput(newDoc.FileDate || '')}
+              value={formatDateForInput(newDoc.FieldDate1 || '')}
               onChange={(e) => {
                 const date = e.target.value ? new Date(e.target.value) : null;
                 setNewDoc({
                   ...newDoc,
-                  FileDate: date ? date.toISOString() : undefined,
+                  FieldDate1: date ? date.toISOString() : undefined,
                 });
               }}
             />
-          </div> */}
+          </div>
+
+          {/* Field Text 2 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Text 2  {' '}
+            </label>
+            <Input
+              className="w-full"
+              value={newDoc.FieldText2 || ''}
+              onChange={(e) =>
+                setNewDoc({ ...newDoc, FieldText2: e.target.value })
+              }
+               
+              placeholder="Enter field value"
+            />
+          </div>
+
+          {/* Field Date 2 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Date 2  {' '}
+            </label>
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FieldDate2 || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FieldDate2: date ? date.toISOString() : undefined,
+                });
+              }}
+            />
+          </div>
+
+          {/* Field Text 3 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Text 3  {' '}
+            </label>
+            <Input
+              className="w-full"
+              value={newDoc.FieldText3 || ''}
+              onChange={(e) =>
+                setNewDoc({ ...newDoc, FieldText3: e.target.value })
+              }
+               
+              placeholder="Enter field value"
+            />
+          </div>
+
+          {/* Field Date 3 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Date 3  {' '}
+            </label>
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FieldDate3 || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FieldDate3: date ? date.toISOString() : undefined,
+                });
+              }}
+            />
+          </div>
+
+          {/* Field Text 4 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Text 4  {' '}
+            </label>
+            <Input
+              className="w-full"
+              value={newDoc.FieldText4 || ''}
+              onChange={(e) =>
+                setNewDoc({ ...newDoc, FieldText4: e.target.value })
+              }
+               
+              placeholder="Enter field value"
+            />
+          </div>
+
+          {/* Field Date 4 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Date 4  {' '}
+            </label>
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FieldDate4 || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FieldDate4: date ? date.toISOString() : undefined,
+                });
+              }}
+            />
+          </div>
+
+          {/* Field Text 5 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Text 5  {' '}
+            </label>
+            <Input
+              className="w-full"
+              value={newDoc.FieldText5 || ''}
+              onChange={(e) =>
+                setNewDoc({ ...newDoc, FieldText5: e.target.value })
+              }
+               
+              placeholder="Enter field value"
+            />
+          </div>
+
+          {/* Field Date 5 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Date 5  {' '}
+            </label>
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FieldDate5 || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FieldDate5: date ? date.toISOString() : undefined,
+                });
+              }}
+            />
+          </div>
+
+          {/* Field Text 6 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Text 6  {' '}
+            </label>
+            <Input
+              className="w-full"
+              value={newDoc.FieldText6 || ''}
+              onChange={(e) =>
+                setNewDoc({ ...newDoc, FieldText6: e.target.value })
+              }
+               
+              placeholder="Enter field value"
+            />
+          </div>
+
+          {/* Field Date 6 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Date 6  {' '}
+            </label>
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FieldDate6 || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FieldDate6: date ? date.toISOString() : undefined,
+                });
+              }}
+            />
+          </div>
+
+          {/* Field Text 7 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Text 7  {' '}
+            </label>
+            <Input
+              className="w-full"
+              value={newDoc.FieldText7 || ''}
+              onChange={(e) =>
+                setNewDoc({ ...newDoc, FieldText7: e.target.value })
+              }
+               
+              placeholder="Enter field value"
+            />
+          </div>
+
+          {/* Field Date 7 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Date 7  {' '}
+            </label>
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FieldDate7 || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FieldDate7: date ? date.toISOString() : undefined,
+                });
+              }}
+            />
+          </div>
+
+          {/* Field Text 8 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Text 8  {' '}
+            </label>
+            <Input
+              className="w-full"
+              value={newDoc.FieldText8 || ''}
+              onChange={(e) =>
+                setNewDoc({ ...newDoc, FieldText8: e.target.value })
+              }
+               
+              placeholder="Enter field value"
+            />
+          </div>
+
+          {/* Field Date 8 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Date 8  {' '}
+            </label>
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FieldDate8 || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FieldDate8: date ? date.toISOString() : undefined,
+                });
+              }}
+            />
+          </div>
+
+          {/* Field Text 9 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Text 9  {' '}
+            </label>
+            <Input
+              className="w-full"
+              value={newDoc.FieldText9 || ''}
+              onChange={(e) =>
+                setNewDoc({ ...newDoc, FieldText9: e.target.value })
+              }
+               
+              placeholder="Enter field value"
+            />
+          </div>
+
+          {/* Field Date 9 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Date 9  {' '}
+            </label>
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FieldDate9 || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FieldDate9: date ? date.toISOString() : undefined,
+                });
+              }}
+            />
+          </div>
+
+          {/* Field Text 10 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Text 10  {' '}
+            </label>
+            <Input
+              className="w-full"
+              value={newDoc.FieldText10 || ''}
+              onChange={(e) =>
+                setNewDoc({ ...newDoc, FieldText10: e.target.value })
+              }
+               
+              placeholder="Enter field value"
+            />
+          </div>
+
+          {/* Field Date 10 */}
+          <div className="col-span-1 sm:col-span-2 ">
+            <label className="text-sm sm:text-base">
+              Field Date 10  {' '}
+            </label>
+            <Input
+              type="date"
+              value={formatDateForInput(newDoc.FieldDate10 || '')}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setNewDoc({
+                  ...newDoc,
+                  FieldDate10: date ? date.toISOString() : undefined,
+                });
+              }}
+            />
+          </div>
 
           {/* Attachment */}
           {!editId && (
