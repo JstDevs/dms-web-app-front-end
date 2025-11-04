@@ -13,7 +13,17 @@ import {
   UploadCloud,
   Loader2,
   AlertCircle,
+  Building2,
+  FolderOpen,
+  FileText,
+  Calendar,
+  MessageSquare,
+  Shield,
+  Clock,
+  X,
+  CheckCircle2,
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
@@ -471,426 +481,528 @@ export default function DocumentUpload() {
   };
 
   return (
-    <div className="flex flex-col bg-white rounded-md shadow-lg animate-fade-in p-3 sm:p-6 space-y-6">
-      {/* Header */}
-      <header className="text-left">
-        <h1 className="text-3xl font-bold text-blue-800">Upload</h1>
-        <p className="mt-1 text-base text-gray-600">
-          Upload files to the system for easy access and organization.
-        </p>
+    <div className="flex flex-col space-y-6 animate-fade-in">
+      {/* Enhanced Header */}
+      <header className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-xl shadow-xl p-6 sm:p-8 text-white">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="p-3 bg-white bg-opacity-20 rounded-xl backdrop-blur-sm">
+              <UploadCloud className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold">Document Upload</h1>
+              <p className="mt-1 text-base text-blue-100">
+                Upload and manage your documents with ease
+              </p>
+            </div>
+          </div>
+        </div>
       </header>
 
       {/* Form Section */}
-      <div className="space-y-4">
-        <div className="grid sm:grid-cols-2 gap-4 text-black">
-          {/* Department */}
-          <div className="col-span-1">
-            <label className="text-sm sm:text-base">
-              Department <span className="text-red-500">*</span>{' '}
-            </label>
-
-            <Select
-              placeholder="Select a department"
-              value={newDoc.DepartmentId?.toString() || ''}
-              onChange={(e) => {
-                const deptId = Number(e.target.value);
-                setNewDoc({
-                  ...newDoc,
-                  DepartmentId: deptId,
-                  SubDepartmentId: 0, // Reset document type when department changes
-                });
-              }}
-              options={departmentOptions}
-              disabled={loading}
-            />
+      <Card className="shadow-lg border-0 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-600 rounded-lg">
+              <FileText className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl text-gray-800">Document Information</CardTitle>
+              <p className="text-sm text-gray-600 mt-1">Fill in the required details for your document</p>
+            </div>
           </div>
-
-          {/* Document Type */}
-          <div className="col-span-1">
-            <label className="text-sm sm:text-base">
-              Document Type <span className="text-red-500">*</span>{' '}
-            </label>
-
-            <Select
-              placeholder={
-                !newDoc.DepartmentId
-                  ? 'Select a Department First'
-                  : getSubDepartmentOptions(newDoc.DepartmentId).length === 0
-                  ? 'No Document Types Available'
-                  : 'Select a Document Type'
-              }
-              value={newDoc.SubDepartmentId?.toString() || ''}
-              onChange={(e) =>
-                setNewDoc({
-                  ...newDoc,
-                  SubDepartmentId: Number(e.target.value),
-                })
-              }
-              options={getSubDepartmentOptions(newDoc.DepartmentId || 0)}
-              disabled={!newDoc.DepartmentId || loading}
-            />
-          </div>
-
-          {/* File Description */}
-          <div className="col-span-1">
-            <label className="text-sm sm:text-base">
-              File Description <span className="text-red-500">*</span>{' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FileDescription || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FileDescription: e.target.value })
-              }
-              required
-              placeholder="Enter file description"
-            />
-          </div>
-
-          {/* File Date */}
-          <div className="col-span-1">
-            <label className="text-sm sm:text-base">
-              File Date <span className="text-red-500">*</span>{' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FileDate || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FileDate: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
-          </div>
-
-          {/* File Name */}
-          <div className="col-span-1">
-            <label className="text-sm sm:text-base">
-              File Name <span className="text-red-500">*</span>{' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FileName || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FileName: e.target.value })
-              }
-              required
-              placeholder="Enter file name"
-            />
-          </div>
-
-          {/* Description */}
-          <div className="col-span-1">
-            <label className="text-sm sm:text-base">Description</label>
-            <Input
-              className="w-full"
-              value={newDoc.Description || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, Description: e.target.value })
-              }
-              placeholder="Enter description"
-            />
-          </div>
-          {/* Remarks */}
-          <div className="col-span-1 sm:col-span-2">
-            <label className="text-sm sm:text-base">Remarks</label>
-            <textarea
-              className="w-full border rounded p-2 text-sm sm:text-base"
-              rows={3}
-              value={newDoc.Remarks || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, Remarks: e.target.value })
-              }
-              placeholder="Enter remarks"
-            ></textarea>
-          </div>
-
-          {/* Attachment */}
-          {!editId && (
-            <div className="col-span-1 sm:col-span-2">
-              <label className="text-sm sm:text-base">
-                Attachment <span className="text-red-500">*</span>
-              </label>
-              {!selectedFile ? (
-                // Dropzone UI
-                <div
-                  className={`mt-1 border-2 border-dashed rounded-lg cursor-pointer h-32 flex items-center justify-center transition-colors ${
-                    selectedFile
-                      ? 'border-blue-500'
-                      : 'border-gray-300 hover:border-blue-500'
-                  }`}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.add(
-                      'border-blue-500',
-                      'bg-blue-50'
-                    );
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove(
-                      'border-blue-500',
-                      'bg-blue-50'
-                    );
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove(
-                      'border-blue-500',
-                      'bg-blue-50'
-                    );
-
-                    if (e.dataTransfer.files?.length) {
-                      const file = e.dataTransfer.files[0];
-                      setSelectedFile(file);
-                      if (fileInputRef.current) {
-                        fileInputRef.current.files = e.dataTransfer.files; // keep input in sync
-                      }
-                    }
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <div className="flex flex-col items-center justify-center">
-                    <svg
-                      className="w-8 h-8 mb-4 text-gray-500"
-                      aria-hidden="true"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 20 16"
-                    >
-                      <path
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
-                      />
-                    </svg>
-                    <p className="mb-2 text-sm text-gray-500">
-                      <span className="font-semibold">Click to upload</span> or
-                      drag and drop
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      PNG, JPEG, PDF, DOCX, XLSX, TXT up to 50MB
-                    </p>
-                  </div>
-                  <input
-                    type="file"
-                    className="hidden"
-                    ref={fileInputRef}
-                    onChange={handleAttach}
-                    accept=".png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,image/png,image/jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
-                    required
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="space-y-6">
+            <div className="grid sm:grid-cols-2 gap-6 text-black">
+              {/* Department */}
+              <div className="col-span-1 space-y-2">
+                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                  <Building2 className="w-4 h-4 text-blue-600" />
+                  Department <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Select
+                    placeholder="Select a department"
+                    value={newDoc.DepartmentId?.toString() || ''}
+                    onChange={(e) => {
+                      const deptId = Number(e.target.value);
+                      setNewDoc({
+                        ...newDoc,
+                        DepartmentId: deptId,
+                        SubDepartmentId: 0, // Reset document type when department changes
+                      });
+                    }}
+                    options={departmentOptions}
+                    disabled={loading}
                   />
                 </div>
-              ) : (
-                // File Preview UI
-                <div className="flex flex-col gap-3 mt-2 border rounded-lg p-3 bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-blue-600">
-                      <FileIcon className="w-5 h-5 text-blue-500" />
-                      <span>{selectedFile.name}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRemoveFile}
-                      className="ml-2 text-red-400 hover:text-red-800"
+              </div>
+
+              {/* Document Type */}
+              <div className="col-span-1 space-y-2">
+                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                  <FolderOpen className="w-4 h-4 text-blue-600" />
+                  Document Type <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Select
+                    placeholder={
+                      !newDoc.DepartmentId
+                        ? 'Select a Department First'
+                        : getSubDepartmentOptions(newDoc.DepartmentId).length === 0
+                        ? 'No Document Types Available'
+                        : 'Select a Document Type'
+                    }
+                    value={newDoc.SubDepartmentId?.toString() || ''}
+                    onChange={(e) =>
+                      setNewDoc({
+                        ...newDoc,
+                        SubDepartmentId: Number(e.target.value),
+                      })
+                    }
+                    options={getSubDepartmentOptions(newDoc.DepartmentId || 0)}
+                    disabled={!newDoc.DepartmentId || loading}
+                  />
+                </div>
+              </div>
+
+              {/* File Description */}
+              <div className="col-span-1 space-y-2">
+                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  File Description <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  className="w-full"
+                  value={newDoc.FileDescription || ''}
+                  onChange={(e) =>
+                    setNewDoc({ ...newDoc, FileDescription: e.target.value })
+                  }
+                  required
+                  placeholder="Enter file description"
+                  icon={<FileText className="w-4 h-4" />}
+                />
+              </div>
+
+              {/* File Date */}
+              <div className="col-span-1 space-y-2">
+                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  File Date <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="date"
+                  value={formatDateForInput(newDoc.FileDate || '')}
+                  onChange={(e) => {
+                    const date = e.target.value ? new Date(e.target.value) : null;
+                    setNewDoc({
+                      ...newDoc,
+                      FileDate: date ? date.toISOString() : undefined,
+                    });
+                  }}
+                  icon={<Calendar className="w-4 h-4" />}
+                />
+              </div>
+
+              {/* File Name */}
+              <div className="col-span-1 space-y-2">
+                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                  <FileIcon className="w-4 h-4 text-blue-600" />
+                  File Name <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  className="w-full"
+                  value={newDoc.FileName || ''}
+                  onChange={(e) =>
+                    setNewDoc({ ...newDoc, FileName: e.target.value })
+                  }
+                  required
+                  placeholder="Enter file name"
+                  icon={<FileIcon className="w-4 h-4" />}
+                />
+              </div>
+
+              {/* Description */}
+              <div className="col-span-1 space-y-2">
+                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                  <MessageSquare className="w-4 h-4 text-blue-600" />
+                  Description
+                </label>
+                <Input
+                  className="w-full"
+                  value={newDoc.Description || ''}
+                  onChange={(e) =>
+                    setNewDoc({ ...newDoc, Description: e.target.value })
+                  }
+                  placeholder="Enter description"
+                  icon={<MessageSquare className="w-4 h-4" />}
+                />
+              </div>
+              
+              {/* Remarks */}
+              <div className="col-span-1 sm:col-span-2 space-y-2">
+                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                  <MessageSquare className="w-4 h-4 text-blue-600" />
+                  Remarks
+                </label>
+                <textarea
+                  className="w-full border border-gray-300 rounded-lg p-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                  rows={3}
+                  value={newDoc.Remarks || ''}
+                  onChange={(e) =>
+                    setNewDoc({ ...newDoc, Remarks: e.target.value })
+                  }
+                  placeholder="Enter remarks or additional notes..."
+                ></textarea>
+              </div>
+
+              {/* Attachment */}
+              {!editId && (
+                <div className="col-span-1 sm:col-span-2 space-y-2">
+                  <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                    <UploadCloud className="w-4 h-4 text-blue-600" />
+                    Attachment <span className="text-red-500">*</span>
+                  </label>
+                  {!selectedFile ? (
+                    // Enhanced Dropzone UI
+                    <div
+                      className={`mt-1 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 ${
+                        selectedFile
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300 hover:border-blue-500 hover:shadow-lg'
+                      }`}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.currentTarget.classList.add(
+                          'border-blue-500',
+                          'bg-blue-100',
+                          'shadow-xl',
+                          'scale-[1.02]'
+                        );
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.currentTarget.classList.remove(
+                          'border-blue-500',
+                          'bg-blue-100',
+                          'shadow-xl',
+                          'scale-[1.02]'
+                        );
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.currentTarget.classList.remove(
+                          'border-blue-500',
+                          'bg-blue-100',
+                          'shadow-xl',
+                          'scale-[1.02]'
+                        );
+
+                        if (e.dataTransfer.files?.length) {
+                          const file = e.dataTransfer.files[0];
+                          setSelectedFile(file);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.files = e.dataTransfer.files; // keep input in sync
+                          }
+                        }
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
                     >
-                      <Trash className="w-5 h-5" />
-                    </button>
-                  </div>
+                      <div className="flex flex-col items-center justify-center py-12 px-6">
+                        <div className="relative mb-6">
+                          <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                          <div className="relative p-4 bg-blue-600 rounded-full">
+                            <UploadCloud className="w-10 h-10 text-white" />
+                          </div>
+                        </div>
+                        <p className="mb-2 text-base font-semibold text-gray-700">
+                          <span className="text-blue-600">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-sm text-gray-500 flex items-center gap-2">
+                          <FileIcon className="w-4 h-4" />
+                          PNG, JPEG, PDF, DOCX, XLSX, TXT (Max 50MB)
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={handleAttach}
+                        accept=".png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,image/png,image/jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+                        required
+                      />
+                    </div>
+                  ) : (
+                    // Enhanced File Preview UI
+                    <div className="flex flex-col gap-4 mt-2 border-2 border-blue-200 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md">
+                      <div className="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <FileIcon className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">{selectedFile.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveFile}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove file"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
 
-                  {/* Conditional Preview */}
-                  {selectedFile.type.startsWith('image/') && (
-                    <img
-                      src={URL.createObjectURL(selectedFile)}
-                      alt="Preview"
-                      className="w-64 h-64 object-cover rounded-lg shadow-sm border"
-                    />
-                  )}
+                      {/* Conditional Preview */}
+                      {selectedFile.type.startsWith('image/') && (
+                        <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 shadow-lg bg-white">
+                          <img
+                            src={URL.createObjectURL(selectedFile)}
+                            alt="Preview"
+                            className="w-full max-h-96 object-contain"
+                          />
+                        </div>
+                      )}
 
-                  {selectedFile.type === 'application/pdf' && (
-                    <iframe
-                      src={URL.createObjectURL(selectedFile)}
-                      title="PDF Preview"
-                      className="w-full h-64 border rounded-lg"
-                    />
+                      {selectedFile.type === 'application/pdf' && (
+                        <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 shadow-lg bg-white">
+                          <iframe
+                            src={URL.createObjectURL(selectedFile)}
+                            title="PDF Preview"
+                            className="w-full h-96"
+                          />
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
+              {/* Confidential Checkbox */}
+              <div className="col-span-1 flex items-center gap-3 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border border-amber-200 hover:shadow-md transition-all">
+                <input
+                  type="checkbox"
+                  checked={newDoc.Confidential || false}
+                  onChange={(e) =>
+                    setNewDoc({ ...newDoc, Confidential: e.target.checked })
+                  }
+                  id="confidential"
+                  className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                />
+                <label
+                  className="flex items-center gap-2 text-sm sm:text-base font-medium text-gray-700 cursor-pointer"
+                  htmlFor="confidential"
+                >
+                  <Shield className="w-4 h-4 text-amber-600" />
+                  Confidential Document
+                </label>
+              </div>
+
+              {/* Expiration Checkbox */}
+              <div className="col-span-1 flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200 hover:shadow-md transition-all">
+                <input
+                  type="checkbox"
+                  checked={newDoc.Expiration || false}
+                  onChange={(e) =>
+                    setNewDoc({ ...newDoc, Expiration: e.target.checked })
+                  }
+                  id="expiration"
+                  className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                />
+                <label
+                  className="flex items-center gap-2 text-sm sm:text-base font-medium text-gray-700 cursor-pointer"
+                  htmlFor="expiration"
+                >
+                  <Clock className="w-4 h-4 text-purple-600" />
+                  Has Expiration Date
+                </label>
+              </div>
+
+              {/* Expiration Date - Conditionally rendered */}
+              {newDoc.Expiration && (
+                <div className="col-span-1 space-y-2 animate-fade-in">
+                  <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                    <Clock className="w-4 h-4 text-purple-600" />
+                    Expiration Date <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="date"
+                    className="w-full"
+                    value={
+                      newDoc.ExpirationDate
+                        ? newDoc.ExpirationDate.split('T')[0]
+                        : ''
+                    }
+                    onChange={(e) =>
+                      setNewDoc({
+                        ...newDoc,
+                        ExpirationDate: e.target.value
+                          ? `${e.target.value}T00:00:00.000Z`
+                          : undefined,
+                      })
+                    }
+                    required={newDoc.Expiration}
+                    placeholder="Enter expiration date"
+                    icon={<Clock className="w-4 h-4" />}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dynamic Fields Section - Shows only active fields from allocation */}
+      {newDoc.DepartmentId && newDoc.SubDepartmentId && (
+        <>
+          {fieldsLoading && (
+            <Card className="shadow-lg border-0">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Loading field configuration...</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {!fieldsLoading && !fieldsError && getActiveFields().length > 0 && (
+            <DynamicFieldsSection
+              fields={getActiveFields()}
+              values={dynamicFieldValues}
+              onChange={handleDynamicFieldChange}
+              requiredFields={getActiveFields().filter(field => field.Add).map(field => field.ID)}
+            />
+          )}
+
+          {!fieldsLoading && !fieldsError && getActiveFields().length === 0 && (
+            <Card className="shadow-lg border-0">
+              <CardContent className="p-6">
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200 shadow-sm">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 bg-amber-500 rounded-lg flex-shrink-0">
+                      <AlertCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-1">
+                        No Active Fields Configured
+                      </h4>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        No active fields are configured for this Department and Document Type combination. 
+                        Please configure and activate fields in the{' '}
+                        <span className="font-medium text-blue-600">Allocation</span> section first.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Fields error */}
+      {fieldsError && (
+        <Card className="shadow-lg border-0">
+          <CardContent className="p-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-yellow-800 text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                Unable to load field configuration. You can still upload with basic fields.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Enhanced Action Buttons */}
+      <Card className="shadow-lg border-0">
+        <CardContent className="p-6">
+          {/* Upload Progress Bar */}
+          {isLoading && uploadProgress > 0 && (
+            <div className="mb-6 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 font-medium">Upload Progress</span>
+                <span className="text-blue-600 font-semibold">{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 rounded-full transition-all duration-300 ease-out shadow-lg relative overflow-hidden"
+                  style={{ width: `${uploadProgress}%` }}
+                >
+                  <div className="absolute inset-0 bg-white opacity-30 animate-pulse"></div>
+                </div>
+              </div>
             </div>
           )}
-          {/* Confidential Checkbox */}
-          <div className="col-span-1 flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={newDoc.Confidential || false}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, Confidential: e.target.checked })
-              }
-              id="confidential"
-              className="h-4 w-4"
-            />
-            <label
-              className="text-sm sm:text-base cursor-pointer"
-              htmlFor="confidential"
-            >
-              Confidential
-            </label>
-          </div>
 
-          {/* Expiration Checkbox */}
-          <div className="col-span-1 flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={newDoc.Expiration || false}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, Expiration: e.target.checked })
-              }
-              id="expiration"
-              className="h-4 w-4"
-            />
-            <label
-              className="text-sm sm:text-base cursor-pointer"
-              htmlFor="expiration"
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Button
+              onClick={resetForm}
+              className="w-full sm:w-auto px-8 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 rounded-lg font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+              disabled={isLoading}
             >
-              Has Expiration
-            </label>
-          </div>
-
-          {/* Expiration Date - Conditionally rendered */}
-          {newDoc.Expiration && (
-            <div className="col-span-1">
-              <label className="text-sm sm:text-base">
-                Expiration Date <span className="text-red-500">*</span>{' '}
-              </label>
-              <Input
-                type="date"
-                className="w-full"
-                value={
-                  newDoc.ExpirationDate
-                    ? newDoc.ExpirationDate.split('T')[0]
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            {/* // TODO ADD PROGRESS BAR HERE */}
+            {uploadPermissions.Add && (
+              <Button
+                onClick={handleAddOrUpdate}
+                className={`w-full sm:w-auto px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${
+                  !isFormValid() || isLoading
+                    ? 'opacity-50 cursor-not-allowed bg-gray-400'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
+                }`}
+                disabled={!isFormValid() || isLoading}
+                title={
+                  !isFormValid()
+                    ? `Form validation failed. Check: ${
+                        !newDoc.DepartmentId ? 'Department, ' : ''
+                      }${
+                        !newDoc.SubDepartmentId ? 'Document Type, ' : ''
+                      }${
+                        !newDoc.FileDescription ? 'File Description, ' : ''
+                      }${
+                        !newDoc.FileDate ? 'File Date, ' : ''
+                      }${
+                        !newDoc.FileName ? 'File Name, ' : ''
+                      }${
+                        !selectedFile && !editId ? 'File attachment, ' : ''
+                      }Required fields`
                     : ''
                 }
-                onChange={(e) =>
-                  setNewDoc({
-                    ...newDoc,
-                    ExpirationDate: e.target.value
-                      ? `${e.target.value}T00:00:00.000Z`
-                      : undefined,
-                  })
-                }
-                required={newDoc.Expiration}
-                placeholder="Enter expiration date"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Dynamic Fields Section - Shows only active fields from allocation */}
-        {newDoc.DepartmentId && newDoc.SubDepartmentId && (
-          <>
-            {fieldsLoading && (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600">Loading field configuration...</span>
-              </div>
-            )}
-            
-            {!fieldsLoading && !fieldsError && getActiveFields().length > 0 && (
-              <DynamicFieldsSection
-                fields={getActiveFields()}
-                values={dynamicFieldValues}
-                onChange={handleDynamicFieldChange}
-                requiredFields={getActiveFields().filter(field => field.Add).map(field => field.ID)}
-              />
-            )}
-
-            {!fieldsLoading && !fieldsError && getActiveFields().length === 0 && (
-              <div className="mt-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200 shadow-sm">
-                <div className="flex items-start gap-4">
-                  <div className="p-2 bg-amber-500 rounded-lg flex-shrink-0">
-                    <AlertCircle className="w-5 h-5 text-white" />
+              >
+                {isLoading ? (
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    {uploadProgress > 0 ? `Uploading... ${uploadProgress}%` : 'Processing...'}
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-1">
-                      No Active Fields Configured
-                    </h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      No active fields are configured for this Department and Document Type combination. 
-                      Please configure and activate fields in the{' '}
-                      <span className="font-medium text-blue-600">Allocation</span> section first.
-                    </p>
-                  </div>
-                </div>
-              </div>
+                ) : editId ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5 mr-2" />
+                    Update Document
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="w-5 h-5 mr-2" />
+                    Upload Document
+                  </>
+                )}
+              </Button>
             )}
-          </>
-        )}
-
-        {/* Fields error */}
-        {fieldsError && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-            <p className="text-yellow-800 text-sm">
-              ⚠️ Unable to load field configuration. You can still upload with basic fields.
-            </p>
           </div>
-        )}
-
-        {/* Submit Button */}
-        <div className="flex justify-center gap-4 max-sm:flex-col">
-          <Button
-            onClick={resetForm}
-            className="w-full sm:w-2/3 md:w-1/3 px-2 bg-gray-200 text-black hover:bg-gray-300"
-            // disabled={!isFormValid()}
-          >
-            Cancel
-          </Button>
-          {/* // TODO ADD PROGRESS BAR HERE */}
-          {uploadPermissions.Add && (
-            <Button
-              onClick={handleAddOrUpdate}
-              className={`w-full sm:w-2/3 md:w-1/3 px-2 bg-blue-600 text-white hover:bg-blue-700 ${
-                !isFormValid() || isLoading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              disabled={!isFormValid() || isLoading}
-              title={
-                !isFormValid()
-                  ? `Form validation failed. Check: ${
-                      !newDoc.DepartmentId ? 'Department, ' : ''
-                    }${
-                      !newDoc.SubDepartmentId ? 'Document Type, ' : ''
-                    }${
-                      !newDoc.FileDescription ? 'File Description, ' : ''
-                    }${
-                      !newDoc.FileDate ? 'File Date, ' : ''
-                    }${
-                      !newDoc.FileName ? 'File Name, ' : ''
-                    }${
-                      !selectedFile && !editId ? 'File attachment, ' : ''
-                    }Required fields`
-                  : ''
-              }
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  {uploadProgress > 0 ? `Uploading... ${uploadProgress}%` : 'Uploading...'}
-                </div>
-              ) : editId ? (
-                'Update Document'
-              ) : (
-                'Add Document'
-              )}
-            </Button>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Document List Section */}
       {/* <div className="space-y-4"> */}
