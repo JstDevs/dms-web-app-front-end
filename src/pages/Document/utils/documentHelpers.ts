@@ -45,28 +45,46 @@ const buildDocumentFormData = (
   formData.append("active", String(doc.Active || true));
   formData.append("publishing_status", String(doc.publishing_status || false));
 
-  // Dynamic fields - append all text and date fields
+  // Dynamic fields - append all text and date fields from doc object
+  // Backend expects uppercase: Text1, Text2, Date1, Date2, etc.
+  // Track which fields we've already appended to avoid duplicates
+  const appendedFields = new Set<string>();
+  
   for (let i = 1; i <= 10; i++) {
     const textField = `Text${i}`;
     const dateField = `Date${i}`;
     
     if (doc[textField as keyof DocumentUploadProp]) {
-      formData.append(textField.toLowerCase(), String(doc[textField as keyof DocumentUploadProp]));
+      // Backend expects uppercase format: Text1, Text2, etc.
+      const value = doc[textField as keyof DocumentUploadProp];
+      if (value && !appendedFields.has(textField)) {
+        formData.append(textField, String(value));
+        appendedFields.add(textField);
+      }
     }
     
     if (doc[dateField as keyof DocumentUploadProp]) {
       const dateValue = doc[dateField as keyof DocumentUploadProp];
-      if (dateValue) {
-        formData.append(dateField.toLowerCase(), new Date(dateValue as string).toISOString().slice(0, 10));
+      if (dateValue && !appendedFields.has(dateField)) {
+        // Backend expects uppercase format: Date1, Date2, etc.
+        formData.append(dateField, new Date(dateValue as string).toISOString().slice(0, 10));
+        appendedFields.add(dateField);
       }
     }
   }
 
-  // Add dynamic fields from field allocations
+  // Add dynamic fields from field allocations ONLY if they weren't already in doc object
+  // Convert lowercase keys (text1, date1) to uppercase (Text1, Date1) for backend
   if (dynamicFields) {
     Object.entries(dynamicFields).forEach(([key, value]) => {
       if (value !== null && value !== undefined && value !== '') {
-        formData.append(key, String(value));
+        // Convert lowercase to uppercase: text1 -> Text1, date1 -> Date1
+        const formattedKey = key.charAt(0).toUpperCase() + key.slice(1);
+        // Only append if we haven't already appended this field from doc object
+        if (!appendedFields.has(formattedKey)) {
+          formData.append(formattedKey, String(value));
+          appendedFields.add(formattedKey);
+        }
       }
     });
   }

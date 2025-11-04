@@ -133,19 +133,70 @@ export default function DocumentUpload() {
     setIsLoading(true);
     setUploadProgress(0);
     try {
-      // Prepare dynamic fields data - map field IDs to backend format
+      // Prepare dynamic fields data - map field IDs to backend column format
+      // Backend expects field values in Text1-10 or Date1-10 format based on FieldNumber
       const dynamicFieldsData: { [key: string]: any } = {};
+      const activeFields = getActiveFields();
+      
       Object.entries(dynamicFieldValues).forEach(([key, value]) => {
-        if (value !== null && value !== '') {
+        if (value !== null && value !== '' && value.trim() !== '') {
           // Extract field ID from key (format: field_123)
-          const fieldId = key.replace('field_', '');
-          // Map to backend format: use field ID as key
-          dynamicFieldsData[`field_${fieldId}`] = value;
+          const fieldId = Number(key.replace('field_', ''));
+          
+          // Find the field from active fields to get its type and FieldNumber
+          const field = activeFields.find(f => f.ID === fieldId);
+          
+          if (field) {
+            // Map field ID to column name based on FieldNumber
+            // The backend expects fields in format: text1, text2, date1, date2, etc.
+            // FieldNumber corresponds to the column number (1-10)
+            const fieldNumber = field.FieldNumber || field.ID;
+            
+            // Ensure fieldNumber is between 1-10 (database columns limit)
+            const columnNumber = ((fieldNumber - 1) % 10) + 1;
+            
+            if (field.Type === 'date' || field.Type === 'Date') {
+              // Format date properly for backend (YYYY-MM-DD)
+              const dateValue = value ? new Date(value).toISOString().slice(0, 10) : '';
+              if (dateValue) {
+                dynamicFieldsData[`date${columnNumber}`] = dateValue;
+              }
+            } else {
+              // Text field - use lowercase for backend
+              dynamicFieldsData[`text${columnNumber}`] = String(value).trim();
+            }
+          } else {
+            // Fallback: use field_ prefix if field not found
+            dynamicFieldsData[`field_${fieldId}`] = value;
+          }
         }
       });
 
-      const formData = buildDocumentFormData(newDoc, selectedFile, true, undefined, dynamicFieldsData);
-      console.log({ formData, dynamicFieldsData });
+      // Merge dynamic fields into newDoc object for proper submission
+      // Backend expects fields as Text1, Date1, etc. (uppercase) in the document object
+      const docWithFields = { ...newDoc };
+      Object.entries(dynamicFieldsData).forEach(([key, value]) => {
+        // Convert lowercase keys to uppercase: text1 -> Text1, date1 -> Date1
+        const formattedKey = key.charAt(0).toUpperCase() + key.slice(1);
+        (docWithFields as any)[formattedKey] = value;
+      });
+      
+      // Don't pass dynamicFields separately since we've merged them into docWithFields
+      // This prevents duplicate appending which causes the "cannot be an array" error
+      const formData = buildDocumentFormData(docWithFields, selectedFile, true, undefined, undefined);
+      
+      // Debug: Log what we're sending
+      console.log('Dynamic fields data being sent:', dynamicFieldsData);
+      console.log('Active fields:', activeFields);
+      
+      // Log FormData entries for debugging
+      console.log('FormData entries (fields):');
+      for (const [key, value] of formData.entries()) {
+        if (key.toLowerCase().startsWith('text') || key.toLowerCase().startsWith('date') || key.toLowerCase().startsWith('field_')) {
+          console.log(`  ${key}: ${value}`);
+        }
+      }
+      console.log('Doc with fields:', docWithFields);
       
       // Simulate upload progress
       const progressInterval = setInterval(() => {

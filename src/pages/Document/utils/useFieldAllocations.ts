@@ -78,9 +78,13 @@ export const useFieldAllocations = ({ departmentId, subDepartmentId, userId }: U
         const activeVal = currentMatch ? (currentMatch as any).Active : (f as any)?.Active;
         const isActive = activeVal === 1 || activeVal === '1' || activeVal === true || activeVal === 'true';
         
+        // Preserve FieldNumber from currentMatch or field
+        const fieldNumber = currentMatch?.FieldNumber ?? f.FieldNumber ?? fid;
+        
         return {
           ...f,
           IsActive: isActive,
+          FieldNumber: fieldNumber, // Preserve FieldNumber for backend mapping
         };
       });
 
@@ -125,6 +129,9 @@ export const useFieldAllocations = ({ departmentId, subDepartmentId, userId }: U
         // Normalize field structure to match FieldAllocation interface
         // For available fields, Add/Edit/View should default to true for display purposes
         // but validation should only require fields explicitly marked as required
+        // FieldNumber is important for mapping to database columns
+        const fieldNumber = currentMatch?.FieldNumber ?? f.FieldNumber ?? fid;
+        
         return {
           ID: fid,
           Field: String(currentMatch?.Description ?? f.Field ?? f.Description ?? ''),
@@ -140,6 +147,7 @@ export const useFieldAllocations = ({ departmentId, subDepartmentId, userId }: U
           Print: f.Print ?? false,
           Confidential: f.Confidential ?? false,
           IsActive: isActive,
+          FieldNumber: fieldNumber, // Preserve FieldNumber for backend mapping
         };
       });
 

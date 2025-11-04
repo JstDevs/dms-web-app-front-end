@@ -15,6 +15,7 @@ export interface FieldAllocation {
   Print: boolean;
   Confidential: boolean;
   IsActive?: boolean;
+  FieldNumber?: number; // FieldNumber for mapping to database columns (Text1-10, Date1-10)
 }
 
 export interface FieldAllocationResponse {
