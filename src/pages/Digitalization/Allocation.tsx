@@ -330,6 +330,83 @@ export const AllocationPanel = () => {
           </p>
         </div>
       </header>
+      
+          {/* Department Selection */}
+          <div className="sm:border sm:rounded-md sm:p-4 sm:bg-blue-50 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-gray-600 mb-1 block">
+                  Department
+                </label>
+                {/* <select
+                  value={selectedDept}
+                  onChange={(e) => setSelectedDept(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
+                >
+                  <option value="" hidden>
+                    Select Department
+                  </option>
+                  {departmentOptions.map((dept) => (
+                    <option key={dept.value}>{dept.label}</option>
+                  ))}
+                </select> */}
+                <select
+                  value={selectedDept}
+                  onChange={(e) => setSelectedDept(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
+                  disabled={loadingDepartments}
+                >
+                  <option value="" hidden>
+                    {loadingDepartments
+                      ? 'Loading departments...'
+                      : 'Select Department'}
+                  </option>
+                  {departmentOptions.map((dept) => (
+                    <option key={dept.value} value={dept.value}>
+                      {dept.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm text-gray-600 mb-1 block">
+                  Document Type
+                </label>
+                {/* <select
+                  value={selectedSubDept}
+                  onChange={(e) => setSelectedSubDept(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
+                >
+                  <option value="" hidden>
+                    Select Document Type
+                  </option>
+                  {subDepartmentOptions.map((sub) => (
+                    <option key={sub.value}>{sub.label}</option>
+                  ))}
+                </select> */}
+                <select
+                  value={selectedSubDept}
+                  onChange={(e) => setSelectedSubDept(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
+                  disabled={!selectedDept || subDepartmentOptions.length === 0}
+                >
+                  <option value="" hidden>
+                    {!selectedDept
+                      ? 'Select department first'
+                      : subDepartmentOptions.length === 0
+                      ? 'No document types available'
+                      : 'Select Document Type'}
+                  </option>
+                  {subDepartmentOptions.map((sub) => (
+                    <option key={sub.value} value={sub.value}>
+                      {sub.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
 
       <div className="flex flex-col xl:flex-row gap-6">
         {/* Left Panel - Fields Settings */}
@@ -437,82 +514,6 @@ export const AllocationPanel = () => {
 
         {/* Right Panel - User Permissions */}
         <div className="w-full xl:w-1/2 space-y-6">
-          {/* Department Selection */}
-          <div className="sm:border sm:rounded-md sm:p-4 sm:bg-blue-50 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-600 mb-1 block">
-                  Department *
-                </label>
-                {/* <select
-                  value={selectedDept}
-                  onChange={(e) => setSelectedDept(e.target.value)}
-                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
-                >
-                  <option value="" hidden>
-                    Select Department
-                  </option>
-                  {departmentOptions.map((dept) => (
-                    <option key={dept.value}>{dept.label}</option>
-                  ))}
-                </select> */}
-                <select
-                  value={selectedDept}
-                  onChange={(e) => setSelectedDept(e.target.value)}
-                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
-                  disabled={loadingDepartments}
-                >
-                  <option value="" hidden>
-                    {loadingDepartments
-                      ? 'Loading departments...'
-                      : 'Select Department'}
-                  </option>
-                  {departmentOptions.map((dept) => (
-                    <option key={dept.value} value={dept.value}>
-                      {dept.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-600 mb-1 block">
-                  Document Type *
-                </label>
-                {/* <select
-                  value={selectedSubDept}
-                  onChange={(e) => setSelectedSubDept(e.target.value)}
-                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
-                >
-                  <option value="" hidden>
-                    Select Document Type
-                  </option>
-                  {subDepartmentOptions.map((sub) => (
-                    <option key={sub.value}>{sub.label}</option>
-                  ))}
-                </select> */}
-                <select
-                  value={selectedSubDept}
-                  onChange={(e) => setSelectedSubDept(e.target.value)}
-                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
-                  disabled={!selectedDept || subDepartmentOptions.length === 0}
-                >
-                  <option value="" hidden>
-                    {!selectedDept
-                      ? 'Select department first'
-                      : subDepartmentOptions.length === 0
-                      ? 'No document types available'
-                      : 'Select Document Type'}
-                  </option>
-                  {subDepartmentOptions.map((sub) => (
-                    <option key={sub.value} value={sub.value}>
-                      {sub.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
 
           {/* Add User Form */}
           {showAddUser ? (
@@ -586,7 +587,7 @@ export const AllocationPanel = () => {
                       Delete
                     </th>
                     <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Print
+                      Download
                     </th>
                     <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
                       Confidential
@@ -703,8 +704,8 @@ export const AllocationPanel = () => {
               disabled={
                 !Boolean(selectedSubDept) ||
                 !Boolean(selectedDept) ||
-                users.length === 0 ||
-                savedFieldsData.length === 0
+                users.length === 0 
+                // || savedFieldsData.length === 0
               }
               className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm font-medium
                  disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed
