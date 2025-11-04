@@ -14,6 +14,7 @@ export interface FieldAllocation {
   Delete: boolean;
   Print: boolean;
   Confidential: boolean;
+  IsActive?: boolean;
 }
 
 export interface FieldAllocationResponse {

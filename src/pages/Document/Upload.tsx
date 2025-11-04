@@ -12,6 +12,7 @@ import {
   Trash2,
   UploadCloud,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -67,50 +68,6 @@ export default function DocumentUpload() {
     Active: true,
     Expiration: false,
     publishing_status: false,
-    // Initialize all text fields
-    Text1: '',
-    Text2: '',
-    Text3: '',
-    Text4: '',
-    Text5: '',
-    Text6: '',
-    Text7: '',
-    Text8: '',
-    Text9: '',
-    Text10: '',
-    // Initialize all date fields
-    Date1: null,
-    Date2: null,
-    Date3: null,
-    Date4: null,
-    Date5: null,
-    Date6: null,
-    Date7: null,
-    Date8: null,
-    Date9: null,
-    Date10: null,
-    // Initialize all text fields
-    FieldText1: '',
-    FieldText2: '',
-    FieldText3: '',
-    FieldText4: '',
-    FieldText5: '',
-    FieldText6: '',
-    FieldText7: '',
-    FieldText8: '',
-    FieldText9: '',
-    FieldText10: '',
-    // Initialize all date fields
-    FieldDate1: '',
-    FieldDate2: '',
-    FieldDate3: '',
-    FieldDate4: '',
-    FieldDate5: '',
-    FieldDate6: '',
-    FieldDate7: '',
-    FieldDate8: '',
-    FieldDate9: '',
-    FieldDate10: '',
   });
   // Add a ref at the top of your component
   const fileInputRef = useRef<HTMLInputElement | null>(null); // Properly type the ref
@@ -121,7 +78,7 @@ export default function DocumentUpload() {
   const [currentPage, setCurrentPage] = useState(1);
   const uploadPermissions = useModulePermissions(3); // 1 = MODULE_ID
   
-  // Field allocations hook
+  // Field allocations hook - don't pass userId to always show all active fields from allocation
   const {
     userPermissions,
     loading: fieldsLoading,
@@ -130,7 +87,7 @@ export default function DocumentUpload() {
   } = useFieldAllocations({
     departmentId: newDoc.DepartmentId || null,
     subDepartmentId: newDoc.SubDepartmentId || null,
-    userId: selectedRole?.ID || null,
+    userId: null, // Always use available fields to show all active fields from allocation
   });
   const loadDocuments = async () => {
     try {
@@ -176,12 +133,14 @@ export default function DocumentUpload() {
     setIsLoading(true);
     setUploadProgress(0);
     try {
-      // Prepare dynamic fields data
+      // Prepare dynamic fields data - map field IDs to backend format
       const dynamicFieldsData: { [key: string]: any } = {};
       Object.entries(dynamicFieldValues).forEach(([key, value]) => {
         if (value !== null && value !== '') {
-          toast.success(`Dynamic Field ${key} Value: ${value}`);
-          dynamicFieldsData[key] = value;
+          // Extract field ID from key (format: field_123)
+          const fieldId = key.replace('field_', '');
+          // Map to backend format: use field ID as key
+          dynamicFieldsData[`field_${fieldId}`] = value;
         }
       });
 
@@ -310,51 +269,6 @@ export default function DocumentUpload() {
       Active: true,
       Expiration: false,
       publishing_status: false,
-
-      // Reset all text fields
-      Text1: '',
-      Text2: '',
-      Text3: '',
-      Text4: '',
-      Text5: '',
-      Text6: '',
-      Text7: '',
-      Text8: '',
-      Text9: '',
-      Text10: '',
-      // Reset all date fields
-      Date1: null,
-      Date2: null,
-      Date3: null,
-      Date4: null,
-      Date5: null,
-      Date6: null,
-      Date7: null,
-      Date8: null,
-      Date9: null,
-      Date10: null,
-      // Reset all text fields
-      FieldText1: '',
-      FieldText2: '',
-      FieldText3: '',
-      FieldText4: '',
-      FieldText5: '',
-      FieldText6: '',
-      FieldText7: '',
-      FieldText8: '',
-      FieldText9: '',
-      FieldText10: '',
-      // Reset all date fields
-      FieldDate1: '',
-      FieldDate2: '',
-      FieldDate3: '',
-      FieldDate4: '',
-      FieldDate5: '',
-      FieldDate6: '',
-      FieldDate7: '',
-      FieldDate8: '',
-      FieldDate9: '',
-      FieldDate10: '',
     });
     setDynamicFieldValues({});
     handleRemoveFile();
@@ -411,6 +325,7 @@ export default function DocumentUpload() {
   });
 
   const isFormValid = () => {
+    // Basic required fields
     const baseValidation =
       newDoc.DepartmentId &&
       newDoc.SubDepartmentId &&
@@ -418,18 +333,43 @@ export default function DocumentUpload() {
       newDoc.FileDate &&
       newDoc.FileName;
     
-    // Check if user has permission to add documents
-    const hasPermission = userPermissions.Add;
+    // Use module permissions (uploadPermissions) instead of userPermissions
+    // since userPermissions might be false when using available fields
+    const hasPermission = uploadPermissions.Add === true;
     
-    // Check required dynamic fields
+    if (!baseValidation || !hasPermission) {
+      return false;
+    }
+    
+    // For edit mode, don't require file
+    if (editId) {
+      return true; // Basic validation passed, permissions OK
+    }
+    
+    // For add mode, require file
+    if (!selectedFile) {
+      return false;
+    }
+    
+    // Check required dynamic fields - only check if there are active fields
+    // and only validate fields that are explicitly marked as required
     const activeFields = getActiveFields();
-    const requiredFields = activeFields.filter(field => field.Add);
-    const requiredFieldsValid = requiredFields.every(field => {
-      const value = dynamicFieldValues[`field_${field.ID}`];
-      return value !== null && value !== '';
-    });
+    if (activeFields.length > 0) {
+      // Only require fields that are explicitly marked as required (Add: true)
+      // Make sure Add is explicitly true, not just truthy
+      const requiredFields = activeFields.filter(field => field.Add === true);
+      if (requiredFields.length > 0) {
+        const allRequiredFilled = requiredFields.every(field => {
+          const value = dynamicFieldValues[`field_${field.ID}`];
+          return value !== null && value !== '' && value.trim() !== '';
+        });
+        if (!allRequiredFilled) {
+          return false;
+        }
+      }
+    }
     
-    return editId ? baseValidation && hasPermission : baseValidation && selectedFile && hasPermission && requiredFieldsValid;
+    return true;
   };
 
   const handlePublish = async (docWrapper: DocumentWrapper) => {
@@ -614,346 +554,6 @@ export default function DocumentUpload() {
               }
               placeholder="Enter remarks"
             ></textarea>
-          </div>
-
-          {/* Field Text 1 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Text 1 {' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FieldText1 || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FieldText1: e.target.value })
-              }
-               
-              placeholder="Enter field value"
-            />
-          </div>
-
-          {/* Field Date 1 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Date 1  {' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FieldDate1 || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FieldDate1: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
-          </div>
-
-          {/* Field Text 2 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Text 2  {' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FieldText2 || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FieldText2: e.target.value })
-              }
-               
-              placeholder="Enter field value"
-            />
-          </div>
-
-          {/* Field Date 2 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Date 2  {' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FieldDate2 || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FieldDate2: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
-          </div>
-
-          {/* Field Text 3 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Text 3  {' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FieldText3 || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FieldText3: e.target.value })
-              }
-               
-              placeholder="Enter field value"
-            />
-          </div>
-
-          {/* Field Date 3 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Date 3  {' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FieldDate3 || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FieldDate3: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
-          </div>
-
-          {/* Field Text 4 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Text 4  {' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FieldText4 || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FieldText4: e.target.value })
-              }
-               
-              placeholder="Enter field value"
-            />
-          </div>
-
-          {/* Field Date 4 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Date 4  {' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FieldDate4 || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FieldDate4: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
-          </div>
-
-          {/* Field Text 5 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Text 5  {' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FieldText5 || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FieldText5: e.target.value })
-              }
-               
-              placeholder="Enter field value"
-            />
-          </div>
-
-          {/* Field Date 5 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Date 5  {' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FieldDate5 || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FieldDate5: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
-          </div>
-
-          {/* Field Text 6 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Text 6  {' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FieldText6 || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FieldText6: e.target.value })
-              }
-               
-              placeholder="Enter field value"
-            />
-          </div>
-
-          {/* Field Date 6 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Date 6  {' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FieldDate6 || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FieldDate6: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
-          </div>
-
-          {/* Field Text 7 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Text 7  {' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FieldText7 || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FieldText7: e.target.value })
-              }
-               
-              placeholder="Enter field value"
-            />
-          </div>
-
-          {/* Field Date 7 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Date 7  {' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FieldDate7 || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FieldDate7: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
-          </div>
-
-          {/* Field Text 8 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Text 8  {' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FieldText8 || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FieldText8: e.target.value })
-              }
-               
-              placeholder="Enter field value"
-            />
-          </div>
-
-          {/* Field Date 8 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Date 8  {' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FieldDate8 || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FieldDate8: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
-          </div>
-
-          {/* Field Text 9 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Text 9  {' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FieldText9 || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FieldText9: e.target.value })
-              }
-               
-              placeholder="Enter field value"
-            />
-          </div>
-
-          {/* Field Date 9 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Date 9  {' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FieldDate9 || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FieldDate9: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
-          </div>
-
-          {/* Field Text 10 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Text 10  {' '}
-            </label>
-            <Input
-              className="w-full"
-              value={newDoc.FieldText10 || ''}
-              onChange={(e) =>
-                setNewDoc({ ...newDoc, FieldText10: e.target.value })
-              }
-               
-              placeholder="Enter field value"
-            />
-          </div>
-
-          {/* Field Date 10 */}
-          <div className="col-span-1 sm:col-span-2 ">
-            <label className="text-sm sm:text-base">
-              Field Date 10  {' '}
-            </label>
-            <Input
-              type="date"
-              value={formatDateForInput(newDoc.FieldDate10 || '')}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setNewDoc({
-                  ...newDoc,
-                  FieldDate10: date ? date.toISOString() : undefined,
-                });
-              }}
-            />
           </div>
 
           {/* Attachment */}
@@ -1141,22 +741,45 @@ export default function DocumentUpload() {
           )}
         </div>
 
-        {/* Dynamic Fields Section */}
-        {!fieldsLoading && !fieldsError && getActiveFields().length > 0 && (
-          <DynamicFieldsSection
-            fields={getActiveFields()}
-            values={dynamicFieldValues}
-            onChange={handleDynamicFieldChange}
-            requiredFields={getActiveFields().filter(field => field.Add).map(field => field.ID)}
-          />
-        )}
+        {/* Dynamic Fields Section - Shows only active fields from allocation */}
+        {newDoc.DepartmentId && newDoc.SubDepartmentId && (
+          <>
+            {fieldsLoading && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">Loading field configuration...</span>
+              </div>
+            )}
+            
+            {!fieldsLoading && !fieldsError && getActiveFields().length > 0 && (
+              <DynamicFieldsSection
+                fields={getActiveFields()}
+                values={dynamicFieldValues}
+                onChange={handleDynamicFieldChange}
+                requiredFields={getActiveFields().filter(field => field.Add).map(field => field.ID)}
+              />
+            )}
 
-        {/* Loading indicator for fields */}
-        {fieldsLoading && (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-            <span className="ml-2 text-gray-600">Loading field configuration...</span>
-          </div>
+            {!fieldsLoading && !fieldsError && getActiveFields().length === 0 && (
+              <div className="mt-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 bg-amber-500 rounded-lg flex-shrink-0">
+                    <AlertCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-1">
+                      No Active Fields Configured
+                    </h4>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      No active fields are configured for this Department and Document Type combination. 
+                      Please configure and activate fields in the{' '}
+                      <span className="font-medium text-blue-600">Allocation</span> section first.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Fields error */}
@@ -1181,8 +804,27 @@ export default function DocumentUpload() {
           {uploadPermissions.Add && (
             <Button
               onClick={handleAddOrUpdate}
-              className="w-full sm:w-2/3 md:w-1/3 px-2 bg-blue-600 text-white hover:bg-blue-700"
+              className={`w-full sm:w-2/3 md:w-1/3 px-2 bg-blue-600 text-white hover:bg-blue-700 ${
+                !isFormValid() || isLoading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
               disabled={!isFormValid() || isLoading}
+              title={
+                !isFormValid()
+                  ? `Form validation failed. Check: ${
+                      !newDoc.DepartmentId ? 'Department, ' : ''
+                    }${
+                      !newDoc.SubDepartmentId ? 'Document Type, ' : ''
+                    }${
+                      !newDoc.FileDescription ? 'File Description, ' : ''
+                    }${
+                      !newDoc.FileDate ? 'File Date, ' : ''
+                    }${
+                      !newDoc.FileName ? 'File Name, ' : ''
+                    }${
+                      !selectedFile && !editId ? 'File attachment, ' : ''
+                    }Required fields`
+                  : ''
+              }
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
