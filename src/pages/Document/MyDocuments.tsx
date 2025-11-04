@@ -307,17 +307,17 @@ const MyDocuments: React.FC = () => {
             )}
           </div>
 
-          <button
+          {/* <button
             onClick={() => setShowFilters(!showFilters)}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium"
           >
             <FiFilter />
             {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </button>
+          </button> */}
         </div>
 
         {/* Filter Panel */}
-        {showFilters && (
+        {/* {showFilters && ( */}
           <div className="bg-gray-50 p-4 rounded-md mb-4">
             {filterLoading && (
               <div className="mb-4 flex items-center justify-center text-blue-600 bg-blue-50 p-3 rounded-md">
@@ -325,6 +325,7 @@ const MyDocuments: React.FC = () => {
                 <span className="text-sm font-medium">Applying filters...</span>
               </div>
             )}
+            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Select
                 label="Department"
@@ -393,7 +394,7 @@ const MyDocuments: React.FC = () => {
               </div>
             )}
           </div>
-        )}
+        {/* )} */}
       </div>
 
       {/* Results Count */}
