@@ -247,13 +247,13 @@ export const UsersPage: React.FC = () => {
           <p className="mt-2 text-gray-600">
             Manage system users and access permissions
 
-            {/* sadasdasd   [{JSON.stringify(useModulePermissions(5)?.Add?.valueOf())}] */}
-
-            {/* <br/> View is   [{JSON.stringify(userPagePermissions?.View?.valueOf())}]
+            {/* 
+            <br/> View is   [{JSON.stringify(userPagePermissions?.View?.valueOf())}]
             <br/> Add is    [{JSON.stringify(userPagePermissions?.Add?.valueOf())}]
             <br/> Edit is   [{JSON.stringify(userPagePermissions?.Edit?.valueOf())}]
             <br/> Delete is [{JSON.stringify(userPagePermissions?.Delete?.valueOf())}]
-            <br/> Print is  [{JSON.stringify(userPagePermissions?.Print?.valueOf())}] */}
+            <br/> Print is  [{JSON.stringify(userPagePermissions?.Print?.valueOf())}] 
+            */}
           </p>
         </div>
         <div className="w-full sm:w-auto">
