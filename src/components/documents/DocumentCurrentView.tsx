@@ -221,7 +221,7 @@ const DocumentCurrentView = ({
                   </div>
                   <div>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-1">
-                      Version {document?.versions[0].VersionNumber}
+                      Version {document?.versions?.[0]?.VersionNumber ?? '—'}
                     </span>
                     <h1 className="text-xl font-semibold text-gray-900">
                       {currentDocumentInfo?.FileName}
@@ -232,9 +232,9 @@ const DocumentCurrentView = ({
                   <Clock className="h-4 w-4" />
                   <span>
                     Last modified:{' '}
-                    {document?.versions[0].ModificationDate
+                    {document?.versions?.[0]?.ModificationDate
                       ? new Date(
-                          document?.versions[0]?.ModificationDate
+                          document?.versions?.[0]?.ModificationDate
                         ).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
