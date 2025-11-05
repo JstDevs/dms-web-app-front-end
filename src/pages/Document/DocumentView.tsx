@@ -22,9 +22,9 @@ type TabType =
   | 'document'
   | 'versions'
   | 'collaboration'
-  | 'approval'
   | 'audit'
-  | 'restrictions';
+  | 'restrictions'
+  | 'approval';
 
 const DocumentView: React.FC = () => {
   const { documentId } = useParams<{ documentId: string }>();
@@ -68,12 +68,12 @@ const DocumentView: React.FC = () => {
         return <DocumentVersionHistory document={currentDocument} />;
       case 'collaboration':
         return <DocumentCollaboration document={currentDocument} />;
-      case 'approval':
-        return <DocumentApproval document={currentDocument} onRefresh={() => documentId && fetchDocument(documentId)} />;
       case 'audit':
         return <DocumentAuditTrail document={currentDocument} />;
       case 'restrictions':
         return <FieldRestrictions document={currentDocument} />;
+      case 'approval':
+        return <DocumentApproval document={currentDocument} onRefresh={() => documentId && fetchDocument(documentId)} />;
       default:
         return null;
     }
@@ -83,9 +83,9 @@ const DocumentView: React.FC = () => {
     { id: 'document', name: 'Document', icon: <ClipboardList size={16} /> },
     { id: 'versions', name: 'Versions', icon: <History size={16} /> },
     { id: 'collaboration', name: 'Collaboration', icon: <MessageSquare size={16} /> },
-    { id: 'approval', name: 'Approvals', icon: <CheckCircle size={16} /> },
     { id: 'audit', name: 'Audit Trail', icon: <ClipboardList size={16} /> },
     { id: 'restrictions', name: 'Masking', icon: <ClipboardList size={16} /> },
+    { id: 'approval', name: 'Approvals', icon: <CheckCircle size={16} /> },
   ];
 
   if (loading)
@@ -140,13 +140,14 @@ const DocumentView: React.FC = () => {
           </h1>
         </div>
       </div>
-
+      
       <div className="mb-6 border-b border-gray-200 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-300 pb-2">
         <nav className="flex flex-nowrap -mb-px">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
+              // onClick={() => toast.error('You have no access to this module!')}
               className={`flex items-center py-3 px-4 sm:px-6 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
@@ -154,13 +155,14 @@ const DocumentView: React.FC = () => {
               }`}
             >
               <span className="mr-2">{tab.icon}</span>
-              {tab.name}
+              {tab.name} 
             </button>
           ))}
         </nav>
       </div>
-
+      
       {renderTabContent()}
+      
     </div>
   );
 };

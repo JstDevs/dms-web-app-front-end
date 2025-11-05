@@ -5,11 +5,14 @@ import {
   Plus,
   Search,
   Edit,
+  Trash,
   Trash2,
   Save,
   X,
   ChevronDown,
   ChevronRight,
+  Trash2Icon,
+  TrashIcon,
 } from 'lucide-react';
 // import { PaginationControls } from "./ui/PaginationControls";
 // import { DeleteDialog } from "./ui/DeleteDialog";
