@@ -93,7 +93,7 @@ export const SubDepartments: React.FC = () => {
     //   return;
     // }
 
-    // Check if sub-department already exists
+    // Check if document type already exists
     const isDepartmentExists = subDepartments.some(
       (department) =>
         department?.Name?.toLowerCase() === formData.name?.toLowerCase() ||
@@ -101,7 +101,7 @@ export const SubDepartments: React.FC = () => {
     );
 
     if (isDepartmentExists) {
-      toast.error('Sub-Department already exists');
+      toast.error('Document type already exists');
       return;
     }
 
@@ -128,11 +128,11 @@ export const SubDepartments: React.FC = () => {
       } catch (logError) {
         console.warn('Failed to log subdepartment creation activity:', logError);
       }
-      
-      toast.success('Sub-Department created successfully!');
+
+      toast.success('Document type created successfully!');
     } catch (error: any) {
       toast.error(
-        error.response?.data?.message || 'Failed to create sub-department'
+        error.response?.data?.message || 'Failed to create document type'
       );
     } finally {
       setIsCreating(false);
@@ -162,10 +162,10 @@ export const SubDepartments: React.FC = () => {
           console.warn('Failed to log subdepartment deletion activity:', logError);
         }
       }
-      
-      toast.success('Sub-Department deleted successfully!');
+
+      toast.success('Document type deleted successfully!');
     } catch (error) {
-      toast.error('Failed to delete sub-department');
+      toast.error('Failed to delete document type');
     }
   };
 
@@ -192,7 +192,7 @@ export const SubDepartments: React.FC = () => {
     //   return;
     // }
 
-    // Check if sub-department already exists (excluding current department)
+    // Check if document type already exists (excluding current department)
     const isDepartmentExists = subDepartments.some(
       (department) =>
         department.ID !== id &&
@@ -201,7 +201,7 @@ export const SubDepartments: React.FC = () => {
     );
 
     if (isDepartmentExists) {
-      toast.error('Sub-Department name or code already exists');
+      toast.error('Document type name or code already exists');
       return;
     }
 
@@ -217,7 +217,7 @@ export const SubDepartments: React.FC = () => {
       ).unwrap();
       await dispatch(fetchSubDepartments()).unwrap();
       
-      // Log subdepartment update activity
+      // Log document type update activity
       if (subDepartmentToUpdate) {
         try {
           await logSystemActivity(
@@ -232,8 +232,8 @@ export const SubDepartments: React.FC = () => {
           console.warn('Failed to log subdepartment update activity:', logError);
         }
       }
-      
-      toast.success('Sub-Department updated!');
+
+      toast.success('Document type updated!');
     } catch (error) {
       toast.error('Update failed.');
     } finally {
@@ -502,7 +502,7 @@ export const SubDepartments: React.FC = () => {
                 >
                   <div className="flex flex-col items-center">
                     <Search className="h-8 w-8 text-gray-300 mb-2" />
-                    <p>No sub-departments found</p>
+                    <p>No document types found</p>
                     {searchTerm && (
                       <p className="text-xs text-gray-400 mt-1">
                         Try adjusting your search terms
