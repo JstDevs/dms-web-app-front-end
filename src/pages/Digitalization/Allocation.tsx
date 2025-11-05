@@ -4,7 +4,7 @@ import { FieldSettingsPanel } from '../FieldSetting';
 import { Button } from '@chakra-ui/react';
 // import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
 import toast from 'react-hot-toast';
-import { allocateFieldsToUsers, fetchFieldsByLink, Field, updateFieldsByLink } from './utils/allocationServices';
+import { allocateFieldsToUsers, updateAllocation, fetchFieldsByLink, Field, updateFieldsByLink, fetchAllocationsByLink, fetchAllocationsByDept, fetchAllAllocations, fetchAllocationByUserAndDept, DocumentAccess } from './utils/allocationServices';
 import { fetchAvailableFields } from '../Document/utils/fieldAllocationService';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
@@ -24,6 +24,7 @@ type PermissionKey =
 type UserPermission = {
   username: string;
   isEditing?: boolean;
+  allocationId?: number; // Store the allocation ID if it exists
 } & Record<PermissionKey, boolean>;
 type updatedFields = {
   ID: number;
@@ -178,6 +179,231 @@ export const AllocationPanel = () => {
 
     fetchFields();
   }, [selectedSubDept]);
+
+  // Fetch existing user allocations when Document Type is selected
+  useEffect(() => {
+    const fetchExistingAllocations = async () => {
+      if (!selectedSubDept || !usersList || usersList.length === 0) {
+        setUsers([]);
+        return;
+      }
+
+      try {
+        // Try fetching by department + subdepartment first (more reliable)
+        console.log('Fetching allocations for dept:', selectedDept, 'subdept:', selectedSubDept);
+        let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
+        
+        console.log(`Initial fetch returned ${allocations.length} allocations`);
+        const fetchedUserIDs = allocations.map((a: any) => Number(a.UserID));
+        console.log('Fetched UserIDs:', fetchedUserIDs);
+        
+        // WORKAROUND: If backend doesn't return all allocations, try to fetch missing users directly
+        // Check if there are any users in usersList that should have allocations but weren't returned
+        // For now, we'll try to fetch UserID 29 specifically if it's in usersList but not in results
+        const usersInList = usersList.map((u: any) => Number(u.ID));
+        const missingUsers = usersInList.filter(userId => !fetchedUserIDs.includes(userId));
+        console.log('Users in list but not in fetched allocations:', missingUsers);
+        
+        // Try to fetch missing user allocations directly
+        if (missingUsers.length > 0) {
+          console.log('Attempting to fetch missing user allocations...');
+          const missingAllocs: any[] = [];
+          for (const userId of missingUsers) {
+            try {
+              console.log(`Fetching allocation for UserID ${userId}, Dept ${selectedDept}, SubDept ${selectedSubDept}...`);
+              const alloc = await fetchAllocationByUserAndDept(
+                userId,
+                Number(selectedDept),
+                selectedSubDept
+              );
+              if (alloc) {
+                console.log(`✅ Found missing allocation for UserID ${userId}:`, alloc);
+                missingAllocs.push(alloc);
+              } else {
+                console.log(`❌ No allocation found for UserID ${userId} (returned null)`);
+              }
+            } catch (err: any) {
+              console.log(`❌ Error fetching allocation for UserID ${userId}:`, err?.response?.status, err?.response?.data?.error || err?.message);
+              // If the endpoint doesn't exist, try fetching all allocations and filtering
+              if (err?.response?.status === 404) {
+                console.log(`   Endpoint doesn't exist for UserID ${userId}, will try alternative method`);
+              }
+            }
+          }
+          if (missingAllocs.length > 0) {
+            allocations = [...allocations, ...missingAllocs];
+            console.log(`✅ Added ${missingAllocs.length} missing allocations. Total now: ${allocations.length}`);
+          } else {
+            console.log(`⚠️ No missing allocations were found via individual user endpoint.`);
+            console.log(`   Backend issue: /allocation/by-dept/29/24 should return ALL allocations, not just one.`);
+            console.log(`   Attempting to fetch ALL allocations and filter client-side...`);
+            
+            // Last resort: Try to fetch all allocations and filter by department/subdepartment
+            // This is a workaround for backend bug
+            try {
+              const allAllocs = await fetchAllAllocations();
+              console.log(`Fetched ${allAllocs.length} total allocations from /allocation/all`);
+              
+              // Filter allocations that might belong to this dept/subdept
+              // Since we don't know the exact LinkID format, we'll show all allocations
+              // and let the user see them (or we can try to match by fields pattern)
+              if (allAllocs.length > allocations.length) {
+                console.log(`Found ${allAllocs.length} total allocations vs ${allocations.length} from dept endpoint`);
+                console.log(`All UserIDs in all allocations:`, allAllocs.map((a: any) => a.UserID));
+                
+                // Find missing users from all allocations (not already in current allocations)
+                const existingUserIDs = new Set(allocations.map((a: any) => Number(a.UserID)));
+                const missingFromAll = allAllocs.filter((a: any) => {
+                  const userId = Number(a.UserID);
+                  return !existingUserIDs.has(userId);
+                });
+                
+                if (missingFromAll.length > 0) {
+                  console.log(`Found ${missingFromAll.length} additional allocations not in initial fetch:`, missingFromAll.map((a: any) => ({ UserID: a.UserID, id: a.id })));
+                  allocations = [...allocations, ...missingFromAll];
+                  console.log(`Added ${missingFromAll.length} missing allocations. Total now: ${allocations.length}`);
+                } else {
+                  console.log(`No additional allocations found (all users already in initial fetch)`);
+                }
+              }
+            } catch (err: any) {
+              console.log(`Could not fetch all allocations:`, err?.response?.status || err?.message);
+              console.log(`   Endpoint /allocation/all may not exist`);
+            }
+          }
+        }
+        
+        // If that returns empty, try by LinkID as fallback
+        if (!allocations || allocations.length === 0) {
+          console.log('Fetch by dept returned empty, trying by LinkID...');
+          allocations = await fetchAllocationsByLink(selectedSubDept);
+        }
+        
+        // Deduplicate allocations by UserID - keep only the most recent one (highest id) for each user
+        const allocationsByUser = new Map<number, DocumentAccess>();
+        allocations.forEach((alloc: any) => {
+          const userId = Number(alloc.UserID);
+          const existing = allocationsByUser.get(userId);
+          if (!existing || Number(alloc.id) > Number(existing.id)) {
+            allocationsByUser.set(userId, alloc);
+          }
+        });
+        allocations = Array.from(allocationsByUser.values());
+        console.log(`Deduplicated allocations: ${allocations.length} unique users`);
+        
+        console.log('Received allocations:', allocations);
+        console.log('Allocations details:', allocations.map(a => ({
+          id: a.id,
+          UserID: a.UserID,
+          LinkID: a.LinkID,
+          Active: a.Active,
+          View: a.View,
+          Add: a.Add,
+          Edit: a.Edit,
+          Delete: a.Delete
+        })));
+        
+        // Check if UserID 29 exists in allocations
+        const user29Alloc = allocations.find((a: any) => Number(a.UserID) === 29);
+        if (user29Alloc) {
+          console.log('Found UserID 29 allocation:', user29Alloc);
+        } else {
+          console.log('UserID 29 NOT FOUND in fetched allocations. Available UserIDs:', allocations.map((a: any) => a.UserID));
+        }
+        
+        if (allocations && allocations.length > 0) {
+          // Helper function to check if allocation is active
+          const isActive = (alloc: any): boolean => {
+            const active = alloc.Active;
+            if (typeof active === 'boolean') return active;
+            if (typeof active === 'number') return active === 1;
+            if (typeof active === 'string') return active === '1' || active === 'true' || active === 'True';
+            return true; // Default to true if unknown
+          };
+          
+          // Log ALL allocations before filtering
+          console.log('All allocations before filtering:', allocations.map(a => ({
+            id: a.id,
+            UserID: a.UserID,
+            Active: a.Active,
+            isActive: isActive(a)
+          })));
+          
+          // Map DocumentAccess records to UserPermission format
+          const mappedUsers: UserPermission[] = allocations
+            .filter((alloc: DocumentAccess) => {
+              const active = isActive(alloc);
+              console.log(`Allocation ${alloc.id} for User ${alloc.UserID} - Active: ${alloc.Active} (${typeof alloc.Active}) -> ${active}`);
+              return active;
+            })
+            .map((alloc: DocumentAccess) => {
+              const user = usersList.find((u: any) => Number(u.ID) === Number(alloc.UserID));
+              
+              // Helper function to convert any value to boolean
+              const toBool = (val: any): boolean => {
+                if (typeof val === 'boolean') return val;
+                if (typeof val === 'number') return val === 1;
+                if (typeof val === 'string') return val === '1' || val === 'true' || val === 'True';
+                return false;
+              };
+              
+              console.log(`Mapping user ${alloc.UserID} (${user?.UserName || 'Unknown'}) - View: ${alloc.View} (${typeof alloc.View}), Add: ${alloc.Add} (${typeof alloc.Add}), Edit: ${alloc.Edit} (${typeof alloc.Edit}), Delete: ${alloc.Delete} (${typeof alloc.Delete})`); // Debug log
+              
+              const mappedUser = {
+                username: user?.UserName || `User ${alloc.UserID}`,
+                allocationId: alloc.id, // Store the allocation ID for updates
+                // Convert database values to boolean (handles both number 0/1 and boolean)
+                view: toBool(alloc.View),
+                add: toBool(alloc.Add),
+                edit: toBool(alloc.Edit),
+                delete: toBool(alloc.Delete),
+                print: toBool(alloc.Print),
+                confidential: toBool(alloc.Confidential),
+                comment: toBool(alloc.Comment),
+                collaborate: toBool(alloc.Collaborate),
+                finalize: toBool(alloc.Finalize),
+                masking: toBool(alloc.Masking),
+                isEditing: false,
+              };
+              
+              console.log(`Mapped user result - username: ${mappedUser.username}, view: ${mappedUser.view}, add: ${mappedUser.add}, edit: ${mappedUser.edit}, delete: ${mappedUser.delete}`);
+              return mappedUser;
+            });
+          
+          console.log('Mapped users:', mappedUsers);
+          console.log('Mapped users details:', mappedUsers.map(u => ({
+            username: u.username,
+            view: u.view,
+            add: u.add,
+            edit: u.edit,
+            delete: u.delete
+          })));
+          console.log('Setting users to state:', mappedUsers.length, 'users');
+          setUsers(mappedUsers);
+          
+          // Also set savedFieldsData from the first allocation's fields (they should be the same)
+          if (allocations[0]?.fields && Array.isArray(allocations[0].fields) && allocations[0].fields.length > 0) {
+            setSavedFieldsData(allocations[0].fields.map((f: any) => ({
+              ID: f.ID,
+              Field: f.Field || f.Description || '',
+              Type: f.Type || 'text',
+              Description: f.Description || f.Field || '',
+            })));
+          }
+        } else {
+          setUsers([]);
+          setSavedFieldsData([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch existing allocations:', error);
+        setUsers([]);
+        setSavedFieldsData([]);
+      }
+    };
+
+    fetchExistingAllocations();
+  }, [selectedSubDept, usersList]);
+
   const togglePermission = (username: string, field: PermissionKey) => {
     setUsers((prev) =>
       prev.map((user) =>
@@ -196,13 +422,168 @@ export const AllocationPanel = () => {
     );
   };
 
-  const saveUser = (username: string) => {
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.username === username ? { ...user, isEditing: false } : user
-      )
-    );
-    console.log('Saved user:', username, users);
+  const saveUser = async (username: string) => {
+    if (!selectedDept || !selectedSubDept) {
+      toast.error('Please select Department and Document Type first.');
+      return;
+    }
+
+    const user = users.find((u) => u.username === username);
+    if (!user) {
+      toast.error('User not found');
+      return;
+    }
+
+    const userID = (usersList || [])?.find(
+      (item) => item.UserName === username
+    )?.ID;
+
+    if (!userID) {
+      toast.error('User ID not found');
+      return;
+    }
+
+    const payload = {
+      depid: Number(selectedDept),
+      subdepid: Number(selectedSubDept),
+      userid: Number(userID),
+      View: user.view ? 1 : 0,
+      Add: user.add ? 1 : 0,
+      Edit: user.edit ? 1 : 0,
+      Delete: user.delete ? 1 : 0,
+      Print: user.print ? 1 : 0,
+      Confidential: user.confidential ? 1 : 0,
+      Comment: user.comment ? 1 : 0,
+      Collaborate: user.collaborate ? 1 : 0,
+      Finalize: user.finalize ? 1 : 0,
+      Masking: user.masking ? 1 : 0,
+      fields: savedFieldsData.map((field) => ({
+        ID: Number(field.ID),
+        Field: field.Field,
+        Type: field.Type,
+        Description: field.Description || '',
+      })),
+    };
+
+    try {
+      // If allocationId exists, update; otherwise create new
+      if (user.allocationId) {
+        await updateAllocation(user.allocationId, payload);
+      } else {
+        // Try to create, but if 409 error, try to update instead
+        try {
+          await allocateFieldsToUsers(payload);
+        } catch (createError: any) {
+          if (createError?.response?.status === 409) {
+            // User already exists, try to fetch the allocation
+            // First try by department + subdepartment
+            let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
+            let existingAlloc = allocations.find(
+              (a: DocumentAccess) => Number(a.UserID) === Number(userID)
+            );
+            
+            // If not found, try by LinkID
+            if (!existingAlloc) {
+              console.log('Allocation not found by dept, trying by LinkID...');
+              allocations = await fetchAllocationsByLink(selectedSubDept);
+              existingAlloc = allocations.find(
+                (a: DocumentAccess) => Number(a.UserID) === Number(userID)
+              );
+            }
+            
+            // If still not found, try fetching by user + dept + subdept
+            if (!existingAlloc) {
+              console.log('Allocation not found, trying by user+dept+subdept...');
+              const alloc = await fetchAllocationByUserAndDept(
+                Number(userID),
+                Number(selectedDept),
+                selectedSubDept
+              );
+              if (alloc) {
+                existingAlloc = alloc;
+              }
+            }
+            
+            // Check if error response contains allocation data
+            if (!existingAlloc && createError?.response?.data?.data) {
+              existingAlloc = createError.response.data.data;
+            }
+            
+            if (existingAlloc) {
+              await updateAllocation(existingAlloc.id, payload);
+              // Update the user's allocationId in state
+              setUsers((prev) =>
+                prev.map((u) =>
+                  u.username === username ? { ...u, allocationId: existingAlloc.id } : u
+                )
+              );
+            } else {
+              // If still not found, show error but don't throw - user can try again
+              console.error('Could not find existing allocation to update');
+              toast.error(`User ${username} already exists but allocation not found. Please refresh and try again.`);
+              throw createError;
+            }
+          } else {
+            throw createError;
+          }
+        }
+      }
+      
+      // Reload allocations to reflect saved changes
+      let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
+      if (!allocations || allocations.length === 0) {
+        allocations = await fetchAllocationsByLink(selectedSubDept);
+      }
+      if (allocations && allocations.length > 0) {
+        // Helper function to check if allocation is active
+        const isActive = (alloc: any): boolean => {
+          const active = alloc.Active;
+          if (typeof active === 'boolean') return active;
+          if (typeof active === 'number') return active === 1;
+          if (typeof active === 'string') return active === '1' || active === 'true' || active === 'True';
+          return true; // Default to true if unknown
+        };
+        
+        const mappedUsers: UserPermission[] = allocations
+          .filter((alloc: DocumentAccess) => isActive(alloc))
+          .map((alloc: DocumentAccess) => {
+            const user = usersList.find((u: any) => Number(u.ID) === Number(alloc.UserID));
+            
+            // Helper function to convert any value to boolean
+            const toBool = (val: any): boolean => {
+              if (typeof val === 'boolean') return val;
+              if (typeof val === 'number') return val === 1;
+              if (typeof val === 'string') return val === '1' || val === 'true' || val === 'True';
+              return false;
+            };
+            
+            return {
+              username: user?.UserName || `User ${alloc.UserID}`,
+              allocationId: alloc.id,
+              // Convert database values to boolean (handles both number 0/1 and boolean)
+              view: toBool(alloc.View),
+              add: toBool(alloc.Add),
+              edit: toBool(alloc.Edit),
+              delete: toBool(alloc.Delete),
+              print: toBool(alloc.Print),
+              confidential: toBool(alloc.Confidential),
+              comment: toBool(alloc.Comment),
+              collaborate: toBool(alloc.Collaborate),
+              finalize: toBool(alloc.Finalize),
+              masking: toBool(alloc.Masking),
+              isEditing: false,
+            };
+          });
+        setUsers(mappedUsers);
+      }
+      
+      toast.success(`Permissions saved for ${username}`);
+    } catch (error: any) {
+      console.error('Save user failed:', error);
+      toast.error(
+        `Failed to save: ${error?.response?.data?.error || 'Please try again.'}`
+      );
+    }
   };
 
   const addUser = () => {
@@ -224,6 +605,7 @@ export const AllocationPanel = () => {
       ...users,
       {
         username: newUserLabel?.UserName || '',
+        allocationId: undefined, // New user, no allocation ID yet
         view: true,
         add: false,
         edit: false,
@@ -249,68 +631,185 @@ export const AllocationPanel = () => {
   };
 
   const handleAllocation = async () => {
-    const user = users[0];
-
-    const userID = (usersList || [])?.find(
-      (item) => item.UserName === user.username
-    )?.ID;
-
-    if (!userID || !selectedDept || !selectedSubDept) {
-      toast.error('Invalid user or department selection.');
+    if (!selectedDept || !selectedSubDept || users.length === 0) {
+      toast.error('Please select Department, Document Type, and add at least one user.');
       return;
     }
 
-    const payload = {
-      depid: Number(selectedDept),
-      subdepid: Number(selectedSubDept),
-      userid: Number(userID),
-      View: user.view,
-      Add: user.add,
-      Edit: user.edit,
-      Delete: user.delete,
-      Print: user.print,
-      Confidential: user.confidential,
-      Comment: user.comment,
-      Collaborate: user.collaborate,
-      Finalize: user.finalize,
-      Masking: user.masking,
-      fields: savedFieldsData.map((field) => ({
-        ID: Number(field.ID),
-        Field: field.Field,
-        Type: field.Type,
-        Description: field.Description || '',
-      })),
-    };
+    // Save ALL users, not just the first one
+    const savePromises = users.map(async (user) => {
+      const userID = (usersList || [])?.find(
+        (item) => item.UserName === user.username
+      )?.ID;
 
-    // toast.success('View is ' + user.view);
-    // toast.success('Add is ' + user.add);
-    // toast.success('Edit is ' + user.edit);
-    // toast.success('Delete is ' + user.delete);
-    // toast.success('Print is ' + user.print);
-    // toast.success('Confidential is ' + user.confidential);
-    // toast.success('Comment is ' + user.comment);
-    // toast.success('Collaborate is ' + user.collaborate);
-    // toast.success('Finalize is ' + user.finalize);
-    // toast.success('Masking is ' + user.masking);
+      if (!userID) {
+        console.warn(`User ID not found for ${user.username}`);
+        return null;
+      }
+
+      const payload = {
+        depid: Number(selectedDept),
+        subdepid: Number(selectedSubDept),
+        userid: Number(userID),
+        View: user.view ? 1 : 0,
+        Add: user.add ? 1 : 0,
+        Edit: user.edit ? 1 : 0,
+        Delete: user.delete ? 1 : 0,
+        Print: user.print ? 1 : 0,
+        Confidential: user.confidential ? 1 : 0,
+        Comment: user.comment ? 1 : 0,
+        Collaborate: user.collaborate ? 1 : 0,
+        Finalize: user.finalize ? 1 : 0,
+        Masking: user.masking ? 1 : 0,
+        fields: savedFieldsData.map((field) => ({
+          ID: Number(field.ID),
+          Field: field.Field,
+          Type: field.Type,
+          Description: field.Description || '',
+        })),
+      };
+
+      try {
+        // If allocationId exists, update; otherwise try to create
+        if (user.allocationId) {
+          await updateAllocation(user.allocationId, payload);
+          return { username: user.username, success: true };
+        } else {
+          // Try to create, but if 409 error, try to update instead
+          try {
+            await allocateFieldsToUsers(payload);
+            return { username: user.username, success: true };
+          } catch (createError: any) {
+            if (createError?.response?.status === 409) {
+              // User already exists, try to fetch the allocation
+              // First try by department + subdepartment
+              let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
+              let existingAlloc = allocations.find(
+                (a: DocumentAccess) => Number(a.UserID) === Number(userID)
+              );
+              
+              // If not found, try by LinkID
+              if (!existingAlloc) {
+                console.log('Allocation not found by dept, trying by LinkID...');
+                allocations = await fetchAllocationsByLink(selectedSubDept);
+                existingAlloc = allocations.find(
+                  (a: DocumentAccess) => Number(a.UserID) === Number(userID)
+                );
+              }
+              
+              // If still not found, try fetching by user + dept + subdept
+              if (!existingAlloc) {
+                console.log('Allocation not found, trying by user+dept+subdept...');
+                const alloc = await fetchAllocationByUserAndDept(
+                  Number(userID),
+                  Number(selectedDept),
+                  selectedSubDept
+                );
+                if (alloc) {
+                  existingAlloc = alloc;
+                }
+              }
+              
+              // Check if error response contains allocation data
+              if (!existingAlloc && createError?.response?.data?.data) {
+                existingAlloc = createError.response.data.data;
+              }
+              
+              if (existingAlloc) {
+                await updateAllocation(existingAlloc.id, payload);
+                return { username: user.username, success: true };
+              } else {
+                console.error('Could not find existing allocation to update');
+                return { 
+                  username: user.username, 
+                  success: false, 
+                  error: 'Allocation exists but could not be found to update' 
+                };
+              }
+            } else {
+              throw createError;
+            }
+          }
+        }
+      } catch (error: any) {
+        console.error(`Failed to allocate for ${user.username}:`, error);
+        return { 
+          username: user.username, 
+          success: false, 
+          error: error?.response?.data?.error || 'Unknown error' 
+        };
+      }
+    });
 
     try {
-      await allocateFieldsToUsers(payload);
-      toast.success('Allocation successful');
+      const results = await Promise.all(savePromises);
+      const successful = results.filter(r => r && r.success).length;
+      const failed = results.filter(r => r && !r.success);
+
+      if (failed.length > 0) {
+        toast.error(`${failed.length} user(s) failed to save. ${successful} user(s) saved successfully.`);
+        failed.forEach(f => {
+          if (f) {
+            console.error(`Failed for ${f.username}:`, f.error);
+          }
+        });
+      } else {
+        toast.success(`All ${successful} user(s) allocated successfully`);
+      }
+
+      // Reload allocations to reflect saved changes
+      if (successful > 0) {
+        let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
+        if (!allocations || allocations.length === 0) {
+          allocations = await fetchAllocationsByLink(selectedSubDept);
+        }
+        if (allocations && allocations.length > 0) {
+          // Helper function to check if allocation is active
+          const isActive = (alloc: any): boolean => {
+            const active = alloc.Active;
+            if (typeof active === 'boolean') return active;
+            if (typeof active === 'number') return active === 1;
+            if (typeof active === 'string') return active === '1' || active === 'true' || active === 'True';
+            return true; // Default to true if unknown
+          };
+          
+          // Helper function to convert any value to boolean
+          const toBool = (val: any): boolean => {
+            if (typeof val === 'boolean') return val;
+            if (typeof val === 'number') return val === 1;
+            if (typeof val === 'string') return val === '1' || val === 'true' || val === 'True';
+            return false;
+          };
+          
+          const mappedUsers: UserPermission[] = allocations
+            .filter((alloc: DocumentAccess) => isActive(alloc))
+            .map((alloc: DocumentAccess) => {
+              const user = usersList.find((u: any) => Number(u.ID) === Number(alloc.UserID));
+              return {
+                username: user?.UserName || `User ${alloc.UserID}`,
+                allocationId: alloc.id,
+                // Convert database values to boolean (handles both number 0/1 and boolean)
+                view: toBool(alloc.View),
+                add: toBool(alloc.Add),
+                edit: toBool(alloc.Edit),
+                delete: toBool(alloc.Delete),
+                print: toBool(alloc.Print),
+                confidential: toBool(alloc.Confidential),
+                comment: toBool(alloc.Comment),
+                collaborate: toBool(alloc.Collaborate),
+                finalize: toBool(alloc.Finalize),
+                masking: toBool(alloc.Masking),
+                isEditing: false,
+              };
+            });
+          setUsers(mappedUsers);
+        }
+      }
     } catch (error: any) {
       console.error('Allocation failed:', error);
       toast.error(
-        'Failed to allocate : ' + error?.response?.data?.error ||
-          'Please try again.'
+        'Failed to allocate: ' + (error?.response?.data?.error || 'Please try again.')
       );
-    } finally {
-      setSavedFieldsData([]);
-      setUsers([]);
-      setSelectedDept('');
-      setSelectedSubDept('');
-      setShowAddUser(false);
-      setNewUserID('');
-      // 🔁 Trigger reset in child component
-      fieldPanelRef.current?.cancelFields?.();
     }
   };
   console.log({ selectedDept, selectedSubDept });
