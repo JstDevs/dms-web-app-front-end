@@ -1,4 +1,4 @@
-import { PlusCircle, Trash2, Pencil, Save, X } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Save, X, Settings, Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { FieldSettingsPanel } from '../FieldSetting';
 import { Button } from '@chakra-ui/react';
@@ -45,9 +45,10 @@ export const AllocationPanel = () => {
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedSubDept, setSelectedSubDept] = useState('');
   const [users, setUsers] = useState<UserPermission[]>([]);
-  const [showAddUser, setShowAddUser] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUserID, setNewUserID] = useState('');
   const [savedFieldsData, setSavedFieldsData] = useState<updatedFields>([]);
+  const [activeTab, setActiveTab] = useState<'fields' | 'users'>('fields');
 
   // const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const {
@@ -621,7 +622,7 @@ export const AllocationPanel = () => {
     ]);
 
     setNewUserID('');
-    setShowAddUser(false);
+    setShowAddUserModal(false);
   };
 
   const removeUser = (username: string) => {
@@ -831,228 +832,204 @@ export const AllocationPanel = () => {
       </header>
       
           {/* Department Selection */}
-          <div className="sm:border sm:rounded-md sm:p-4 sm:bg-blue-50 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-600 mb-1 block">
-                  Department
-                </label>
-                {/* <select
-                  value={selectedDept}
-                  onChange={(e) => setSelectedDept(e.target.value)}
-                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
-                >
-                  <option value="" hidden>
-                    Select Department
-                  </option>
-                  {departmentOptions.map((dept) => (
-                    <option key={dept.value}>{dept.label}</option>
-                  ))}
-                </select> */}
-                <select
-                  value={selectedDept}
-                  onChange={(e) => setSelectedDept(e.target.value)}
-                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
-                  disabled={loadingDepartments}
-                >
-                  <option value="" hidden>
-                    {loadingDepartments
-                      ? 'Loading departments...'
-                      : 'Select Department'}
-                  </option>
-                  {departmentOptions.map((dept) => (
-                    <option key={dept.value} value={dept.value}>
-                      {dept.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-600 mb-1 block">
-                  Document Type
-                </label>
-                {/* <select
-                  value={selectedSubDept}
-                  onChange={(e) => setSelectedSubDept(e.target.value)}
-                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
-                >
-                  <option value="" hidden>
-                    Select Document Type
-                  </option>
-                  {subDepartmentOptions.map((sub) => (
-                    <option key={sub.value}>{sub.label}</option>
-                  ))}
-                </select> */}
-                <select
-                  value={selectedSubDept}
-                  onChange={(e) => setSelectedSubDept(e.target.value)}
-                  className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
-                  disabled={!selectedDept || subDepartmentOptions.length === 0}
-                >
-                  <option value="" hidden>
-                    {!selectedDept
-                      ? 'Select department first'
-                      : subDepartmentOptions.length === 0
-                      ? 'No document types available'
-                      : 'Select Document Type'}
-                  </option>
-                  {subDepartmentOptions.map((sub) => (
-                    <option key={sub.value} value={sub.value}>
-                      {sub.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+      <div className="sm:border sm:rounded-md sm:p-4 sm:bg-blue-50 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-gray-600 mb-1 block">
+              Department
+            </label>
+            <select
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+              className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
+              disabled={loadingDepartments}
+            >
+              <option value="" hidden>
+                {loadingDepartments
+                  ? 'Loading departments...'
+                  : 'Select Department'}
+              </option>
+              {departmentOptions.map((dept) => (
+                <option key={dept.value} value={dept.value}>
+                  {dept.label}
+                </option>
+              ))}
+            </select>
           </div>
 
-      <div className="flex flex-col xl:flex-row gap-6">
-        {/* Left Panel - Fields Settings */}
-        <div className="w-full xl:w-1/2 sm:border sm:rounded-md sm:p-4 sm:bg-blue-50">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-blue-800">
-              Field Settings
-            </h2>
-            {/* <SlidersHorizontal className="w-5 h-5 text-blue-600" /> */}
+          <div>
+            <label className="text-sm text-gray-600 mb-1 block">
+              Document Type
+            </label>
+            <select
+              value={selectedSubDept}
+              onChange={(e) => setSelectedSubDept(e.target.value)}
+              className="w-full px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
+              disabled={!selectedDept || subDepartmentOptions.length === 0}
+            >
+              <option value="" hidden>
+                {!selectedDept
+                  ? 'Select department first'
+                  : subDepartmentOptions.length === 0
+                  ? 'No document types available'
+                  : 'Select Document Type'}
+              </option>
+              {subDepartmentOptions.map((sub) => (
+                <option key={sub.value} value={sub.value}>
+                  {sub.label}
+                </option>
+              ))}
+            </select>
           </div>
-          {fieldsLoading ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Loading fields...</p>
-            </div>
-          ) : fieldsError ? (
-            <div className="text-center py-8">
-              <p className="text-red-500">{fieldsError}</p>
-            </div>
-          ) : fieldsInfo.length === 0 ? (
-            <div className="text-center py-8">
-              {hasFetchedFields ? (
-                <p className="text-gray-500">No active fields found for this document type.</p>
-              ) : (
-                <p className="text-gray-500">
-                  Please select Department and Document Type to view fields
-                </p>
-              )}
-            </div>
-          ) : (
-            <FieldSettingsPanel
-              ref={fieldPanelRef}
-              fieldsInfo={fieldsInfo}
-              onSave={async (updatedFields) => {
-                try {
-                  // Map ALL fields (active and inactive) so unchecking also persists
-                  const payloadFields = updatedFields.map((f: any) => ({
-                    FieldNumber: Number(f.ID),
-                    Active: Boolean(f.active),
-                    Description: f.Description ?? f.Field ?? '',
-                    DataType: (String(f.Type || '').toLowerCase() === 'date' ? 'Date' : 'Text'),
-                  }));
+        </div>
+      </div>
 
-                  // Persist exact states; no need to use deactivateMissing when sending all
-                  await updateFieldsByLink(Number(selectedSubDept), payloadFields, { deactivateMissing: false });
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="flex space-x-8" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab('fields')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
+              activeTab === 'fields'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Settings className="w-5 h-5" />
+            Field Settings
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
+              activeTab === 'users'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            User Permissions
+          </button>
+        </nav>
+      </div>
 
-                  setSavedFieldsData(updatedFields);
-                  toast.success('Fields updated');
+      {/* Tab Content */}
+      <div className="mt-6">
+        {activeTab === 'fields' && (
+          <div className="w-full sm:border sm:rounded-md sm:p-4 sm:bg-blue-50">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-blue-800">
+                Field Settings
+              </h2>
+            </div>
+            {fieldsLoading ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Loading fields...</p>
+              </div>
+            ) : fieldsError ? (
+              <div className="text-center py-8">
+                <p className="text-red-500">{fieldsError}</p>
+              </div>
+            ) : fieldsInfo.length === 0 ? (
+              <div className="text-center py-8">
+                {hasFetchedFields ? (
+                  <p className="text-gray-500">No active fields found for this document type.</p>
+                ) : (
+                  <p className="text-gray-500">
+                    Please select Department and Document Type to view fields
+                  </p>
+                )}
+              </div>
+            ) : (
+              <FieldSettingsPanel
+                ref={fieldPanelRef}
+                fieldsInfo={fieldsInfo}
+                onSave={async (updatedFields) => {
+                  try {
+                    // Map ALL fields (active and inactive) so unchecking also persists
+                    const payloadFields = updatedFields.map((f: any) => ({
+                      FieldNumber: Number(f.ID),
+                      Active: Boolean(f.active),
+                      Description: f.Description ?? f.Field ?? '',
+                      DataType: (String(f.Type || '').toLowerCase() === 'date' ? 'Date' : 'Text'),
+                    }));
 
-                  // Refresh by merging available + current so the list always shows all fields
-                  setFieldsLoading(true);
-                  const [available, current] = await Promise.all([
-                    fetchAvailableFields(Number(selectedDept), Number(selectedSubDept)),
-                    fetchFieldsByLink(Number(selectedSubDept)),
-                  ]);
-                  const currentMap = new Map<number, Field>(
-                    (current || []).map((c: Field) => [Number(c.FieldNumber), c])
-                  );
-                  const baseList: FieldInfo[] = (available || []).map((f: any) => {
-                    const fid = Number(f.ID ?? f.FieldNumber ?? 0);
-                    const currentMatch = currentMap.get(fid);
-                    const activeVal = currentMatch ? (currentMatch as any).Active : (f as any)?.Active;
-                    return {
-                      ID: fid,
-                      Field: String(currentMatch?.Description ?? f.Field ?? f.Description ?? ''),
-                      Type: String((currentMatch?.DataType ?? f.Type ?? f.DataType ?? 'text')).toLowerCase(),
-                      updatedAt: '',
-                      createdAt: '',
-                      IsActive:
-                        activeVal === 1 || activeVal === '1' || activeVal === true || activeVal === 'true',
-                    } as FieldInfo;
-                  });
-                  const baseIds = new Set(baseList.map(b => b.ID));
-                  const union: FieldInfo[] = [
-                    ...baseList,
-                    ...(current || [])
-                      .filter((c: Field) => !baseIds.has(Number(c.FieldNumber)))
-                      .map((c: Field) => ({
-                        ID: Number(c.FieldNumber),
-                        Field: c.Description,
-                        Type: String(c.DataType || 'text').toLowerCase(),
+                    // Persist exact states; no need to use deactivateMissing when sending all
+                    await updateFieldsByLink(Number(selectedSubDept), payloadFields, { deactivateMissing: false });
+
+                    setSavedFieldsData(updatedFields);
+                    toast.success('Fields updated');
+
+                    // Refresh by merging available + current so the list always shows all fields
+                    setFieldsLoading(true);
+                    const [available, current] = await Promise.all([
+                      fetchAvailableFields(Number(selectedDept), Number(selectedSubDept)),
+                      fetchFieldsByLink(Number(selectedSubDept)),
+                    ]);
+                    const currentMap = new Map<number, Field>(
+                      (current || []).map((c: Field) => [Number(c.FieldNumber), c])
+                    );
+                    const baseList: FieldInfo[] = (available || []).map((f: any) => {
+                      const fid = Number(f.ID ?? f.FieldNumber ?? 0);
+                      const currentMatch = currentMap.get(fid);
+                      const activeVal = currentMatch ? (currentMatch as any).Active : (f as any)?.Active;
+                      return {
+                        ID: fid,
+                        Field: String(currentMatch?.Description ?? f.Field ?? f.Description ?? ''),
+                        Type: String((currentMatch?.DataType ?? f.Type ?? f.DataType ?? 'text')).toLowerCase(),
                         updatedAt: '',
                         createdAt: '',
                         IsActive:
-                          (c as any).Active === 1 ||
-                          (c as any).Active === '1' ||
-                          (c as any).Active === true ||
-                          (c as any).Active === 'true',
-                      } as FieldInfo)),
-                  ];
-                  setFieldsInfo(union);
-                  setHasFetchedFields(true);
-                } catch (err: any) {
-                  console.error('Failed to save fields:', err);
-                  toast.error(err?.response?.data?.error || 'Failed to save fields');
-                } finally {
-                  setFieldsLoading(false);
-                }
-              }}
-              onCancel={(resetFields) => {
-                setSavedFieldsData(resetFields);
-              }}
-            />
-          )}
-        </div>
+                          activeVal === 1 || activeVal === '1' || activeVal === true || activeVal === 'true',
+                      } as FieldInfo;
+                    });
+                    const baseIds = new Set(baseList.map(b => b.ID));
+                    const union: FieldInfo[] = [
+                      ...baseList,
+                      ...(current || [])
+                        .filter((c: Field) => !baseIds.has(Number(c.FieldNumber)))
+                        .map((c: Field) => ({
+                          ID: Number(c.FieldNumber),
+                          Field: c.Description,
+                          Type: String(c.DataType || 'text').toLowerCase(),
+                          updatedAt: '',
+                          createdAt: '',
+                          IsActive:
+                            (c as any).Active === 1 ||
+                            (c as any).Active === '1' ||
+                            (c as any).Active === true ||
+                            (c as any).Active === 'true',
+                        } as FieldInfo)),
+                    ];
+                    setFieldsInfo(union);
+                    setHasFetchedFields(true);
+                  } catch (err: any) {
+                    console.error('Failed to save fields:', err);
+                    toast.error(err?.response?.data?.error || 'Failed to save fields');
+                  } finally {
+                    setFieldsLoading(false);
+                  }
+                }}
+                onCancel={(resetFields) => {
+                  setSavedFieldsData(resetFields);
+                }}
+              />
+            )}
+          </div>
+        )}
 
-        {/* Right Panel - User Permissions */}
-        <div className="w-full xl:w-1/2 space-y-6">
-
-          {/* Add User Form */}
-          {showAddUser ? (
-            <div className="flex items-center gap-2 p-4 bg-gray-50 rounded-md sm:flex-nowrap flex-wrap">
-              <select
-                value={newUserID}
-                onChange={(e) => setNewUserID(e.target.value)}
-                className="flex-1 px-4 py-2 rounded-md bg-white border border-gray-300 text-sm"
-              >
-                <option value="" hidden>
-                  Select user to add
-                </option>
-                {userOptions?.map((user: any) => (
-                  <option key={user.value} value={user.value}>
-                    {user.label}
-                  </option>
-                ))}
-              </select>
-
-              <Button
-                onClick={addUser}
-                className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 sm:w-auto w-full"
-              >
-                Add
-              </Button>
-              <Button
-                onClick={() => setShowAddUser(false)}
-                className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 text-sm hover:bg-gray-300 sm:w-auto w-full"
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
+        {activeTab === 'users' && (
+          <div className="w-full space-y-6">
+            {/* Header with Add User Button */}
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-blue-800">
+                User Permissions
+              </h2>
               {allocationPermissions?.Add && (
                 <Button
-                  onClick={() => setShowAddUser(true)}
-                  disabled={showAddUser || users.length === 1}
-                  className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm ${
-                    showAddUser || users.length === 1
+                  onClick={() => setShowAddUserModal(true)}
+                  disabled={users.length === 1}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
+                    users.length === 1
                       ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
@@ -1062,161 +1039,301 @@ export const AllocationPanel = () => {
                 </Button>
               )}
             </div>
-          )}
 
-          {/* Permissions Table */}
-          {users.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border rounded-md text-sm">
-                <thead className="bg-gray-50 text-black">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Username
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      View
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Add
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Edit
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Delete
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Download
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Confidential
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Comment
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Collaborate
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Finalize
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Masking
-                    </th>
-                    <th className="px-6 py-3 text-center text-base font-semibold text-gray-700 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr
-                      key={user.username}
-                      className={`bg-white text-gray-700 ${
-                        user.isEditing ? 'bg-blue-50' : ''
-                      }`}
-                    >
-                      <td className="px-4 py-2 font-medium">{user.username}</td>
-                      {(
-                        [
-                          'view',
-                          'add',
-                          'edit',
-                          'delete',
-                          'print',
-                          'confidential',
-                          'comment',
-                          'collaborate',
-                          'finalize',
-                          'masking',
-                        ] as PermissionKey[]
-                      ).map((field) => (
-                        <td key={field} className="text-center">
-                          <input
-                            type="checkbox"
-                            checked={user[field]}
-                            onChange={() =>
-                              togglePermission(user.username, field)
-                            }
-                            disabled={
-                              (!user.isEditing && user.username !== 'admin') ||
-                              user.username === 'admin'
-                            }
-                            className={`h-4 w-4 ${
-                              user.username === 'admin'
-                                ? 'cursor-not-allowed'
-                                : ''
-                            }`}
-                          />
-                        </td>
-                      ))}
-                      <td className="px-4 py-2 text-center">
-                        <div className="flex justify-center gap-2">
-                          {user.isEditing ? (
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => saveUser(user.username)}
-                                className="text-green-600 hover:text-green-800 bg-gray-50 hover:bg-gray-100"
-                                title="Save"
-                              >
-                                <Save className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                onClick={() => toggleEditMode(user.username)}
-                                className="text-gray-600 hover:text-gray-800 bg-gray-50 hover:bg-gray-100"
-                                title="Cancel"
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => toggleEditMode(user.username)}
-                                className="text-blue-600 hover:text-blue-800 bg-gray-50 hover:bg-gray-100"
-                                title="Edit"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                onClick={() => removeUser(user.username)}
-                                className="text-red-600 hover:text-red-800 bg-gray-50 hover:bg-gray-100"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          )}
+            {/* Permissions Cards */}
+            {users.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {users.map((user) => (
+                  <div
+                    key={user.username}
+                    className={`bg-white border rounded-lg shadow-sm p-5 transition-all ${
+                      user.isEditing ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
+                    }`}
+                  >
+                    {/* User Header */}
+                    <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-200">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800">{user.username}</h3>
+                        {user.isEditing && (
+                          <span className="text-xs text-blue-600 font-medium">Editing Mode</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        {user.isEditing ? (
+                          <>
+                            <Button
+                              onClick={() => saveUser(user.username)}
+                              className="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 p-2 rounded"
+                              title="Save"
+                            >
+                              <Save className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => toggleEditMode(user.username)}
+                              className="text-gray-600 hover:text-gray-800 bg-gray-50 hover:bg-gray-100 p-2 rounded"
+                              title="Cancel"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              onClick={() => toggleEditMode(user.username)}
+                              className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 p-2 rounded"
+                              title="Edit"
+                              disabled={user.username === 'admin'}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => removeUser(user.username)}
+                              className="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 p-2 rounded"
+                              title="Delete"
+                              disabled={user.username === 'admin'}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Permissions Grid */}
+                    <div className="space-y-4">
+                      {/* Basic Permissions */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                          Basic Access
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          {(['view', 'add', 'edit', 'delete'] as PermissionKey[]).map((field) => (
+                            <label
+                              key={field}
+                              className="flex items-center gap-2 cursor-pointer group"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={user[field]}
+                                onChange={() => togglePermission(user.username, field)}
+                                disabled={
+                                  (!user.isEditing && user.username !== 'admin') ||
+                                  user.username === 'admin'
+                                }
+                                className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                                  user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
+                                    ? 'cursor-not-allowed opacity-50'
+                                    : 'cursor-pointer'
+                                }`}
+                              />
+                              <span className={`text-sm capitalize ${
+                                user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
+                                  ? 'text-gray-400'
+                                  : 'text-gray-700 group-hover:text-blue-600'
+                              }`}>
+                                {field}
+                              </span>
+                            </label>
+                          ))}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                      </div>
 
-          {/* Footer Buttons */}
-          <div className="flex gap-2 mt-4 border-t border-gray-200 pt-4 ">
-            <Button
-              onClick={handleAllocation}
-              disabled={
-                !Boolean(selectedSubDept) ||
-                !Boolean(selectedDept) ||
-                users.length === 0 
-                // || savedFieldsData.length === 0
-              }
-              className={`flex max-sm:w-full items-center gap-1 px-4 py-2 rounded-md text-sm font-medium
-                 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed
-                 bg-blue-600 text-white hover:bg-blue-700 
-              `}
-            >
-              <PlusCircle className="w-4 h-4" />
-              Allocate
-            </Button>
+                      {/* Advanced Permissions */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                          Advanced Access
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          {(['print', 'confidential', 'comment', 'collaborate'] as PermissionKey[]).map((field) => (
+                            <label
+                              key={field}
+                              className="flex items-center gap-2 cursor-pointer group"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={user[field]}
+                                onChange={() => togglePermission(user.username, field)}
+                                disabled={
+                                  (!user.isEditing && user.username !== 'admin') ||
+                                  user.username === 'admin'
+                                }
+                                className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                                  user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
+                                    ? 'cursor-not-allowed opacity-50'
+                                    : 'cursor-pointer'
+                                }`}
+                              />
+                              <span className={`text-sm capitalize ${
+                                user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
+                                  ? 'text-gray-400'
+                                  : 'text-gray-700 group-hover:text-blue-600'
+                              }`}>
+                                {field}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Special Permissions */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                          Special Permissions
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          {(['finalize', 'masking'] as PermissionKey[]).map((field) => (
+                            <label
+                              key={field}
+                              className="flex items-center gap-2 cursor-pointer group"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={user[field]}
+                                onChange={() => togglePermission(user.username, field)}
+                                disabled={
+                                  (!user.isEditing && user.username !== 'admin') ||
+                                  user.username === 'admin'
+                                }
+                                className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                                  user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
+                                    ? 'cursor-not-allowed opacity-50'
+                                    : 'cursor-pointer'
+                                }`}
+                              />
+                              <span className={`text-sm capitalize ${
+                                user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
+                                  ? 'text-gray-400'
+                                  : 'text-gray-700 group-hover:text-blue-600'
+                              }`}>
+                                {field}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg font-medium">No users allocated</p>
+                <p className="text-gray-400 text-sm mt-2">Click "Add User" to start allocating permissions</p>
+              </div>
+            )}
+
+            {/* Footer Allocate Button */}
+            <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-gray-200">
+              <Button
+                onClick={handleAllocation}
+                disabled={
+                  !Boolean(selectedSubDept) ||
+                  !Boolean(selectedDept) ||
+                  users.length === 0
+                }
+                className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-medium
+                  disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed
+                  bg-blue-600 text-white hover:bg-blue-700 
+                `}
+              >
+                <PlusCircle className="w-4 h-4" />
+                Allocate All Users
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Add User Modal */}
+      {showAddUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-xl">
+              <h2 className="text-xl font-semibold text-gray-800">Add New User</h2>
+              <button
+                onClick={() => {
+                  setShowAddUserModal(false);
+                  setNewUserID('');
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* User Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select User
+                </label>
+                <select
+                  value={newUserID}
+                  onChange={(e) => setNewUserID(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-white border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="" hidden>
+                    Choose a user to add...
+                  </option>
+                  {userOptions?.filter((user: any) => !users.some((u) => u.username === user.label)).map((user: any) => (
+                    <option key={user.value} value={user.value}>
+                      {user.label}
+                    </option>
+                  ))}
+                </select>
+                {userOptions?.filter((user: any) => !users.some((u) => u.username === user.label)).length === 0 && (
+                  <p className="text-sm text-gray-500 mt-2">All available users have been added.</p>
+                )}
+              </div>
+
+              {/* Permission Groups Preview */}
+              {newUserID && (
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <h3 className="text-sm font-semibold text-blue-800 mb-3">Default Permissions</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-gray-700">View</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                      <span className="text-gray-500">All other permissions disabled</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-3">You can edit permissions after adding the user.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3 rounded-b-xl">
+              <Button
+                onClick={() => {
+                  setShowAddUserModal(false);
+                  setNewUserID('');
+                }}
+                className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={addUser}
+                disabled={!newUserID}
+                className={`px-4 py-2 rounded-md text-sm font-medium ${
+                  !newUserID
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                Add User
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
