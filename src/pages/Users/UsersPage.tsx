@@ -245,7 +245,7 @@ export const UsersPage: React.FC = () => {
         <div className="text-left flex-1">
           <h1 className="text-3xl font-bold text-blue-800">Users</h1>
           <p className="mt-2 text-gray-600">
-            Manage system users and access permissions 
+            Manage system users and access permissions
 
             {/* sadasdasd   [{JSON.stringify(useModulePermissions(5)?.Add?.valueOf())}] */}
 
