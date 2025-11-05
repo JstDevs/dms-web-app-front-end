@@ -35,6 +35,7 @@ import ModulesManagement from './pages/Users/ModulesManagement';
 import UserAccessPage from './pages/Users/Users Access/UsersAccessPage';
 import OCRFieldsManagement from './pages/OCR/Fields/OCRFieldsManagement';
 import ApprovalMatrix from './components/ApprovalMatrix';
+import PageTransition from './components/layout/PageTransition';
 
 function App() {
   return (
@@ -51,7 +52,14 @@ function App() {
                 {/* Protected routes start here */}
                 <Route element={<ProtectedRoute />}>
                   {/* Home Page should not use layout */}
-                  <Route path="/home" element={<HomePage />} />
+                  <Route
+                    path="/home"
+                    element={
+                      <PageTransition>
+                        <HomePage />
+                      </PageTransition>
+                    }
+                  />
 
                   {/* All other routes wrapped in layout */}
                   <Route element={<Layout />}>

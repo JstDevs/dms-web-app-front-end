@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { Toaster } from "react-hot-toast";
+import PageTransition from "./PageTransition";
 
 const Layout: React.FC = () => {
   return (
@@ -12,7 +13,9 @@ const Layout: React.FC = () => {
         <Header />
         <main className="flex-1 overflow-y-auto p-2 md:p-6">
           <div className="mx-auto max-w-7xl">
-            <Outlet />
+            <PageTransition>
+              <Outlet />
+            </PageTransition>
           </div>
         </main>
       </div>
