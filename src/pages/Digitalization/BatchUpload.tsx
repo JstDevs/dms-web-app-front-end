@@ -1,11 +1,12 @@
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
-import { UploadCloud, Trash2, ChevronDown } from 'lucide-react';
+import { UploadCloud, Trash2, ChevronDown, FileText, Download, CheckCircle2, AlertCircle, X, FileCheck, Building2, FolderOpen } from 'lucide-react';
 import { useState, useRef, useEffect, ChangeEvent, DragEvent } from 'react';
 import toast from 'react-hot-toast';
 import { performBatchUpload, performDocumentUpload } from './utils/batchServices';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { logOCRActivity } from '@/utils/activityLogger';
 import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 
 type UploadedFile = {
   id: number;
@@ -510,283 +511,418 @@ export const BatchUploadPanel = () => {
   };
 
   if (loadingDepartments) {
-    return <div>Loading departments...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading departments...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-white shadow-md rounded-xl p-3 sm:p-6 space-y-6">
-      <header>
-        <h2 className="text-3xl font-bold text-blue-800">Batch Upload</h2>
-        <p className="mt-2 text-gray-600">
-          Upload multiple documents (Excel, PDF, Images, Word, Text) for batch processing
-        </p>
-        <div className="mt-3">
-          <a
-            href="/batch_upload_template.csv"
-            download
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-sm text-gray-800"
-          >
-            Download Template
-          </a>
+    <div className="flex flex-col space-y-6 animate-fade-in">
+      {/* Enhanced Header */}
+      <header className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-xl shadow-xl p-6 sm:p-8 text-white">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
+        <div className="relative z-10">
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-3">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white bg-opacity-20 rounded-xl backdrop-blur-sm">
+                <UploadCloud className="w-8 h-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-bold">Batch Upload</h1>
+                <p className="mt-1 text-base text-blue-100">
+                  Upload multiple documents with Excel templates or ZIP archives
+                </p>
+              </div>
+            </div>
+            <a
+              href="/batch_upload_template.csv"
+              download
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm border border-white border-opacity-30 text-white font-medium transition-all duration-200 hover:scale-105 shadow-lg"
+            >
+              <Download className="w-5 h-5" />
+              Download Template
+            </a>
+          </div>
         </div>
       </header>
 
-      {/* Context Selection */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Department
-          </label>
-          <div className="relative">
-            <select
-              value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="" hidden>
-                Select Department
-              </option>
-              {departmentOptions.map((dept) => (
-                <option key={dept.value} value={dept.label}>
-                  {dept.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+      {/* Context Selection Card */}
+      <Card className="shadow-lg border-0 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-600 rounded-lg">
+              <FileText className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl text-gray-800">Document Context</CardTitle>
+              <p className="text-sm text-gray-600 mt-1">Select department and document type for batch processing</p>
+            </div>
           </div>
-        </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="grid sm:grid-cols-2 gap-6 text-black">
+            {/* Department */}
+            <div className="col-span-1 space-y-2">
+              <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                Department <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedDepartment}
+                  onChange={(e) => setSelectedDepartment(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white text-sm text-gray-700"
+                >
+                  <option value="" hidden>
+                    Select Department
+                  </option>
+                  {departmentOptions.map((dept) => (
+                    <option key={dept.value} value={dept.label}>
+                      {dept.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Document Type
-          </label>
-          <div className="relative">
-            <select
-              value={selectedSubDepartment}
-              onChange={(e) => setSelectedSubDepartment(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={!selectedDepartment}
-            >
-              <option value="" hidden>
-                {subDepartmentOptions.length === 0
-                  ? 'No document types available'
-                  : 'Select Document Type'}
-              </option>
-              {subDepartmentOptions.map((subDept) => (
-                <option key={subDept.value} value={subDept.label}>
-                  {subDept.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+            {/* Document Type */}
+            <div className="col-span-1 space-y-2">
+              <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                <FolderOpen className="w-4 h-4 text-blue-600" />
+                Document Type <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedSubDepartment}
+                  onChange={(e) => setSelectedSubDepartment(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white text-sm text-gray-700 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                  disabled={!selectedDepartment}
+                >
+                  <option value="" hidden>
+                    {subDepartmentOptions.length === 0
+                      ? 'No document types available'
+                      : 'Select Document Type'}
+                  </option>
+                  {subDepartmentOptions.map((subDept) => (
+                    <option key={subDept.value} value={subDept.label}>
+                      {subDept.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Rest of your component remains the same */}
-      {/* Drag and Drop Area */}
-      <div
-        className={`border-2 border-dashed rounded-md p-6 text-center transition cursor-pointer ${
-          selectedSubDepartment
-            ? 'border-blue-300 bg-blue-50 hover:bg-blue-100'
-            : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
-        }`}
-        onClick={selectedSubDepartment ? triggerFileInput : undefined}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-      >
-        <p className="text-sm">
-          {selectedSubDepartment
-            ? 'Drag & drop files here or click to upload (Excel, ZIP with Excel + Documents, PDF, Images, Word, Text)'
-            : 'Please select a department and document type first'}
-        </p>
-        <input
-          type="file"
-          accept=".xlsx, .xls, .csv, .zip, .pdf, .png, .jpg, .jpeg, .doc, .docx, .txt, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv, application/zip, application/x-zip-compressed, application/pdf, image/png, image/jpeg, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain"
-          className="hidden"
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          disabled={!selectedSubDepartment}
-          multiple
-        />
-      </div>
-
-      {/* Upload Button */}
-      <div className="flex justify-between items-center">
-        {batchUploadPermissions?.Add && (
-          <button
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm ${
-              files.some((f) => f.status === 'Pending')
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+      {/* Enhanced Drag and Drop Area */}
+      <Card className="shadow-lg border-0 overflow-hidden">
+        <CardContent className="p-6">
+          <div
+            className={`border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 ${
+              selectedSubDepartment
+                ? 'border-gray-300 hover:border-blue-500 hover:shadow-lg'
+                : 'border-gray-300 bg-gray-50 text-gray-400 cursor-not-allowed'
             }`}
-            disabled={!files.some((f) => f.status === 'Pending')}
-            onClick={handleUpload}
+            onClick={selectedSubDepartment ? triggerFileInput : undefined}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
           >
-            <UploadCloud className="w-4 h-4" />
-            Upload
-          </button>
-        )}
+            {selectedSubDepartment ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                  <div className="relative p-4 bg-blue-600 rounded-full">
+                    <UploadCloud className="w-10 h-10 text-white" />
+                  </div>
+                </div>
+                <p className="mb-2 text-base font-semibold text-gray-700">
+                  <span className="text-blue-600">Click to upload</span> or drag and drop
+                </p>
+                <p className="text-sm text-gray-500 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Excel, CSV, ZIP, PDF, Images, Word, Text files
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 px-6">
+                <AlertCircle className="w-10 h-10 text-gray-400 mb-3" />
+                <p className="text-base font-medium text-gray-600">
+                  Please select a department and document type first
+                </p>
+              </div>
+            )}
+            <input
+              type="file"
+              accept=".xlsx, .xls, .csv, .zip, .pdf, .png, .jpg, .jpeg, .doc, .docx, .txt, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv, application/zip, application/x-zip-compressed, application/pdf, image/png, image/jpeg, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              disabled={!selectedSubDepartment}
+              multiple
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-        {batchUploadPermissions?.Delete && files.length > 0 && (
-          <button
-            className="flex items-center gap-2 text-red-600 text-sm hover:underline"
-            onClick={() => setFiles([])}
-          >
-            <Trash2 className="w-4 h-4" />
-            Clear All
-          </button>
-        )}
-      </div>
+      {/* Enhanced Action Buttons */}
+      <Card className="shadow-lg border-0">
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              {files.length > 0 && (
+                <>
+                  <FileCheck className="w-5 h-5 text-blue-600" />
+                  <span className="font-medium">
+                    {files.length} file{files.length > 1 ? 's' : ''} ready to upload
+                  </span>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              {batchUploadPermissions?.Delete && files.length > 0 && (
+                <button
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 rounded-lg font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+                  onClick={() => setFiles([])}
+                >
+                  <X className="w-4 h-4" />
+                  Clear All
+                </button>
+              )}
+              {batchUploadPermissions?.Add && (
+                <button
+                  className={`flex items-center gap-2 px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${
+                    files.some((f) => f.status === 'Pending')
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
+                      : 'opacity-50 cursor-not-allowed bg-gray-400 text-white'
+                  }`}
+                  disabled={!files.some((f) => f.status === 'Pending')}
+                  onClick={handleUpload}
+                >
+                  <UploadCloud className="w-5 h-5" />
+                  Upload {files.length > 0 ? `(${files.filter(f => f.status === 'Pending').length})` : ''}
+                </button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Uploaded Files Table */}
       {files.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm text-left">
-            <thead className="bg-gray-50 text-black">
-              <tr>
-                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                  File Name
-                </th>
-                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                  Size
-                </th>
-                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                  Department
-                </th>
-                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                  Validation
-                </th>
-                <th className="px-6 py-3 text-base font-semibold text-gray-700 uppercase tracking-wider text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {files.map((file) => (
-                <tr key={file.id} className="border-b border-gray-200">
-                  <td className="px-4 py-2 font-medium">{file.name}</td>
-                  <td className="px-4 py-2">{file.type}</td>
-                  <td className="px-4 py-2">{file.size}</td>
-                  <td className="px-4 py-2">{file.department}</td>
-                  <td className="px-4 py-2">
-                    <span
-                      className={`inline-block px-2 py-1 rounded-full text-xs ${
-                        file.status === 'Success'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}
-                    >
-                      {file.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2">
-                    {(() => {
-                      const lower = file.name.toLowerCase();
-                      const isCsvOrXlsx = lower.endsWith('.csv') || lower.endsWith('.xlsx') || lower.endsWith('.xls');
-                      const isZip = lower.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
-                      
-                      if (isZip) {
-                        return file.validationErrors && file.validationErrors.length > 0 ? (
-                          <span
-                            className="text-red-600 text-xs underline cursor-help"
-                            title={(file.validationErrors.slice(0, 5).join('\n')) + (file.validationErrors.length > 5 ? `\n...and ${file.validationErrors.length - 5} more` : '')}
-                          >
-                            {file.validationErrors.length} error(s) — hover to view
-                          </span>
-                        ) : (
-                          <span className="text-blue-700 text-xs">
-                            ZIP ready — will extract and process
-                          </span>
-                        );
-                      } else if (isCsvOrXlsx) {
-                        return file.validationErrors && file.validationErrors.length > 0 ? (
-                          <span
-                            className="text-red-600 text-xs underline cursor-help"
-                            title={(file.validationErrors.slice(0, 5).join('\n')) + (file.validationErrors.length > 5 ? `\n...and ${file.validationErrors.length - 5} more` : '')}
-                          >
-                            {file.validationErrors.length} error(s) — hover to view
-                          </span>
-                        ) : (
-                          <span className="text-green-700 text-xs">
-                            {typeof file.parsedRows === 'number' ? `${file.parsedRows} row(s) validated` : 'Validated'}
-                          </span>
-                        );
-                      } else {
-                        return <span className="text-gray-500 text-xs">Validation for spreadsheet/ZIP templates only</span>;
-                      }
-                    })()}
-                  </td>
-                  <td className="px-4 py-2 text-center">
-                    <div className="flex justify-center gap-2">
-                      {batchUploadPermissions?.Delete && (
-                        <button
-                          className="text-red-600 hover:text-red-800"
-                          onClick={() => deleteFile(file.id)}
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-full">
-          <p className="text-lg font-medium text-gray-900 mb-4">
-            No files uploaded yet
-          </p>
-          <p className="text-sm text-gray-500">
-            Drag and drop files here or click to upload
-          </p>
-        </div>
-      )}
-
-      {/* Batch Result Panel */}
-      {lastBatchCount && (
-        <div className="mt-4 p-4 border rounded-md bg-gray-50">
-          <div className="text-sm text-gray-800 mb-2">
-            Processed: {lastBatchCount.total} file(s), Success: {lastBatchCount.success}
-          </div>
-          {lastBatchResponse && (
-            <details className="text-xs">
-              <summary className="cursor-pointer text-blue-700">View raw server response</summary>
-              <pre className="mt-2 whitespace-pre-wrap break-words">{JSON.stringify(lastBatchResponse, null, 2)}</pre>
-            </details>
-          )}
-          {(lastBatchResponse as any)?.processedDocuments && Array.isArray((lastBatchResponse as any).processedDocuments) && (
-            <div className="mt-3 overflow-x-auto">
-              <table className="min-w-full text-xs text-left">
-                <thead className="bg-gray-100">
+        <Card className="shadow-lg border-0 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-600 rounded-lg">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-gray-800">Uploaded Files</CardTitle>
+                <p className="text-sm text-gray-600 mt-1">{files.length} file{files.length > 1 ? 's' : ''} selected</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-2">File Name</th>
-                    <th className="px-4 py-2">Status</th>
-                    <th className="px-4 py-2">Error</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      File Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Size
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Validation
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {((lastBatchResponse as any).processedDocuments as any[]).map((row, idx) => (
-                    <tr key={idx} className="border-b border-gray-200">
-                      <td className="px-4 py-2">{row.fileName ?? '-'}</td>
-                      <td className="px-4 py-2">{row.status ?? '-'}</td>
-                      <td className="px-4 py-2 text-red-600">{row.error ?? ''}</td>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {files.map((file) => (
+                    <tr key={file.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-medium text-gray-900">{file.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <span className="text-xs text-gray-600">{file.type}</span>
+                      </td>
+                      <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-600">
+                        {file.size}
+                      </td>
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                            file.status === 'Success'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}
+                        >
+                          {file.status === 'Success' ? (
+                            <CheckCircle2 className="w-3 h-3" />
+                          ) : (
+                            <AlertCircle className="w-3 h-3" />
+                          )}
+                          {file.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        {(() => {
+                          const lower = file.name.toLowerCase();
+                          const isCsvOrXlsx = lower.endsWith('.csv') || lower.endsWith('.xlsx') || lower.endsWith('.xls');
+                          const isZip = lower.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
+                          
+                          if (isZip) {
+                            return file.validationErrors && file.validationErrors.length > 0 ? (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 cursor-help"
+                                title={(file.validationErrors.slice(0, 5).join('\n')) + (file.validationErrors.length > 5 ? `\n...and ${file.validationErrors.length - 5} more` : '')}
+                              >
+                                <AlertCircle className="w-3 h-3" />
+                                {file.validationErrors.length} error(s)
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Ready
+                              </span>
+                            );
+                          } else if (isCsvOrXlsx) {
+                            return file.validationErrors && file.validationErrors.length > 0 ? (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 cursor-help"
+                                title={(file.validationErrors.slice(0, 5).join('\n')) + (file.validationErrors.length > 5 ? `\n...and ${file.validationErrors.length - 5} more` : '')}
+                              >
+                                <AlertCircle className="w-3 h-3" />
+                                {file.validationErrors.length} error(s)
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-green-50 text-green-700">
+                                <CheckCircle2 className="w-3 h-3" />
+                                {typeof file.parsedRows === 'number' ? `${file.parsedRows} row(s)` : 'Valid'}
+                              </span>
+                            );
+                          } else {
+                            return <span className="text-xs text-gray-400">-</span>;
+                          }
+                        })()}
+                      </td>
+                      <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
+                        {batchUploadPermissions?.Delete && (
+                          <button
+                            className="text-red-600 hover:text-red-800 p-1.5 rounded hover:bg-red-50 transition-colors"
+                            onClick={() => deleteFile(file.id)}
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="shadow-lg border-0">
+          <CardContent className="p-12">
+            <div className="flex flex-col items-center justify-center text-center">
+              <FileText className="w-12 h-12 text-gray-300 mb-3" />
+              <p className="text-sm text-gray-500">
+                No files uploaded yet
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Batch Result Panel */}
+      {lastBatchCount && (
+        <Card className="shadow-lg border-0 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-600 rounded-lg">
+                <CheckCircle2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-gray-800">Upload Results</CardTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  Processed: <span className="font-semibold text-green-700">{lastBatchCount.total}</span> file(s), 
+                  Success: <span className="font-semibold text-green-700">{lastBatchCount.success}</span>
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {lastBatchResponse && (
+              <details className="mb-4">
+                <summary className="cursor-pointer text-sm font-medium text-blue-700 hover:text-blue-800 mb-3 inline-flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  View raw server response
+                </summary>
+                <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <pre className="text-xs whitespace-pre-wrap break-words font-mono text-gray-700">
+                    {JSON.stringify(lastBatchResponse, null, 2)}
+                  </pre>
+                </div>
+              </details>
+            )}
+            {(lastBatchResponse as any)?.processedDocuments && Array.isArray((lastBatchResponse as any).processedDocuments) && (
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">File Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Error</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {((lastBatchResponse as any).processedDocuments as any[]).map((row, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{row.fileName ?? '-'}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            row.status && row.status.toLowerCase().includes('fail')
+                              ? 'bg-red-100 text-red-800 border border-red-200'
+                              : 'bg-green-100 text-green-800 border border-green-200'
+                          }`}>
+                            {row.status && !row.status.toLowerCase().includes('fail') && <CheckCircle2 className="w-3 h-3" />}
+                            {row.status && row.status.toLowerCase().includes('fail') && <X className="w-3 h-3" />}
+                            {row.status ?? '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-red-600">{row.error ?? ''}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
