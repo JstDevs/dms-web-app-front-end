@@ -94,7 +94,7 @@ const ChangePassword: React.FC = () => {
   return (
     <div className="p-6 max-w-3xl mx-auto animate-fade-in bg-white rounded-lg shadow-sm border border-gray-100">
       <button
-        onClick={() => navigate('/settings')}
+        onClick={() => navigate('/users/profile')}
         className="flex items-center text-blue-600 hover:text-blue-800 mb-6 transition"
       >
         <ArrowLeftCircle className="h-5 w-5 mr-2" />

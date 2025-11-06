@@ -72,39 +72,28 @@ function App() {
                       element={<PendingApprovals />}
                     />
                     <Route path="/activity" element={<RecentActivity />} />
-                    <Route path="/users/audit-trail" element={<AuditTrail />} />
                     <Route path="/department" element={<DepartmentFiles />} />
                     <Route path="/team" element={<Team />} />
                     <Route
                       path="/documents/:documentId"
                       element={<DocumentView />}
                     />
-                    {/* -------------------Settings---------------------- */}
-                    <Route path="/users/profile" element={<Settings />} />
+                    
+                    {/* --- --- --- --- Documents --- --- --- --- */}
                     <Route
-                      path="/users/change-password"
-                      element={<ChangePassword />}
+                      path="/documents/library"
+                      element={<MyDocuments />}
                     />
-                    {/* ----------------------Document && Document Types-------------------- */}
-
                     <Route
                       path="/documents/manual-upload"
                       element={<DocumentUpload />}
                     />
                     <Route
-                      path="/documents/library"
-                      element={<MyDocuments />}
+                      path="/documents/batch-upload"
+                      element={<BatchUploadPanel />}
                     />
-
-                    {/* ----------------------OCR check-------------------- */}
-                    <Route path="/collaboration/masking" element={<UnrecordedOCR />} />
-                    <Route
-                      path="/settings/fields"
-                      element={<OCRFieldsManagement />}
-                    />
-                    <Route path="/template/masking" element={<TemplateOCR />} />
-                    <Route path="/template/ocular" element={<TemplateOcular />} />
-                    {/* //------------------ departments------------------ */}
+                    
+                    {/* --- --- --- --- Settings --- --- --- --- */}
                     <Route
                       path="/departments"
                       element={<DepartmentsMain />}
@@ -113,27 +102,70 @@ function App() {
                       path="/settings/doc-type"
                       element={<SubDepartments />}
                     />
-                    {/* -----------USERS------------- */}
-                    <Route path="/users/main" element={<UsersPage />} />
-                    <Route path="/users/access" element={<UserAccessPage />} />
                     <Route
-                      path="/users/modules"
-                      element={<ModulesManagement />}
+                      path="/settings/fields"
+                      element={<OCRFieldsManagement />}
                     />
-                    {/* ------------------DIGITALIZATION----------------- */}
                     <Route
                       path="/settings/allocation"
                       element={<AllocationPanel />}
                     />
-                    <Route
-                      path="/documents/batch-upload"
-                      element={<BatchUploadPanel />}
+                    
+                    {/* --- --- --- --- Template --- --- --- --- */}
+                    <Route 
+                      path="/template/masking" 
+                      element={<TemplateOCR />} 
                     />
-                    {/* ------------------Matrix----------------- */}
+                    <Route 
+                      path="/template/ocular" 
+                      element={<TemplateOcular />} 
+                    />
+                    
+                    {/* --- --- --- --- Collaboration --- --- --- --- */}
                     <Route
                       path="/collaboration/approval-matrix"
                       element={<ApprovalMatrix />}
                     />
+                    <Route 
+                      path="/collaboration/masking" 
+                      element={<UnrecordedOCR />} 
+                    />
+                    
+                    {/* --- --- --- --- Users --- --- --- --- */}
+                    <Route 
+                      path="/users/profile" 
+                      element={<Settings />} 
+                    />
+                    <Route
+                      path="/users/change-password"
+                      element={<ChangePassword />}
+                    />
+                    <Route 
+                      path="/users/main" 
+                      element={<UsersPage />} 
+                    />
+                    <Route 
+                      path="/users/access" 
+                      element={<UserAccessPage />} 
+                    />
+                    <Route
+                      path="/users/modules"
+                      element={<ModulesManagement />}
+                    />
+                    <Route 
+                      path="/users/audit-trail" 
+                      element={<AuditTrail />} 
+                    />
+
+
+
+                    {/* -------------------Settings---------------------- */}
+                    {/* ----------------------Document && Document Types-------------------- */}
+                    {/* ----------------------OCR check-------------------- */}
+                    {/* //------------------ departments------------------ */}
+                    {/* -----------USERS------------- */}
+                    {/* ------------------DIGITALIZATION----------------- */}
+                    {/* ------------------Matrix----------------- */}
                   </Route>
                 </Route>
 
