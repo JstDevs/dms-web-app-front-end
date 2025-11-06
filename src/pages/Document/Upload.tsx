@@ -101,12 +101,16 @@ export default function DocumentUpload() {
   });
   const loadDocuments = async () => {
     try {
-      const { data } = await fetchDocuments(
+      const response = await fetchDocuments(
         Number(selectedRole?.ID),
         currentPage
       );
-      setDocuments(data.documents);
-      setPaginationData(data.pagination);
+      const raw = response?.data as any;
+      const payload = (raw && (raw.data ?? raw)) as any;
+      const docs = Array.isArray(payload?.documents) ? payload.documents : [];
+      const pagination = payload?.pagination ?? { totalItems: docs.length, totalPages: 1 };
+      setDocuments(docs);
+      setPaginationData(pagination);
     } catch (err) {
       console.error('Failed to fetch documents', err);
     }
