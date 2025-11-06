@@ -597,7 +597,7 @@ export const TemplateOCR = () => {
       <div className="flex justify-between sm:items-center max-sm:flex-col  mb-6 flex-wrap gap-4">
         <header className="text-left flex-1 ">
           <h1 className="text-3xl font-bold text-blue-800">Templates</h1>
-          <p className="mt-2 text-gray-600 block">Manage all templates here</p>
+          <p className="mt-2 text-gray-600 block">Manage all templates here for OCR and Masking</p>
         </header>
         {templatePermissions?.Add && (
           <Button
@@ -744,13 +744,13 @@ export const TemplateOCR = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Calendar size={14} className="text-gray-400" />
-                    <span className="font-medium">Created:</span>
-                    <span>{formatDate(template.createdAt)}</span>
+                    <span className="font-medium"></span>
+                    <span>{formatDate(template.updatedAt)}</span>
                   </div>
                 </div>
 
                 {/* Template Dimensions */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
+                {/* <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Image className="text-gray-400" />
                     <span className="font-medium">Dimensions:</span>
@@ -768,7 +768,7 @@ export const TemplateOCR = () => {
                     <span className="font-medium">Updated:</span>
                     <span>{formatDate(template.updatedAt)}</span>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Fields Preview */}
                 <div className="flex flex-wrap gap-2">

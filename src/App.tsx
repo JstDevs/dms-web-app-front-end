@@ -110,16 +110,16 @@ function App() {
                       path="/settings/allocation"
                       element={<AllocationPanel />}
                     />
-                    
-                    {/* --- --- --- --- Template --- --- --- --- */}
                     <Route 
-                      path="/template/masking" 
+                      path="/settings/template" 
                       element={<TemplateOCR />} 
                     />
-                    <Route 
+                    
+                    {/* --- --- --- --- Template --- --- --- --- */}
+                    {/* <Route 
                       path="/template/ocular" 
                       element={<TemplateOcular />} 
-                    />
+                    /> */}
                     
                     {/* --- --- --- --- Collaboration --- --- --- --- */}
                     <Route

@@ -263,6 +263,14 @@ const DocumentCurrentView = ({
                   <Download className="h-4 w-4" />
                   Download
                 </button>
+                <button
+                  onClick={handleDownload}
+                  disabled={!currentDocumentInfo?.filepath}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-800 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                >
+                  <Download className="h-4 w-4" />
+                  Brownload
+                </button>
               </div>
             </div>
           </div>

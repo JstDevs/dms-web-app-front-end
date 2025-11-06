@@ -208,7 +208,7 @@ const Header: React.FC = () => {
                 {/* Menu Items */}
                 <div className="py-2">
                   <Link
-                    to="/settings"
+                    to="/users/profile"
                     className="flex items-center gap-3 px-5 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-150 group"
                     role="menuitem"
                     onClick={() => setIsProfileMenuOpen(false)}

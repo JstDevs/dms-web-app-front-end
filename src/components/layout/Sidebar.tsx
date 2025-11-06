@@ -73,25 +73,25 @@ const navItems: NavItem[] = [
           { name: 'Document Type', path: '/settings/doc-type', moduleId: 2 },
           { name: 'Fields', path: '/settings/fields', moduleId: 11 },
           { name: 'Allocation', path: '/settings/allocation', moduleId: 7 },
-          // { name: 'Masking Template', path: '/ocr/template', moduleId: 10 },
+          { name: 'Template', path: '/settings/template', moduleId: 10 },
         ]
       },
-      {
-        name: 'Template Settings',
-        icon: FileText,
-        path: '/template/ocular',
-        submenu: [
-          { name: 'OCR Template', path: '/template/ocular', moduleId: 10 },
-          { name: 'Masking Template', path: '/template/masking', moduleId: 10 },
-        ]
-      },
+      // {
+      //   name: 'Template Settings',
+      //   icon: FileText,
+      //   path: '/template/ocular',
+      //   submenu: [
+      //     { name: 'OCR Template', path: '/template/ocular', moduleId: 10 },
+      //     { name: 'Masking Template', path: '/template/masking', moduleId: 10 },
+      //   ]
+      // },
       {
         name: 'Collaboration Settings',
         icon: FileText,
         path: '/collaboration/approval-matrix',
         submenu: [
           // { name: 'Collaboration Access', path: '/yyy', moduleId: 9 },
-          { name: 'Approval Matrix', icon: Grid3x3, path: '/collaboration/approval-matrix', moduleId: 9 },
+          { name: 'Approval Matrix', path: '/collaboration/approval-matrix', moduleId: 9 },
           { name: 'Masking Setup', path: '/collaboration/masking', moduleId: 9 },
         ]
       },
