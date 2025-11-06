@@ -201,6 +201,51 @@ const DocumentCurrentView = ({
       }
     }
   };
+
+  const handleBrownload = async () => {
+    if (currentDocumentInfo?.filepath) {
+      try {
+        const response = await fetch(currentDocumentInfo.filepath);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        const link = window.document.createElement('a');
+        link.href = url;
+        link.download = currentDocumentInfo?.FileName || 'document';
+        window.document.body.appendChild(link);
+        link.click();
+        window.document.body.removeChild(link);
+
+        // Clean up the blob URL
+        window.URL.revokeObjectURL(url);
+        
+        // Log document download activity
+        try {
+          // console.log('🔍 Logging download activity for document:', currentDocumentInfo.ID);
+          await logDocumentActivity(
+            'DOWNLOADED',
+            user!.ID,
+            user!.UserName,
+            currentDocumentInfo.ID,
+            currentDocumentInfo.FileName,
+            `Downloaded by ${user!.UserName}`
+          );
+          console.log('✅ Download activity logged successfully');
+          
+          // Refresh document data to show the new audit trail entry
+          if (document?.document?.[0]?.ID) {
+            console.log('🔄 Refreshing document data...');
+            await fetchDocument(String(document.document[0].ID));
+            console.log('✅ Document data refreshed');
+          }
+        } catch (logError) {
+          console.warn('Failed to log document download activity:', logError);
+        }
+      } catch (error) {
+        console.error('Download failed:', error);
+      }
+    }
+  };
   
   if (!document || !currentDocumentInfo) return null;
   return (
@@ -264,7 +309,7 @@ const DocumentCurrentView = ({
                   Download
                 </button>
                 <button
-                  onClick={handleDownload}
+                  onClick={handleBrownload}
                   disabled={!currentDocumentInfo?.filepath}
                   className="flex items-center gap-2 px-4 py-2 bg-orange-800 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                 >
