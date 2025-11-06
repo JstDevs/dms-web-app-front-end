@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 // import { useDocument } from "@/contexts/DocumentContext";
 import DocumentCard from '@/components/documents/DocumentCard';
@@ -41,6 +41,7 @@ const MyDocuments: React.FC = () => {
   const [filterLoading, setFilterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("")
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const ITEMS_PER_PAGE = 10;
   // console.log("selectedRole", selectedRole);
   const myDocumentPermissions = useModulePermissions(4); // 1 = MODULE_ID
   
@@ -85,6 +86,23 @@ const MyDocuments: React.FC = () => {
       // Don't clear appliedSubDepartment here - wait for Apply Filters button
     }
   }, [department, documentTypeOptions, subDepartment]);
+
+  // Auto-apply initial filters once on first visit only
+  const hasAppliedInitial = useRef(false);
+  useEffect(() => {
+    if (
+      !hasAppliedInitial.current &&
+      department &&
+      subDepartment &&
+      !appliedDepartment &&
+      !appliedSubDepartment
+    ) {
+      hasAppliedInitial.current = true;
+      setAppliedDepartment(department);
+      setAppliedSubDepartment(subDepartment);
+      setCurrentPage(1);
+    }
+  }, [department, subDepartment, appliedDepartment, appliedSubDepartment]);
   
   // Debounce search term to prevent too many API calls
   useEffect(() => {
@@ -131,7 +149,7 @@ const MyDocuments: React.FC = () => {
         
         if (needsAllPages) {
           // For date filtering, we need to fetch all pages to filter client-side
-          const firstPage = await fetchDocuments(
+          const firstPageResponse = await fetchDocuments(
             Number(selectedRole?.ID),
             1,
             debouncedSearchTerm,
@@ -140,8 +158,10 @@ const MyDocuments: React.FC = () => {
             '', // Don't send date filters to backend
             ''
           );
+          const firstPageRaw = firstPageResponse.data;
+          const firstPage = (firstPageRaw && (firstPageRaw.data ?? firstPageRaw)) as any;
           
-          const totalPages = firstPage.data.pagination.totalPages;
+          const totalPages = firstPage?.pagination?.totalPages || 1;
           const allPages = [firstPage];
           
           if (totalPages > 1) {
@@ -159,12 +179,19 @@ const MyDocuments: React.FC = () => {
                 )
               )
             );
-            allPages.push(...pageResults);
+            allPages.push(
+              ...pageResults.map((r) => {
+                const raw = r.data;
+                return (raw && (raw.data ?? raw)) as any;
+              })
+            );
           }
           
-          const combinedDocuments = allPages.flatMap((page) => page.data.documents as any[]);
+          const combinedDocuments = allPages.flatMap((page) =>
+            Array.isArray(page?.documents) ? (page.documents as any[]) : []
+          );
           const effectivePagination = {
-            ...firstPage.data.pagination,
+            ...(firstPage?.pagination ?? {}),
             totalItems: combinedDocuments.length,
             totalPages: 1,
           };
@@ -193,24 +220,71 @@ const MyDocuments: React.FC = () => {
             appliedStartDate,
             appliedEndDate
           );
-          const responseData = response.data;
-
-          const combinedDocuments = responseData.documents as any[];
-          const effectivePagination = responseData.pagination;
+          const raw = response.data as any;
+          const responseData = (raw && (raw.data ?? raw)) as any;
+          const pageDocuments = Array.isArray(responseData?.documents)
+            ? (responseData.documents as any[])
+            : [];
+          const effectivePagination = responseData?.pagination ?? {
+            totalItems: pageDocuments.length,
+            totalPages: 1,
+          };
           
           console.log('📥 Received documents:', {
-            count: combinedDocuments.length,
-            totalItems: effectivePagination.totalItems,
-            sampleDepts: combinedDocuments.slice(0, 5).map((d: any) => ({
+            count: pageDocuments?.length ?? 0,
+            totalItems: effectivePagination?.totalItems ?? 0,
+            sampleDepts: pageDocuments.slice(0, 5).map((d: any) => ({
               id: d.newdoc?.ID,
               deptId: d.newdoc?.DepartmentId,
               subDeptId: d.newdoc?.SubDepartmentId
             }))
           });
           
-          setDocuments(combinedDocuments);
+          // Backfill next pages until we have up to ITEMS_PER_PAGE matching docs
+          const appliedDeptId = Number(appliedDepartment);
+          const appliedSubDeptId = Number(appliedSubDepartment);
+          let filteredPageDocs = pageDocuments.filter((doc: any) => {
+            const docDeptId = Number(doc.newdoc?.DepartmentId || 0);
+            const docSubDeptId = Number(doc.newdoc?.SubDepartmentId || 0);
+            return docDeptId === appliedDeptId && docSubDeptId === appliedSubDeptId;
+          });
+
+          if (filteredPageDocs.length < ITEMS_PER_PAGE) {
+            const totalPages = effectivePagination?.totalPages || 1;
+            let nextPage = currentPage + 1;
+            while (filteredPageDocs.length < ITEMS_PER_PAGE && nextPage <= totalPages) {
+              try {
+                const nextResp = await fetchDocuments(
+                  Number(selectedRole?.ID),
+                  nextPage,
+                  debouncedSearchTerm,
+                  appliedDepartment,
+                  appliedSubDepartment,
+                  appliedStartDate,
+                  appliedEndDate
+                );
+                const nextRaw = nextResp.data as any;
+                const nextData = (nextRaw && (nextRaw.data ?? nextRaw)) as any;
+                const nextDocs = Array.isArray(nextData?.documents) ? nextData.documents : [];
+                const nextFiltered = nextDocs.filter((doc: any) => {
+                  const docDeptId = Number(doc.newdoc?.DepartmentId || 0);
+                  const docSubDeptId = Number(doc.newdoc?.SubDepartmentId || 0);
+                  return docDeptId === appliedDeptId && docSubDeptId === appliedSubDeptId;
+                });
+                filteredPageDocs = filteredPageDocs.concat(nextFiltered);
+              } catch (e) {
+                break;
+              }
+              nextPage += 1;
+            }
+            if (filteredPageDocs.length > ITEMS_PER_PAGE) {
+              filteredPageDocs = filteredPageDocs.slice(0, ITEMS_PER_PAGE);
+            }
+          }
+
+          setDocuments(filteredPageDocs);
           setPaginationData(effectivePagination);
-          // Don't set filteredDocs here - let the filtering effect handle it
+          // Filtering effect will keep the same set
         }
         
         setError(""); // Clear any previous errors
@@ -227,44 +301,24 @@ const MyDocuments: React.FC = () => {
     loadDocuments();
   }, [loadDocuments]);
 
-  // Client-side filtering to ensure only matching documents are shown
+  // Client-side filtering: department/type + optional date range
   useEffect(() => {
-    let filtered = [...documents];
-
-    // Filter by department and document type
-    if (appliedDepartment && appliedSubDepartment) {
-      const appliedDeptId = Number(appliedDepartment);
-      const appliedSubDeptId = Number(appliedSubDepartment);
-      
-      filtered = filtered.filter((doc: any) => {
-        const docDeptId = Number(doc.newdoc?.DepartmentId || 0);
-        const docSubDeptId = Number(doc.newdoc?.SubDepartmentId || 0);
-        
-        const matchesDept = docDeptId === appliedDeptId;
-        const matchesSubDept = docSubDeptId === appliedSubDeptId;
-        
-        return matchesDept && matchesSubDept;
-      });
-
-      console.log('🔍 Department/Type filtering applied:', {
-        originalCount: documents.length,
-        filteredCount: filtered.length,
-        filters: { 
-          department: appliedDepartment, 
-          subDepartment: appliedSubDepartment 
-        },
-        sampleDocs: filtered.slice(0, 3).map((d: any) => ({
-          id: d.newdoc?.ID,
-          deptId: d.newdoc?.DepartmentId,
-          subDeptId: d.newdoc?.SubDepartmentId
-        }))
-      });
-    } else {
-      // If no filters applied, show empty (don't show any documents)
-      filtered = [];
+    // Require applied department/type to show anything
+    if (!appliedDepartment || !appliedSubDepartment) {
+      setFilteredDocs([]);
+      return;
     }
 
-    // Filter by date range if applied
+    // Department/type filter
+    const appliedDeptId = Number(appliedDepartment);
+    const appliedSubDeptId = Number(appliedSubDepartment);
+    let filtered = documents.filter((doc: any) => {
+      const docDeptId = Number(doc.newdoc?.DepartmentId || 0);
+      const docSubDeptId = Number(doc.newdoc?.SubDepartmentId || 0);
+      return docDeptId === appliedDeptId && docSubDeptId === appliedSubDeptId;
+    });
+
+    // Optional date filtering
     if (appliedStartDate || appliedEndDate) {
       const startBoundary = appliedStartDate
         ? new Date(`${appliedStartDate}T00:00:00`)
@@ -278,16 +332,9 @@ const MyDocuments: React.FC = () => {
         if (!docDateStr) return false;
         const docDate = new Date(docDateStr);
         if (Number.isNaN(docDate.getTime())) return false;
-
         if (startBoundary && docDate < startBoundary) return false;
         if (endBoundary && docDate > endBoundary) return false;
         return true;
-      });
-
-      console.log('🔍 Date filtering applied:', {
-        originalCount: documents.length,
-        filteredCount: filtered.length,
-        dateRange: { start: appliedStartDate, end: appliedEndDate }
       });
     }
 

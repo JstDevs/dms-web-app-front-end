@@ -60,16 +60,21 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({
       // console.log('🔍 fetchDocumentList called with:', { userId, page, searchTerm, department, subDepartment, startDate, endDate });
       try {
         setDocumentList((prev) => ({ ...prev, loading: true, error: null }));
-        const { data } = await fetchDocuments(userId, page, searchTerm, department, subDepartment, startDate, endDate);
-        // console.log('🔍 API Response:', data);
+        const response = await fetchDocuments(userId, page, searchTerm, department, subDepartment, startDate, endDate);
+        const raw = response?.data as any;
+        const data = (raw && (raw.data ?? raw)) as any;
+        // console.log('🔍 API Response (normalized):', data);
+
+        const docs = Array.isArray(data?.documents) ? data.documents : [];
+        const pagination = data?.pagination ?? { totalItems: docs.length, totalPages: 1 };
 
         setDocumentList((prev) => ({
           ...prev,
-          documents: data.documents,
-          filteredDocs: data.documents,
+          documents: docs,
+          filteredDocs: docs,
           currentPage: page,
-          totalDocuments: data.pagination.totalItems,
-          totalPages: data.pagination.totalPages || 1,
+          totalDocuments: pagination?.totalItems ?? docs.length,
+          totalPages: pagination?.totalPages || 1,
           loading: false,
         }));
         // console.log('🔍 Document list updated:', {

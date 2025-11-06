@@ -33,7 +33,7 @@ export async function fetchDocuments(userId: number, page: number = 1, searchTer
   const response = await axios.get(
     `/documents/documents/${userId}?${params.toString()}`
   );
-  return response.data;
+  return response;
 }
 
 export async function editDocument(payload: FormData) {
