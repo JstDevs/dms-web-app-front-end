@@ -407,7 +407,25 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
   const sourceEntries = useMemo<AuditTrail[]>(() => {
     const base = document.auditTrails || [];
     console.log('🔍 Audit trail source entries:', base.length, base);
-    return [...base].sort((a, b) => new Date(b.ActionDate).getTime() - new Date(a.ActionDate).getTime());
+    
+    // Normalize audit trail entries to ensure they have the correct structure
+    const normalized = base.map((entry: any) => {
+      // Ensure actor object exists with id and userName
+      const actor = entry.actor || {
+        id: entry.ActionBy || entry.actionBy || 0,
+        userName: entry.userName || entry.user_name || entry.actor?.userName || 'Unknown'
+      };
+      
+      return {
+        ...entry,
+        actor: {
+          id: actor.id || entry.ActionBy || 0,
+          userName: actor.userName || 'Unknown'
+        }
+      };
+    });
+    
+    return normalized.sort((a, b) => new Date(b.ActionDate).getTime() - new Date(a.ActionDate).getTime());
   }, [document.auditTrails]);
 
   // Set total items based on source entries
@@ -422,7 +440,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
       const searchLower = searchTerm.toLowerCase();
       if (
         !entry.Action.toLowerCase().includes(searchLower) &&
-        !entry.actor.userName.toLowerCase().includes(searchLower) &&
+        !(entry.actor?.userName || '').toLowerCase().includes(searchLower) &&
         !(entry.Description?.toLowerCase().includes(searchLower) ?? false)
       ) {
         return false;
@@ -430,7 +448,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
     }
 
     // User filter
-    if (selectedUser && entry.actor.id.toString() !== selectedUser) {
+    if (selectedUser && entry.actor?.id?.toString() !== selectedUser) {
       return false;
     }
 
@@ -493,8 +511,9 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
 
   // Get unique users and actions for filters
   const uniqueUserNames = sourceEntries.reduce((acc, entry) => {
-    if (!acc.some((user) => user.id === entry.actor.id.toString())) {
-      acc.push({ id: entry.actor.id.toString(), name: entry.actor.userName });
+    const actorId = entry.actor?.id?.toString() || '0';
+    if (!acc.some((user) => user.id === actorId)) {
+      acc.push({ id: actorId, name: entry.actor?.userName || 'Unknown' });
     }
     return acc;
   }, [] as { id: string; name: string }[]);

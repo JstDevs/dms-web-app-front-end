@@ -330,7 +330,7 @@ export const BatchUploadPanel = () => {
     return { errors, rowCount: Math.max(0, rows.length - 1) };
   }
 
-  const handleUpload = async () => {
+   const handleUpload = async () => {
     if (!files || files.length === 0) return;
 
     // Ensure context is selected
