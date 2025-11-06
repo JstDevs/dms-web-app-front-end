@@ -27,7 +27,8 @@ import { AllocationPanel } from './pages/Digitalization/Allocation';
 import { BatchUploadPanel } from './pages/Digitalization/BatchUpload';
 import { DepartmentsMain } from './pages/Departments/DepartmentsMain';
 import { SubDepartments } from './pages/Departments/SubDepartments';
-import { TemplateOCR } from './pages/OCR/Template';
+import { TemplateOCR } from './pages/OCR/MaskingTemplate';
+import { TemplateOcular } from './pages/OCR/OcularTemplate';
 import UnrecordedOCR from './pages/OCR/Unrecorded';
 import ChangePassword from './pages/Settings/ChangePassword';
 import DocumentUpload from './pages/Document/Upload';
@@ -71,7 +72,7 @@ function App() {
                       element={<PendingApprovals />}
                     />
                     <Route path="/activity" element={<RecentActivity />} />
-                    <Route path="/audit-trail" element={<AuditTrail />} />
+                    <Route path="/users/audit-trail" element={<AuditTrail />} />
                     <Route path="/department" element={<DepartmentFiles />} />
                     <Route path="/team" element={<Team />} />
                     <Route
@@ -79,15 +80,15 @@ function App() {
                       element={<DocumentView />}
                     />
                     {/* -------------------Settings---------------------- */}
-                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/users/profile" element={<Settings />} />
                     <Route
-                      path="/settings/change-password"
+                      path="/users/change-password"
                       element={<ChangePassword />}
                     />
                     {/* ----------------------Document && Document Types-------------------- */}
 
                     <Route
-                      path="/documents/upload"
+                      path="/documents/manual-upload"
                       element={<DocumentUpload />}
                     />
                     <Route
@@ -96,23 +97,24 @@ function App() {
                     />
 
                     {/* ----------------------OCR check-------------------- */}
-                    <Route path="/ocr/unrecorded" element={<UnrecordedOCR />} />
+                    <Route path="/collaboration/masking" element={<UnrecordedOCR />} />
                     <Route
-                      path="/ocr/fields"
+                      path="/settings/fields"
                       element={<OCRFieldsManagement />}
                     />
-                    <Route path="/ocr/template" element={<TemplateOCR />} />
+                    <Route path="/template/masking" element={<TemplateOCR />} />
+                    <Route path="/template/ocular" element={<TemplateOcular />} />
                     {/* //------------------ departments------------------ */}
                     <Route
-                      path="/departments/main"
+                      path="/departments"
                       element={<DepartmentsMain />}
                     />
                     <Route
-                      path="/departments/sub"
+                      path="/settings/doc-type"
                       element={<SubDepartments />}
                     />
                     {/* -----------USERS------------- */}
-                    <Route path="/users/members" element={<UsersPage />} />
+                    <Route path="/users/main" element={<UsersPage />} />
                     <Route path="/users/access" element={<UserAccessPage />} />
                     <Route
                       path="/users/modules"
@@ -120,16 +122,16 @@ function App() {
                     />
                     {/* ------------------DIGITALIZATION----------------- */}
                     <Route
-                      path="/digitalization/allocation"
+                      path="/settings/allocation"
                       element={<AllocationPanel />}
                     />
                     <Route
-                      path="/digitalization/batch-upload"
+                      path="/documents/batch-upload"
                       element={<BatchUploadPanel />}
                     />
                     {/* ------------------Matrix----------------- */}
                     <Route
-                      path="/approval-matrix"
+                      path="/collaboration/approval-matrix"
                       element={<ApprovalMatrix />}
                     />
                   </Route>

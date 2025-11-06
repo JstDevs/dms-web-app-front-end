@@ -728,6 +728,7 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
           </div>
         </div>
 
+
         {/* Collaborators Section */}
         <div className="w-full lg:w-1/3 bg-gray-50">
           <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center">
@@ -944,6 +945,8 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
             </div>
           </div>
         </div>
+
+
       </div>
     {/* Finalize Confirmation Modal */}
     {showFinalizeModal && (

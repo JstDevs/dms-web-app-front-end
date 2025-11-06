@@ -55,8 +55,8 @@ export const UsersPage: React.FC = () => {
       toast.error('Passwords do not match');
       return;
     }
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+    if (formData.password.length < 3) {
+      toast.error('Password must be at least 3 characters long');
       return;
     }
     if (
@@ -123,8 +123,8 @@ export const UsersPage: React.FC = () => {
         toast.error('Passwords do not match');
         return;
       }
-      if (formData.password && formData.password.length < 6) {
-        toast.error('Password must be at least 6 characters long');
+      if (formData.password && formData.password.length < 3) {
+        toast.error('Password must be at least 3 characters long');
         return;
       }
     }

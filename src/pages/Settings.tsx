@@ -49,7 +49,7 @@ const Settings: React.FC = () => {
                   onClick={() => {
                     (allocationPermissions?.Add ||
                       allocationPermissions?.Edit) &&
-                      navigate('/settings/change-password');
+                      navigate('/users/change-password');
                   }}
                   className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100"
                 >
