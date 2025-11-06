@@ -89,6 +89,9 @@ export const BatchUploadPanel = () => {
       const lower = file.name.toLowerCase();
       const isCsv = lower.endsWith('.csv');
       const isXlsx = lower.endsWith('.xlsx') || lower.endsWith('.xls');
+      const isZip = lower.endsWith('.zip') || 
+                    file.type === 'application/zip' || 
+                    file.type === 'application/x-zip-compressed';
 
       // Client-side validation for CSV templates
       if (isCsv) {
@@ -119,6 +122,22 @@ export const BatchUploadPanel = () => {
           base.validationErrors = ["Failed to parse Excel file."];
           base.parsedRows = 0;
           toast.error(`Failed to validate ${file.name}`);
+        }
+      }
+
+      // ZIP file validation - check size and format
+      if (isZip) {
+        // Validate ZIP file size (e.g., max 100MB)
+        const maxZipSize = 100 * 1024 * 1024; // 100MB
+        if (file.size > maxZipSize) {
+          base.validationErrors = [`ZIP file exceeds maximum size of ${(maxZipSize / 1024 / 1024).toFixed(0)}MB`];
+          toast.error(`ZIP file ${file.name} is too large`);
+        } else if (file.size === 0) {
+          base.validationErrors = ['ZIP file is empty'];
+          toast.error(`ZIP file ${file.name} appears to be empty`);
+        } else {
+          // ZIP looks valid - will be processed by backend
+          toast.success(`ZIP file detected: ${file.name}. Backend will extract and process Excel + documents.`);
         }
       }
 
@@ -340,9 +359,24 @@ export const BatchUploadPanel = () => {
     }
 
     // Block upload if any CSV file has validation errors
-    const hasBlockingErrors = files.some(f => f.name.toLowerCase().endsWith('.csv') && f.validationErrors && f.validationErrors.length > 0);
+    const hasBlockingErrors = files.some(f => {
+      const lower = f.name.toLowerCase();
+      const isCsv = lower.endsWith('.csv');
+      return isCsv && f.validationErrors && f.validationErrors.length > 0;
+    });
     if (hasBlockingErrors) {
       toast.error('Resolve CSV template errors before uploading.');
+      return;
+    }
+
+    // Block upload if any ZIP file has validation errors
+    const hasZipErrors = files.some(f => {
+      const lower = f.name.toLowerCase();
+      const isZip = lower.endsWith('.zip') || f.type === 'application/zip' || f.type === 'application/x-zip-compressed';
+      return isZip && f.validationErrors && f.validationErrors.length > 0;
+    });
+    if (hasZipErrors) {
+      toast.error('Resolve ZIP file errors before uploading.');
       return;
     }
 
@@ -353,14 +387,31 @@ export const BatchUploadPanel = () => {
         const formData = new FormData();
         
         // Determine file type and use appropriate endpoint
+        const lowerFileName = uploadedFile.name.toLowerCase();
+        const isZip = lowerFileName.endsWith('.zip') || 
+                      uploadedFile.file.type === 'application/zip' || 
+                      uploadedFile.file.type === 'application/x-zip-compressed';
         const isExcelOrCsv = uploadedFile.file.type.includes('excel') || 
                            uploadedFile.file.type.includes('spreadsheet') ||
                            uploadedFile.file.type.includes('csv') ||
-                           uploadedFile.name.toLowerCase().endsWith('.xlsx') ||
-                           uploadedFile.name.toLowerCase().endsWith('.xls') ||
-                           uploadedFile.name.toLowerCase().endsWith('.csv');
+                           lowerFileName.endsWith('.xlsx') ||
+                           lowerFileName.endsWith('.xls') ||
+                           lowerFileName.endsWith('.csv');
 
-        if (isExcelOrCsv) {
+        if (isZip) {
+          // Use batch upload endpoint for ZIP files (backend will extract and process)
+          formData.append('batchupload', uploadedFile.file, uploadedFile.name);
+          formData.append('isZip', 'true'); // Flag to indicate ZIP file
+          // Append selected Department/SubDepartment IDs from dropdowns
+          const depId = departmentOptions.find(d => d.label === selectedDepartment)?.value || '';
+          const subId = subDepartmentOptions.find(s => s.label === selectedSubDepartment)?.value || '';
+          if (!depId || !subId) {
+            toast.error('Invalid Department or Document Type selection');
+            continue;
+          }
+          formData.append('dep', String(depId));
+          formData.append('subdep', String(subId));
+        } else if (isExcelOrCsv) {
           // Use batch upload endpoint for Excel files
           formData.append('batchupload', uploadedFile.file, uploadedFile.name);
           // Append selected Department/SubDepartment IDs from dropdowns
@@ -389,19 +440,20 @@ export const BatchUploadPanel = () => {
         }
 
         try {
-          const data = isExcelOrCsv 
+          const data = (isZip || isExcelOrCsv)
             ? await performBatchUpload(formData)
             : await performDocumentUpload(formData);
           
           // Log batch upload activity
           try {
+            const uploadType = isZip ? 'ZIP Archive' : (isExcelOrCsv ? 'Spreadsheet' : 'Document');
             await logOCRActivity(
               'BATCH_UPLOAD_STARTED',
               user?.ID || 0,
               user?.UserName || 'Unknown User',
-              isExcelOrCsv ? 0 : (data?.data?.ID || 0),
+              (isZip || isExcelOrCsv) ? 0 : (data?.data?.ID || 0),
               uploadedFile.name,
-              `Batch upload: ${uploadedFile.name} (${isExcelOrCsv ? 'Spreadsheet' : 'Document'})`,
+              `Batch upload: ${uploadedFile.name} (${uploadType})`,
               true
             );
           } catch (logError) {
@@ -419,8 +471,8 @@ export const BatchUploadPanel = () => {
           successCount += 1;
           
           console.log(`Uploaded ${uploadedFile.name}:`, data);
-          // Capture last response for spreadsheets to show details
-          if (isExcelOrCsv) {
+          // Capture last response for spreadsheets/ZIP to show details
+          if (isZip || isExcelOrCsv) {
             setLastBatchResponse(data);
             // Prefer backend-provided counts when available
             if (typeof (data as any)?.successfulUpdates === 'number' && typeof (data as any)?.failedUpdates === 'number') {
@@ -545,12 +597,12 @@ export const BatchUploadPanel = () => {
       >
         <p className="text-sm">
           {selectedSubDepartment
-            ? 'Drag & drop files here or click to upload (Excel, PDF, Images, Word, Text)'
+            ? 'Drag & drop files here or click to upload (Excel, ZIP with Excel + Documents, PDF, Images, Word, Text)'
             : 'Please select a department and document type first'}
         </p>
         <input
           type="file"
-          accept=".xlsx, .xls, .csv, .pdf, .png, .jpg, .jpeg, .doc, .docx, .txt, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv, application/pdf, image/png, image/jpeg, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain"
+          accept=".xlsx, .xls, .csv, .zip, .pdf, .png, .jpg, .jpeg, .doc, .docx, .txt, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv, application/zip, application/x-zip-compressed, application/pdf, image/png, image/jpeg, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain"
           className="hidden"
           ref={fileInputRef}
           onChange={handleFileUpload}
@@ -635,22 +687,41 @@ export const BatchUploadPanel = () => {
                     </span>
                   </td>
                   <td className="px-4 py-2">
-                    {(file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) ? (
-                      file.validationErrors && file.validationErrors.length > 0 ? (
-                        <span
-                          className="text-red-600 text-xs underline cursor-help"
-                          title={(file.validationErrors.slice(0, 5).join('\n')) + (file.validationErrors.length > 5 ? `\n...and ${file.validationErrors.length - 5} more` : '')}
-                        >
-                          {file.validationErrors.length} error(s) — hover to view
-                        </span>
-                      ) : (
-                        <span className="text-green-700 text-xs">
-                          {typeof file.parsedRows === 'number' ? `${file.parsedRows} row(s) validated` : 'Validated'}
-                        </span>
-                      )
-                    ) : (
-                      <span className="text-gray-500 text-xs">Validation for spreadsheet templates only</span>
-                    )}
+                    {(() => {
+                      const lower = file.name.toLowerCase();
+                      const isCsvOrXlsx = lower.endsWith('.csv') || lower.endsWith('.xlsx') || lower.endsWith('.xls');
+                      const isZip = lower.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
+                      
+                      if (isZip) {
+                        return file.validationErrors && file.validationErrors.length > 0 ? (
+                          <span
+                            className="text-red-600 text-xs underline cursor-help"
+                            title={(file.validationErrors.slice(0, 5).join('\n')) + (file.validationErrors.length > 5 ? `\n...and ${file.validationErrors.length - 5} more` : '')}
+                          >
+                            {file.validationErrors.length} error(s) — hover to view
+                          </span>
+                        ) : (
+                          <span className="text-blue-700 text-xs">
+                            ZIP ready — will extract and process
+                          </span>
+                        );
+                      } else if (isCsvOrXlsx) {
+                        return file.validationErrors && file.validationErrors.length > 0 ? (
+                          <span
+                            className="text-red-600 text-xs underline cursor-help"
+                            title={(file.validationErrors.slice(0, 5).join('\n')) + (file.validationErrors.length > 5 ? `\n...and ${file.validationErrors.length - 5} more` : '')}
+                          >
+                            {file.validationErrors.length} error(s) — hover to view
+                          </span>
+                        ) : (
+                          <span className="text-green-700 text-xs">
+                            {typeof file.parsedRows === 'number' ? `${file.parsedRows} row(s) validated` : 'Validated'}
+                          </span>
+                        );
+                      } else {
+                        return <span className="text-gray-500 text-xs">Validation for spreadsheet/ZIP templates only</span>;
+                      }
+                    })()}
                   </td>
                   <td className="px-4 py-2 text-center">
                     <div className="flex justify-center gap-2">
