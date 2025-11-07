@@ -10,6 +10,10 @@ import {
   Info,
   Download,
   MessageSquare,
+  Loader2,
+  PencilLine,
+  Save,
+  XCircle,
 } from 'lucide-react';
 import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
 import { useState, useEffect, useCallback } from 'react';
@@ -563,60 +567,72 @@ const DocumentCurrentView = ({
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2 flex-wrap justify-end">
+              <div className="flex flex-wrap items-center justify-end gap-3">
                 {permissions?.Edit && (
-                  !isEditing ? (
-                    <button
-                      onClick={handleStartEditing}
-                      className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
-                    >
-                      Edit
-                    </button>
-                  ) : (
-                    <>
+                  <div className="flex items-center gap-2">
+                    {!isEditing ? (
                       <button
-                        onClick={handleCancelEditing}
-                        disabled={isSaving}
-                        className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                        onClick={handleStartEditing}
+                        className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg bg-white shadow-sm hover:bg-blue-50 transition-colors text-sm font-medium"
                       >
-                        Cancel
+                        <PencilLine className="h-4 w-4" />
+                        Edit
                       </button>
-                      <button
-                        onClick={handleSaveChanges}
-                        disabled={isSaving}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                      >
-                        {isSaving ? 'Saving...' : 'Save Changes'}
-                      </button>
-                    </>
-                  )
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleCancelEditing}
+                          disabled={isSaving}
+                          className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg bg-white shadow-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveChanges}
+                          disabled={isSaving}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                        >
+                          {isSaving ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4" />
+                          )}
+                          {isSaving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
-                <button
-                  onClick={() => setIsViewerOpen(true)}
-                  disabled={!currentDocumentInfo?.filepath}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                >
-                  <Eye className="h-4 w-4" />
-                  View
-                </button>
-                {permissions?.Print && (
+
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={handleDownload}
-                    disabled={!currentDocumentInfo?.filepath}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                    onClick={() => setIsViewerOpen(true)}
+                    disabled={!currentDocumentInfo?.filepath || isSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View
+                  </button>
+                  {permissions?.Print && (
+                    <button
+                      onClick={handleDownload}
+                      disabled={!currentDocumentInfo?.filepath || isSaving}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg shadow-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </button>
+                  )}
+                  <button
+                    onClick={handleBrownload}
+                    disabled={!currentDocumentInfo?.filepath || isSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg shadow-sm hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                   >
                     <Download className="h-4 w-4" />
-                    Download
+                    Brownload
                   </button>
-                )}
-                <button
-                  onClick={handleBrownload}
-                  disabled={!currentDocumentInfo?.filepath}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-800 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                >
-                  <Download className="h-4 w-4" />
-                  Brownload
-                </button>
+                </div>
               </div>
             </div>
           </div>
