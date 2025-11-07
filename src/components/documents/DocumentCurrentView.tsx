@@ -9,14 +9,17 @@ import {
   Calendar,
   Info,
   Download,
+  MessageSquare,
 } from 'lucide-react';
 import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { logDocumentActivity } from '@/utils/activityLogger';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from '@/api/axios';
 import { toast } from 'react-hot-toast';
+import { editDocument } from '@/pages/Document/utils/uploadAPIs';
+import { buildDocumentFormData, type DocumentUploadProp } from '@/pages/Document/utils/documentHelpers';
 
 interface Field {
   LinkID: number;
@@ -42,6 +45,28 @@ interface DocumentCurrentViewProps {
   };
 }
 
+type FormValues = {
+  FileName: string;
+  FileDescription: string;
+  Description: string;
+  Remarks: string;
+  DepartmentId: string;
+  SubDepartmentId: string;
+  FileDate: string;
+  Confidential: boolean;
+  Expiration: boolean;
+  ExpirationDate: string;
+};
+
+const normalizeDateInput = (value?: string | null) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value.slice(0, 10);
+  }
+  return date.toISOString().slice(0, 10);
+};
+
 const DocumentCurrentView = ({
   document,
   permissions,
@@ -49,11 +74,232 @@ const DocumentCurrentView = ({
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [fields, setFields] = useState<Field[]>([]);
   const [fieldsLoading, setFieldsLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formValues, setFormValues] = useState<FormValues>({
+    FileName: '',
+    FileDescription: '',
+    Description: '',
+    Remarks: '',
+    DepartmentId: '',
+    SubDepartmentId: '',
+    FileDate: '',
+    Confidential: false,
+    Expiration: false,
+    ExpirationDate: '',
+  });
+  const [dynamicFieldValues, setDynamicFieldValues] = useState<Record<string, string>>({});
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const { user } = useAuth();
   const { fetchDocument } = useDocument();
 
   const currentDocumentInfo = document?.document[0];
+
+  const initializeForm = useCallback(() => {
+    if (!currentDocumentInfo) return;
+
+    setFormValues({
+      FileName: currentDocumentInfo.FileName || '',
+      FileDescription: currentDocumentInfo.FileDescription || '',
+      Description: currentDocumentInfo.Description || '',
+      Remarks: currentDocumentInfo.Remarks || '',
+      DepartmentId: currentDocumentInfo.DepartmentId
+        ? String(currentDocumentInfo.DepartmentId)
+        : '',
+      SubDepartmentId: currentDocumentInfo.SubDepartmentId
+        ? String(currentDocumentInfo.SubDepartmentId)
+        : '',
+      FileDate: normalizeDateInput(currentDocumentInfo.FileDate),
+      Confidential: Boolean(currentDocumentInfo.Confidential),
+      Expiration: Boolean(currentDocumentInfo.Expiration),
+      ExpirationDate: normalizeDateInput(currentDocumentInfo.ExpirationDate),
+    });
+
+    const initialFieldValues: Record<string, string> = {};
+    for (let i = 1; i <= 10; i += 1) {
+      const textKey = `Text${i}` as keyof typeof currentDocumentInfo;
+      const dateKey = `Date${i}` as keyof typeof currentDocumentInfo;
+
+      const textValue = currentDocumentInfo[textKey];
+      const dateValue = currentDocumentInfo[dateKey];
+
+      if (textValue !== null && textValue !== undefined) {
+        initialFieldValues[`Text${i}`] = String(textValue);
+      } else {
+        initialFieldValues[`Text${i}`] = '';
+      }
+
+      if (dateValue) {
+        initialFieldValues[`Date${i}`] = normalizeDateInput(String(dateValue));
+      } else {
+        initialFieldValues[`Date${i}`] = '';
+      }
+    }
+
+    setDynamicFieldValues(initialFieldValues);
+  }, [currentDocumentInfo]);
+
+  useEffect(() => {
+    initializeForm();
+  }, [initializeForm]);
+
+  useEffect(() => {
+    if (!currentDocumentInfo || fields.length === 0) return;
+
+    setDynamicFieldValues((prev) => {
+      const updated = { ...prev };
+      fields.forEach((field) => {
+        const key = `${field.DataType === 'Date' ? 'Date' : 'Text'}${field.FieldNumber}`;
+        if (!(key in updated)) {
+          const rawValue = currentDocumentInfo[key as keyof typeof currentDocumentInfo];
+          updated[key] = rawValue
+            ? field.DataType === 'Date'
+              ? normalizeDateInput(String(rawValue))
+              : String(rawValue)
+            : '';
+        }
+      });
+      return updated;
+    });
+  }, [fields, currentDocumentInfo]);
+
+  const handleFormValueChange = (field: keyof FormValues, value: string | boolean) => {
+    setFormValues((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleDepartmentChange = (value: string) => {
+    setFormValues((prev) => ({
+      ...prev,
+      DepartmentId: value,
+      SubDepartmentId: '',
+    }));
+  };
+
+  const handleDynamicFieldChange = (key: string, value: string) => {
+    setDynamicFieldValues((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleStartEditing = () => {
+    initializeForm();
+    setIsEditing(true);
+  };
+
+  const handleCancelEditing = () => {
+    initializeForm();
+    setIsEditing(false);
+  };
+
+  const handleSaveChanges = async () => {
+    if (!currentDocumentInfo) return;
+
+    if (!formValues.FileName.trim()) {
+      toast.error('File name is required.');
+      return;
+    }
+
+    if (!formValues.DepartmentId || !formValues.SubDepartmentId) {
+      toast.error('Department and document type are required.');
+      return;
+    }
+
+    if (!formValues.FileDate) {
+      toast.error('File date is required.');
+      return;
+    }
+
+    if (formValues.Expiration && !formValues.ExpirationDate) {
+      toast.error('Please choose an expiration date or disable expiration.');
+      return;
+    }
+
+    setIsSaving(true);
+
+    const updatedDoc: Partial<DocumentUploadProp> = {
+      ID: currentDocumentInfo.ID,
+      FileName: formValues.FileName.trim(),
+      FileDescription: formValues.FileDescription,
+      Description: formValues.Description,
+      Remarks: formValues.Remarks,
+      DepartmentId: Number(formValues.DepartmentId),
+      SubDepartmentId: Number(formValues.SubDepartmentId),
+      FileDate: formValues.FileDate,
+      Confidential: formValues.Confidential,
+      Expiration: formValues.Expiration,
+      ExpirationDate: formValues.Expiration ? formValues.ExpirationDate : '',
+      Active: currentDocumentInfo.Active,
+      publishing_status: currentDocumentInfo.publishing_status,
+    };
+
+    for (let i = 1; i <= 10; i += 1) {
+      const textKey = `Text${i}` as keyof DocumentUploadProp;
+      const dateKey = `Date${i}` as keyof DocumentUploadProp;
+
+      if (dynamicFieldValues[`Text${i}`] !== undefined) {
+        (updatedDoc as any)[textKey] = dynamicFieldValues[`Text${i}`];
+      }
+
+      if (dynamicFieldValues[`Date${i}`] !== undefined) {
+        (updatedDoc as any)[dateKey] = dynamicFieldValues[`Date${i}`];
+      }
+    }
+
+    try {
+      const formData = buildDocumentFormData(updatedDoc, null, false, currentDocumentInfo.ID);
+
+      // Ensure editable fields overwrite existing values even when empty
+      formData.set('filename', formValues.FileName.trim());
+      formData.set('FileDescription', formValues.FileDescription || '');
+      formData.set('Description', formValues.Description || '');
+      formData.set('remarks', formValues.Remarks || '');
+      formData.set('filedate', formValues.FileDate || '');
+      formData.set('dep', formValues.DepartmentId);
+      formData.set('subdep', formValues.SubDepartmentId);
+      formData.set('confidential', String(formValues.Confidential));
+      formData.set('expiration', String(formValues.Expiration));
+      formData.set('expdate', formValues.Expiration ? formValues.ExpirationDate : '');
+
+      for (let i = 1; i <= 10; i += 1) {
+        formData.set(`Text${i}`, dynamicFieldValues[`Text${i}`] ?? '');
+        formData.set(`Date${i}`, dynamicFieldValues[`Date${i}`] ?? '');
+      }
+
+      const response = await editDocument(formData);
+
+      if (response?.status === false) {
+        throw new Error(response?.message || 'Failed to update document');
+      }
+
+      try {
+        if (user) {
+          await logDocumentActivity(
+            'UPDATED',
+            user.ID,
+            user.UserName,
+            currentDocumentInfo.ID,
+            formValues.FileName,
+            `Updated by ${user.UserName}`
+          );
+        }
+      } catch (logError) {
+        console.warn('Failed to log document update activity:', logError);
+      }
+
+      await fetchDocument(String(currentDocumentInfo.ID));
+      toast.success('Document updated successfully.');
+      setIsEditing(false);
+    } catch (error: any) {
+      console.error('Failed to update document:', error);
+      toast.error(error?.message || 'Failed to update document. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
 
   // Fetch fields based on SubDepartmentId (LinkID)
@@ -285,9 +531,18 @@ const DocumentCurrentView = ({
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-1">
                       Version {document?.versions?.[0]?.VersionNumber ?? '—'}
                     </span>
-                    <h1 className="text-xl font-semibold text-gray-900">
-                      {currentDocumentInfo?.FileName}
-                    </h1>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formValues.FileName}
+                        onChange={(e) => handleFormValueChange('FileName', e.target.value)}
+                        className="w-full max-w-md text-xl font-semibold text-gray-900 border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <h1 className="text-xl font-semibold text-gray-900">
+                        {currentDocumentInfo?.FileName}
+                      </h1>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -308,7 +563,34 @@ const DocumentCurrentView = ({
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap justify-end">
+                {permissions?.Edit && (
+                  !isEditing ? (
+                    <button
+                      onClick={handleStartEditing}
+                      className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+                    >
+                      Edit
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleCancelEditing}
+                        disabled={isSaving}
+                        className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveChanges}
+                        disabled={isSaving}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                      >
+                        {isSaving ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </>
+                  )
+                )}
                 <button
                   onClick={() => setIsViewerOpen(true)}
                   disabled={!currentDocumentInfo?.filepath}
@@ -391,22 +673,34 @@ const DocumentCurrentView = ({
                 </h4>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-all duration-300 ${
-                    currentDocumentInfo?.Confidential
-                      ? 'bg-red-100 text-red-800 border border-red-200'
-                      : 'bg-green-100 text-green-800 border border-green-200'
-                  }`}
-                >
+              {isEditing ? (
+                <label className="flex items-center gap-3 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={formValues.Confidential}
+                    onChange={(e) => handleFormValueChange('Confidential', e.target.checked)}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span>{formValues.Confidential ? 'Confidential document' : 'Mark as confidential'}</span>
+                </label>
+              ) : (
+                <div className="flex items-center gap-2">
                   <span
-                    className={`h-2 w-2 rounded-full mr-2 ${
-                      currentDocumentInfo?.Confidential ? 'bg-red-500' : 'bg-green-500'
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-all duration-300 ${
+                      currentDocumentInfo?.Confidential
+                        ? 'bg-red-100 text-red-800 border border-red-200'
+                        : 'bg-green-100 text-green-800 border border-green-200'
                     }`}
-                  ></span>
-                  {currentDocumentInfo?.Confidential ? 'Yes, Confidential' : 'No, Public'}
-                </span>
-              </div>
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full mr-2 ${
+                        currentDocumentInfo?.Confidential ? 'bg-red-500' : 'bg-green-500'
+                      }`}
+                    ></span>
+                    {currentDocumentInfo?.Confidential ? 'Yes, Confidential' : 'No, Public'}
+                  </span>
+                </div>
+              )}
             </div>
 
 
@@ -423,11 +717,26 @@ const DocumentCurrentView = ({
               </div>
 
               <p
-                className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg ${
-                  documentsDepartment?.label ? 'text-gray-900' : 'text-gray-500 italic'
+                className={`text-gray-900 font-medium leading-relaxed ${
+                  isEditing ? '' : 'bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg'
                 }`}
               >
-                {documentsDepartment?.label || 'N/A'}
+                {isEditing ? (
+                  <select
+                    value={formValues.DepartmentId}
+                    onChange={(e) => handleDepartmentChange(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="">Select department</option>
+                    {departmentOptions.map((dept) => (
+                      <option key={dept.value} value={dept.value}>
+                        {dept.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  documentsDepartment?.label || 'N/A'
+                )}
               </p>
             </div>
 
@@ -444,11 +753,27 @@ const DocumentCurrentView = ({
               </div>
 
               <p
-                className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg ${
-                  documentsSubDepartment?.label ? 'text-gray-900' : 'text-gray-500 italic'
+                className={`text-gray-900 font-medium leading-relaxed ${
+                  isEditing ? '' : 'bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg'
                 }`}
               >
-                {documentsSubDepartment?.label || 'N/A'}
+                {isEditing ? (
+                  <select
+                    value={formValues.SubDepartmentId}
+                    onChange={(e) => handleFormValueChange('SubDepartmentId', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    disabled={!formValues.DepartmentId}
+                  >
+                    <option value="">Select document type</option>
+                    {subDepartmentOptions.map((sub) => (
+                      <option key={sub.value} value={sub.value}>
+                        {sub.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  documentsSubDepartment?.label || 'N/A'
+                )}
               </p>
             </div>
 
@@ -462,22 +787,78 @@ const DocumentCurrentView = ({
                     File Date
                   </h4>
                 </div>
-                <p
-                  className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
-                    currentDocumentInfo?.FileDate ? 'text-gray-900' : 'text-gray-500 italic'
-                  }`}
-                >
-                  {currentDocumentInfo?.FileDate
-                    ? new Date(currentDocumentInfo.FileDate).toLocaleDateString(
-                        'en-US',
-                        {
+                {isEditing ? (
+                  <input
+                    type="date"
+                    value={formValues.FileDate}
+                    onChange={(e) => handleFormValueChange('FileDate', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                ) : (
+                  <p
+                    className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
+                      currentDocumentInfo?.FileDate ? 'text-gray-900' : 'text-gray-500 italic'
+                    }`}
+                  >
+                    {currentDocumentInfo?.FileDate
+                      ? new Date(currentDocumentInfo.FileDate).toLocaleDateString(
+                          'en-US',
+                          {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          }
+                        )
+                      : 'N/A'}
+                  </p>
+                )}
+              </div>
+
+              {/* Expiration */}
+              <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-amber-400 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 flex items-center justify-center shadow-inner">
+                    <Clock className="h-5 w-5 text-white" />
+                  </div>
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
+                    Expiration
+                  </h4>
+                </div>
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={formValues.Expiration}
+                        onChange={(e) => handleFormValueChange('Expiration', e.target.checked)}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span>Document has an expiration date</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={formValues.ExpirationDate}
+                      onChange={(e) => handleFormValueChange('ExpirationDate', e.target.value)}
+                      disabled={!formValues.Expiration}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 text-sm text-gray-700">
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-all duration-300 bg-gray-100 text-gray-700 border border-gray-200">
+                      {currentDocumentInfo?.Expiration ? 'Expiration Enabled' : 'No Expiration'}
+                    </span>
+                    {currentDocumentInfo?.Expiration && currentDocumentInfo?.ExpirationDate ? (
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-800">
+                        {new Date(currentDocumentInfo.ExpirationDate).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric',
-                        }
-                      )
-                    : 'N/A'}
-                </p>
+                        })}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
               </div>
 
               {/* File Description - Full Width */}
@@ -491,15 +872,80 @@ const DocumentCurrentView = ({
                   </h4>
                 </div>
 
-                <p
-                  className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
-                    currentDocumentInfo?.FileDescription
-                      ? 'text-gray-900'
-                      : 'text-gray-500 italic'
-                  }`}
-                >
-                  {currentDocumentInfo?.FileDescription || 'No description available'}
-                </p>
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      File Description
+                    </label>
+                    <textarea
+                      value={formValues.FileDescription}
+                      onChange={(e) => handleFormValueChange('FileDescription', e.target.value)}
+                      rows={3}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      placeholder="Enter file description"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Additional Description
+                    </label>
+                    <textarea
+                      value={formValues.Description}
+                      onChange={(e) => handleFormValueChange('Description', e.target.value)}
+                      rows={3}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      placeholder="Optional internal description"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p
+                    className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
+                      currentDocumentInfo?.FileDescription
+                        ? 'text-gray-900'
+                        : 'text-gray-500 italic'
+                    }`}
+                  >
+                    {currentDocumentInfo?.FileDescription || 'No description available'}
+                  </p>
+                  {currentDocumentInfo?.Description ? (
+                    <p className="text-sm text-gray-600 bg-white border border-gray-200 px-4 py-2 rounded-lg">
+                      {currentDocumentInfo.Description}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+              </div>
+
+              {/* Remarks */}
+              <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-teal-300 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-teal-600 to-emerald-500 flex items-center justify-center shadow-inner">
+                    <MessageSquare className="h-5 w-5 text-white" />
+                  </div>
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
+                    Remarks
+                  </h4>
+                </div>
+                {isEditing ? (
+                  <textarea
+                    value={formValues.Remarks}
+                    onChange={(e) => handleFormValueChange('Remarks', e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Enter remarks"
+                  />
+                ) : (
+                  <p
+                    className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
+                      currentDocumentInfo?.Remarks ? 'text-gray-900' : 'text-gray-500 italic'
+                    }`}
+                  >
+                    {currentDocumentInfo?.Remarks || 'No remarks recorded'}
+                  </p>
+                )}
               </div>
 
               {/* Fields - All in one box */}
@@ -521,6 +967,8 @@ const DocumentCurrentView = ({
                   <div className="space-y-4">
                     {fields.map((field) => {
                       const fieldValue = getFieldValue(field.FieldNumber, field.DataType);
+                      const fieldKey = `${field.DataType === 'Date' ? 'Date' : 'Text'}${field.FieldNumber}`;
+                      const dynamicValue = dynamicFieldValues[fieldKey] ?? '';
 
                       return (
                         <div
@@ -537,11 +985,20 @@ const DocumentCurrentView = ({
                                   {field.DataType}
                                 </span>
                               </div>
-                              <p className="text-gray-900 font-medium bg-gray-50 border border-gray-100 px-3 py-2 rounded-lg">
-                                {field.DataType === 'Date'
-                                  ? formatDateValue(fieldValue)
-                                  : fieldValue || 'N/A'}
-                              </p>
+                              {isEditing ? (
+                                <input
+                                  type={field.DataType === 'Date' ? 'date' : 'text'}
+                                  value={dynamicValue}
+                                  onChange={(e) => handleDynamicFieldChange(fieldKey, e.target.value)}
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                              ) : (
+                                <p className="text-gray-900 font-medium bg-gray-50 border border-gray-100 px-3 py-2 rounded-lg">
+                                  {field.DataType === 'Date'
+                                    ? formatDateValue(fieldValue)
+                                    : fieldValue || 'N/A'}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
