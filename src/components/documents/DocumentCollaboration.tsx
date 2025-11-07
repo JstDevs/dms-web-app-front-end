@@ -30,6 +30,11 @@ import { buildDocumentFormData } from '@/pages/Document/utils/documentHelpers';
 
 interface DocumentCollaborationProps {
   document: CurrentDocument | null;
+  permissions?: {
+    Comment?: boolean;
+    Collaborate?: boolean;
+    Finalize?: boolean;
+  };
 }
 
 interface Comment {
@@ -56,6 +61,7 @@ interface Collaborator {
 
 const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
   document,
+  permissions,
 }) => {
   const { users, loading: usersLoading, error: usersError } = useUsers();
   const { user: loggedUser } = useAuth();
@@ -136,6 +142,12 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
   };
   // -------------ADD COMMENTS--------
   const handleAddComment = async () => {
+    // Check Comment permission
+    if (!permissions?.Comment) {
+      toast.error('You do not have permission to comment on this document.');
+      return;
+    }
+    
     if (!comment.trim() || !document) return;
 
     setIsAddingComment(true);
@@ -460,6 +472,12 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
   };
 
   const handleFinalizeVersion = async () => {
+    // Check Finalize permission
+    if (!permissions?.Finalize) {
+      toast.error('You do not have permission to finalize versions of this document.');
+      return;
+    }
+    
     if (!document) return;
 
     setIsFinalizing(true);
@@ -613,18 +631,20 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
             )}
 
             {/* Finalize Version Button */}
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={() => setShowFinalizeModal(true)}
-                disabled={isFinalizing}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-medium ${
-                  isFinalizing ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-amber-600 text-white hover:bg-amber-700 hover:shadow-md'
-                }`}
-              >
-                {isFinalizing ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
-                {isFinalizing ? 'Finalizing...' : 'Finalize Current Version'}
-              </button>
-            </div>
+            {permissions?.Finalize && (
+              <div className="mt-3 flex justify-end">
+                <button
+                  onClick={() => setShowFinalizeModal(true)}
+                  disabled={isFinalizing}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-medium ${
+                    isFinalizing ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-amber-600 text-white hover:bg-amber-700 hover:shadow-md'
+                  }`}
+                >
+                  {isFinalizing ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+                  {isFinalizing ? 'Finalizing...' : 'Finalize Current Version'}
+                </button>
+              </div>
+            )}
           </div>
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
             <div className="flex items-center">
@@ -693,39 +713,49 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
           </div>
 
           {/* Comment Input */}
-          <div className="p-4 border-t border-gray-200 bg-gray-50">
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
-                  <UserCircle className="h-6 w-6 text-white" />
+          {permissions?.Comment && (
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
+                    <UserCircle className="h-6 w-6 text-white" />
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1">
-                <textarea
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none transition-all"
-                  rows={3}
-                  placeholder="Add a comment..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  disabled={isAddingComment}
-                />
-                <div className="mt-3 flex justify-end">
-                  <button
-                    onClick={handleAddComment}
-                    disabled={!comment.trim() || isAddingComment}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                  >
-                    {isAddingComment ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <Send size={14} />
-                    )}
-                    {isAddingComment ? 'Adding...' : 'Comment'}
-                  </button>
+                <div className="flex-1">
+                  <textarea
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none transition-all"
+                    rows={3}
+                    placeholder="Add a comment..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    disabled={isAddingComment}
+                  />
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={handleAddComment}
+                      disabled={!comment.trim() || isAddingComment}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                    >
+                      {isAddingComment ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Send size={14} />
+                      )}
+                      {isAddingComment ? 'Adding...' : 'Comment'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
+          {!permissions?.Comment && (
+            <div className="p-4 border-t border-gray-200 bg-yellow-50">
+              <div className="flex items-center gap-2 text-yellow-700 text-sm">
+                <AlertCircle size={16} />
+                <span>You do not have permission to comment on this document.</span>
+              </div>
+            </div>
+          )}
         </div>
 
 

@@ -38,7 +38,7 @@ import {
   DocumentUploadProp,
 } from './utils/documentHelpers';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
-import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { useAllocationPermissions } from './utils/useAllocationPermissions';
 import { logDocumentActivity } from '@/utils/activityLogger';
 import { PaginationControls } from '@/components/ui/PaginationControls';
 import { useFieldAllocations } from './utils/useFieldAllocations';
@@ -86,7 +86,16 @@ export default function DocumentUpload() {
     useNestedDepartmentOptions();
   const { selectedRole, user } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
-  const uploadPermissions = useModulePermissions(3); // 1 = MODULE_ID
+  
+  // Fetch allocation permissions for selected department/subdepartment
+  const { permissions: allocationPermissions } = useAllocationPermissions({
+    departmentId: newDoc.DepartmentId || null,
+    subDepartmentId: newDoc.SubDepartmentId || null,
+    userId: user?.ID || null,
+  });
+
+  const hasSelectedContext = Boolean(newDoc.DepartmentId && newDoc.SubDepartmentId);
+  const canUploadAttachment = hasSelectedContext && allocationPermissions.Add;
   
   // Field allocations hook - don't pass userId to always show all active fields from allocation
   const {
@@ -143,6 +152,12 @@ export default function DocumentUpload() {
   };
 
   const handleAddDocument = async () => {
+    // Check Add permission before allowing upload
+    if (!allocationPermissions.Add) {
+      toast.error('You do not have permission to upload documents in this department and document type.');
+      return;
+    }
+    
     // console.log({ newDoc, selectedFile });
     setIsLoading(true);
     setUploadProgress(0);
@@ -398,9 +413,8 @@ export default function DocumentUpload() {
       newDoc.FileDate &&
       newDoc.FileName;
     
-    // Use module permissions (uploadPermissions) instead of userPermissions
-    // since userPermissions might be false when using available fields
-    const hasPermission = uploadPermissions.Add === true;
+    // Use allocation permissions instead of module permissions
+    const hasPermission = allocationPermissions.Add === true;
     
     if (!baseValidation || !hasPermission) {
       return false;
@@ -673,14 +687,15 @@ export default function DocumentUpload() {
                   {!selectedFile ? (
                     // Enhanced Dropzone UI
                     <div
-                      className={`mt-1 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 ${
-                        selectedFile
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-300 hover:border-blue-500 hover:shadow-lg'
+                      className={`mt-1 border-2 border-dashed rounded-xl transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 ${
+                        canUploadAttachment
+                          ? 'cursor-pointer border-gray-300 hover:border-blue-500 hover:shadow-lg'
+                          : 'cursor-not-allowed border-gray-200 text-gray-400'
                       }`}
                       onDragOver={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (!canUploadAttachment) return;
                         e.currentTarget.classList.add(
                           'border-blue-500',
                           'bg-blue-100',
@@ -691,6 +706,7 @@ export default function DocumentUpload() {
                       onDragLeave={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (!canUploadAttachment) return;
                         e.currentTarget.classList.remove(
                           'border-blue-500',
                           'bg-blue-100',
@@ -701,6 +717,7 @@ export default function DocumentUpload() {
                       onDrop={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (!canUploadAttachment) return;
                         e.currentTarget.classList.remove(
                           'border-blue-500',
                           'bg-blue-100',
@@ -716,23 +733,39 @@ export default function DocumentUpload() {
                           }
                         }
                       }}
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={canUploadAttachment ? () => fileInputRef.current?.click() : undefined}
                     >
-                      <div className="flex flex-col items-center justify-center py-12 px-6">
-                        <div className="relative mb-6">
-                          <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
-                          <div className="relative p-4 bg-blue-600 rounded-full">
-                            <UploadCloud className="w-10 h-10 text-white" />
-                          </div>
+                      {!hasSelectedContext ? (
+                        <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                          <AlertCircle className="w-10 h-10 text-gray-400 mb-3" />
+                          <p className="text-base font-medium text-gray-600">
+                            Please select a department and document type first
+                          </p>
                         </div>
-                        <p className="mb-2 text-base font-semibold text-gray-700">
-                          <span className="text-blue-600">Click to upload</span> or drag and drop
-                        </p>
-                        <p className="text-sm text-gray-500 flex items-center gap-2">
-                          <FileIcon className="w-4 h-4" />
-                          PNG, JPEG, PDF, DOCX, XLSX, TXT (Max 50MB)
-                        </p>
-                      </div>
+                      ) : !allocationPermissions.Add ? (
+                        <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                          <AlertCircle className="w-10 h-10 text-yellow-500 mb-3" />
+                          <p className="text-base font-medium text-gray-600">
+                            You do not have permission to upload documents in this department and document type.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 px-6">
+                          <div className="relative mb-6">
+                            <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                            <div className="relative p-4 bg-blue-600 rounded-full">
+                              <UploadCloud className="w-10 h-10 text-white" />
+                            </div>
+                          </div>
+                          <p className="mb-2 text-base font-semibold text-gray-700">
+                            <span className="text-blue-600">Click to upload</span> or drag and drop
+                          </p>
+                          <p className="text-sm text-gray-500 flex items-center gap-2">
+                            <FileIcon className="w-4 h-4" />
+                            PNG, JPEG, PDF, DOCX, XLSX, TXT (Max 50MB)
+                          </p>
+                        </div>
+                      )}
                       <input
                         type="file"
                         className="hidden"
@@ -740,6 +773,7 @@ export default function DocumentUpload() {
                         onChange={handleAttach}
                         accept=".png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,image/png,image/jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
                         required
+                        disabled={!canUploadAttachment}
                       />
                     </div>
                   ) : (
@@ -959,7 +993,7 @@ export default function DocumentUpload() {
               Cancel
             </Button>
             {/* // TODO ADD PROGRESS BAR HERE */}
-            {uploadPermissions.Add && (
+            {allocationPermissions.Add && (
               <Button
                 onClick={handleAddOrUpdate}
                 className={`w-full sm:w-auto px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${
@@ -1141,7 +1175,7 @@ export default function DocumentUpload() {
                       </td>
                       <td className="border px-6 py-3">
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full">
-                          {uploadPermissions.Edit && (
+                          {allocationPermissions.Edit && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -1152,7 +1186,7 @@ export default function DocumentUpload() {
                               Edit
                             </Button>
                           )}
-                          {uploadPermissions.Delete && (
+                          {allocationPermissions.Delete && (
                             <DeleteDialog
                               onConfirm={() => handleDelete(doc.ID)}
                             >

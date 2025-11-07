@@ -25,11 +25,26 @@ interface Field {
   DataType: string;
 }
 
+interface DocumentCurrentViewProps {
+  document: CurrentDocument | null;
+  permissions?: {
+    View?: boolean;
+    Add?: boolean;
+    Edit?: boolean;
+    Delete?: boolean;
+    Print?: boolean;
+    Confidential?: boolean;
+    Comment?: boolean;
+    Collaborate?: boolean;
+    Finalize?: boolean;
+    Masking?: boolean;
+  };
+}
+
 const DocumentCurrentView = ({
   document,
-}: {
-  document: CurrentDocument | null;
-}) => {
+  permissions,
+}: DocumentCurrentViewProps) => {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [fields, setFields] = useState<Field[]>([]);
   const [fieldsLoading, setFieldsLoading] = useState(false);
@@ -300,14 +315,16 @@ const DocumentCurrentView = ({
                   <Eye className="h-4 w-4" />
                   View
                 </button>
-                <button
-                  onClick={handleDownload}
-                  disabled={!currentDocumentInfo?.filepath}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                >
-                  <Download className="h-4 w-4" />
-                  Download
-                </button>
+                {permissions?.Print && (
+                  <button
+                    onClick={handleDownload}
+                    disabled={!currentDocumentInfo?.filepath}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </button>
+                )}
                 <button
                   onClick={handleBrownload}
                   disabled={!currentDocumentInfo?.filepath}

@@ -1,9 +1,9 @@
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
+import { useAllocationPermissions } from '../Document/utils/useAllocationPermissions';
 import { UploadCloud, Trash2, ChevronDown, FileText, Download, CheckCircle2, AlertCircle, X, FileCheck, Building2, FolderOpen } from 'lucide-react';
 import { useState, useRef, useEffect, ChangeEvent, DragEvent } from 'react';
 import toast from 'react-hot-toast';
 import { performBatchUpload, performDocumentUpload } from './utils/batchServices';
-import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { logOCRActivity } from '@/utils/activityLogger';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -41,8 +41,23 @@ export const BatchUploadPanel = () => {
     loading: loadingDepartments,
   } = useNestedDepartmentOptions();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const batchUploadPermissions = useModulePermissions(8); // 1 = MODULE_ID
   const { user } = useAuth();
+  
+  // Get department and subdepartment IDs from selected values
+  const selectedDeptId = departmentOptions.find(
+    (dept) => dept.label === selectedDepartment
+  )?.value;
+  
+  const selectedSubDeptId = subDepartmentOptions.find(
+    (sub) => sub.label === selectedSubDepartment
+  )?.value;
+  
+  // Fetch allocation permissions for selected department/subdepartment
+  const { permissions: allocationPermissions } = useAllocationPermissions({
+    departmentId: selectedDeptId ? Number(selectedDeptId) : null,
+    subDepartmentId: selectedSubDeptId ? Number(selectedSubDeptId) : null,
+    userId: user?.ID || null,
+  });
   // Update document types when department selection changes
   useEffect(() => {
     if (selectedDepartment && departmentOptions.length > 0) {
@@ -68,6 +83,12 @@ export const BatchUploadPanel = () => {
   }, [selectedDepartment, departmentOptions]);
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    // Check Add permission before allowing file upload
+    if (!allocationPermissions.Add) {
+      toast.error('You do not have permission to upload documents in this department and document type.');
+      return;
+    }
+    
     if (!e.target.files) return;
 
     const selected = Array.from(e.target.files);
@@ -154,6 +175,13 @@ export const BatchUploadPanel = () => {
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    
+    // Check Add permission before allowing file drop
+    if (!allocationPermissions.Add) {
+      toast.error('You do not have permission to upload documents in this department and document type.');
+      return;
+    }
+    
     if (!e.dataTransfer.files) return;
 
     const droppedFiles = e.dataTransfer.files;
@@ -351,6 +379,12 @@ export const BatchUploadPanel = () => {
   }
 
    const handleUpload = async () => {
+    // Check Add permission before allowing upload
+    if (!allocationPermissions.Add) {
+      toast.error('You do not have permission to upload documents in this department and document type.');
+      return;
+    }
+    
     if (!files || files.length === 0) return;
 
     // Ensure context is selected
@@ -628,15 +662,29 @@ export const BatchUploadPanel = () => {
         <CardContent className="p-6">
           <div
             className={`border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 ${
-              selectedSubDepartment
+              selectedSubDepartment && allocationPermissions.Add
                 ? 'border-gray-300 hover:border-blue-500 hover:shadow-lg'
                 : 'border-gray-300 bg-gray-50 text-gray-400 cursor-not-allowed'
             }`}
-            onClick={selectedSubDepartment ? triggerFileInput : undefined}
+            onClick={selectedSubDepartment && allocationPermissions.Add ? triggerFileInput : undefined}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
           >
-            {selectedSubDepartment ? (
+            {!selectedSubDepartment ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6">
+                <AlertCircle className="w-10 h-10 text-gray-400 mb-3" />
+                <p className="text-base font-medium text-gray-600">
+                  Please select a department and document type first
+                </p>
+              </div>
+            ) : !allocationPermissions.Add ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6">
+                <AlertCircle className="w-10 h-10 text-yellow-500 mb-3" />
+                <p className="text-base font-medium text-gray-600">
+                  You do not have permission to upload documents in this department and document type
+                </p>
+              </div>
+            ) : (
               <div className="flex flex-col items-center justify-center py-12 px-6">
                 <div className="relative mb-6">
                   <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
@@ -652,13 +700,6 @@ export const BatchUploadPanel = () => {
                   Excel, CSV, ZIP, PDF, Images, Word, Text files
                 </p>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12 px-6">
-                <AlertCircle className="w-10 h-10 text-gray-400 mb-3" />
-                <p className="text-base font-medium text-gray-600">
-                  Please select a department and document type first
-                </p>
-              </div>
             )}
             <input
               type="file"
@@ -666,7 +707,7 @@ export const BatchUploadPanel = () => {
               className="hidden"
               ref={fileInputRef}
               onChange={handleFileUpload}
-              disabled={!selectedSubDepartment}
+              disabled={!selectedSubDepartment || !allocationPermissions.Add}
               multiple
             />
           </div>
@@ -688,7 +729,7 @@ export const BatchUploadPanel = () => {
               )}
             </div>
             <div className="flex items-center gap-4">
-              {batchUploadPermissions?.Delete && files.length > 0 && (
+              {allocationPermissions?.Delete && files.length > 0 && (
                 <button
                   className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 rounded-lg font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
                   onClick={() => setFiles([])}
@@ -697,7 +738,7 @@ export const BatchUploadPanel = () => {
                   Clear All
                 </button>
               )}
-              {batchUploadPermissions?.Add && (
+              {allocationPermissions?.Add && (
                 <button
                   className={`flex items-center gap-2 px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${
                     files.some((f) => f.status === 'Pending')
@@ -828,7 +869,7 @@ export const BatchUploadPanel = () => {
                         })()}
                       </td>
                       <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-                        {batchUploadPermissions?.Delete && (
+                        {allocationPermissions?.Delete && (
                           <button
                             className="text-red-600 hover:text-red-800 p-1.5 rounded hover:bg-red-50 transition-colors"
                             onClick={() => deleteFile(file.id)}

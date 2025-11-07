@@ -7,10 +7,12 @@ import { FiSearch, FiFilter, FiX } from 'react-icons/fi';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchDocuments } from './utils/uploadAPIs';
+import { fetchDocuments, deleteDocument } from './utils/uploadAPIs';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
-import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { useAllocationPermissions } from './utils/useAllocationPermissions';
 import { PaginationControls } from '@/components/ui/PaginationControls';
+import { logDocumentActivity } from '@/utils/activityLogger';
+import toast from 'react-hot-toast';
 
 
 const MyDocuments: React.FC = () => {
@@ -34,7 +36,7 @@ const MyDocuments: React.FC = () => {
   // TODO CHANGE THIS TS TYPE
   const [documents, setDocuments] = useState<any[]>([]);
   const [filteredDocs, setFilteredDocs] = useState<any[]>([]);
-  const { selectedRole } = useAuth(); // assuming user object has user.id
+  const { selectedRole, user } = useAuth(); // assuming user object has user.id
   const [currentPage, setCurrentPage] = useState(1);
   const [paginationData, setPaginationData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -42,8 +44,13 @@ const MyDocuments: React.FC = () => {
   const [error, setError] = useState<string>("")
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const ITEMS_PER_PAGE = 10;
-  // console.log("selectedRole", selectedRole);
-  const myDocumentPermissions = useModulePermissions(4); // 1 = MODULE_ID
+  
+  // Fetch allocation permissions for applied department/subdepartment
+  const { permissions: allocationPermissions } = useAllocationPermissions({
+    departmentId: appliedDepartment ? Number(appliedDepartment) : null,
+    subDepartmentId: appliedSubDepartment ? Number(appliedSubDepartment) : null,
+    userId: user?.ID || null,
+  });
   
   // Get document types for selected department
   const documentTypeOptions = useMemo(() => {
@@ -301,10 +308,16 @@ const MyDocuments: React.FC = () => {
     loadDocuments();
   }, [loadDocuments]);
 
-  // Client-side filtering: department/type + optional date range
+  // Client-side filtering: department/type + optional date range + View permission check + Confidential permission check
   useEffect(() => {
     // Require applied department/type to show anything
     if (!appliedDepartment || !appliedSubDepartment) {
+      setFilteredDocs([]);
+      return;
+    }
+
+    // Check View permission - if user doesn't have View permission, don't show any documents
+    if (!allocationPermissions.View) {
       setFilteredDocs([]);
       return;
     }
@@ -317,6 +330,14 @@ const MyDocuments: React.FC = () => {
       const docSubDeptId = Number(doc.newdoc?.SubDepartmentId || 0);
       return docDeptId === appliedDeptId && docSubDeptId === appliedSubDeptId;
     });
+
+    // Confidential permission check - filter out confidential documents if user doesn't have Confidential permission
+    if (!allocationPermissions.Confidential) {
+      filtered = filtered.filter((doc: any) => {
+        // Only show non-confidential documents
+        return !doc.newdoc?.Confidential;
+      });
+    }
 
     // Optional date filtering
     if (appliedStartDate || appliedEndDate) {
@@ -339,9 +360,47 @@ const MyDocuments: React.FC = () => {
     }
 
     setFilteredDocs(filtered);
-  }, [documents, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate]);
+  }, [documents, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate, allocationPermissions.View, allocationPermissions.Confidential]);
+
+  // Delete handler - must be defined before documentCards useMemo
+  const handleDelete = useCallback(async (documentId: string) => {
+    try {
+      const documentToDelete = filteredDocs.find(
+        (doc: any) => doc.newdoc?.ID?.toString() === documentId.toString()
+      );
+
+      await deleteDocument(Number(documentId));
+
+      // Log document deletion activity
+      if (documentToDelete && user) {
+        try {
+          await logDocumentActivity(
+            'DELETED',
+            user.ID,
+            user.UserName || 'Unknown',
+            Number(documentId),
+            documentToDelete.newdoc?.FileName || 'Unknown',
+            `Deleted by ${user.UserName || 'Unknown'}`
+          );
+        } catch (logError) {
+          console.warn('Failed to log document deletion activity:', logError);
+        }
+      }
+
+      toast.success('Document deleted successfully');
+      
+      // Refresh document list
+      await loadDocuments();
+    } catch (error: any) {
+      console.error('Failed to delete document:', error);
+      toast.error(
+        error?.response?.data?.error || 'Failed to delete document. Please try again.'
+      );
+    }
+  }, [filteredDocs, user, loadDocuments]);
 
   // Memoize the document cards to prevent unnecessary re-renders
+  // Use allocation permissions instead of module permissions
   const documentCards = useMemo(() => 
     filteredDocs.map((document) => {
       const doc = document.newdoc;
@@ -350,10 +409,11 @@ const MyDocuments: React.FC = () => {
           key={doc.ID}
           document={doc}
           onClick={() => navigate(`/documents/${doc.ID}`)}
-          permissions={myDocumentPermissions}
+          permissions={allocationPermissions}
+          onDelete={handleDelete}
         />
       );
-    }), [filteredDocs, myDocumentPermissions, navigate]
+    }), [filteredDocs, allocationPermissions, navigate, handleDelete]
   );
   // Department/subDept options
   // const departments = Array.from(new Set(documents.map((d) => d.DepartmentId)));
@@ -602,7 +662,30 @@ const MyDocuments: React.FC = () => {
       </div>
 
       {/* Documents Grid */}
-      {filteredDocs.length > 0 ? (
+      {appliedDepartment && appliedSubDepartment && !allocationPermissions.View ? (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-8 text-center">
+          <div className="flex flex-col items-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-12 w-12 mb-3 text-yellow-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <p className="text-lg font-semibold text-yellow-800">No View Permission</p>
+            <p className="text-sm text-yellow-700 mt-2">
+              You do not have permission to view documents in this department and document type.
+            </p>
+          </div>
+        </div>
+      ) : filteredDocs.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-4">
           {documentCards}
         </div>

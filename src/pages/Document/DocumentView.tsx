@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDocument } from '../../contexts/DocumentContext';
 import { logDocumentActivity } from '@/utils/activityLogger';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAllocationPermissions } from '../Document/utils/useAllocationPermissions';
 import DocumentVersionHistory from '../../components/documents/DocumentVersionHistory';
 import DocumentCollaboration from '../../components/documents/DocumentCollaboration';
 import DocumentApproval from '../../components/documents/DocumentApproval';
@@ -14,6 +15,7 @@ import {
   CheckCircle,
   ClipboardList,
   Loader,
+  AlertCircle,
 } from 'lucide-react';
 import FieldRestrictions from '@/components/documents/DocumentRestriction';
 import DocumentCurrentView from '@/components/documents/DocumentCurrentView';
@@ -32,6 +34,26 @@ const DocumentView: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('document');
+
+  // Fetch allocation permissions for current document
+  const { permissions } = useAllocationPermissions({
+    departmentId: currentDocument?.document[0]?.DepartmentId || null,
+    subDepartmentId: currentDocument?.document[0]?.SubDepartmentId || null,
+    userId: user?.ID || null,
+  });
+
+  // Redirect to document tab if current tab requires permission user doesn't have
+  useEffect(() => {
+    if (activeTab === 'collaboration' && !permissions.Collaborate) {
+      setActiveTab('document');
+    }
+    if (activeTab === 'restrictions' && !permissions.Masking) {
+      setActiveTab('document');
+    }
+    if ((activeTab === 'versions' || activeTab === 'audit') && !permissions.Collaborate) {
+      setActiveTab('document');
+    }
+  }, [activeTab, permissions]);
 
   useEffect(() => {
     if (documentId) {
@@ -61,13 +83,34 @@ const DocumentView: React.FC = () => {
   }, [currentDocument, user]);
 
   const renderTabContent = () => {
+    // Check permissions before rendering tab content
+    if (activeTab === 'collaboration' && !permissions.Collaborate) {
+      return null; // Permission message is shown above
+    }
+    if (activeTab === 'restrictions' && !permissions.Masking) {
+      return null; // Permission message is shown above
+    }
+    if ((activeTab === 'versions' || activeTab === 'audit') && !permissions.Collaborate) {
+      return (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-8 text-center">
+          <div className="flex flex-col items-center">
+            <AlertCircle className="h-12 w-12 mb-3 text-yellow-600" />
+            <p className="text-lg font-semibold text-yellow-800">No Access</p>
+            <p className="text-sm text-yellow-700 mt-2">
+              You do not have permission to access this tab.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    
     switch (activeTab) {
       case 'document':
-        return <DocumentCurrentView document={currentDocument} />;
+        return <DocumentCurrentView document={currentDocument} permissions={permissions} />;
       case 'versions':
         return <DocumentVersionHistory document={currentDocument} />;
       case 'collaboration':
-        return <DocumentCollaboration document={currentDocument} />;
+        return <DocumentCollaboration document={currentDocument} permissions={permissions} />;
       case 'audit':
         return <DocumentAuditTrail document={currentDocument} />;
       case 'restrictions':
@@ -81,12 +124,20 @@ const DocumentView: React.FC = () => {
 
   const tabs = [
     { id: 'document', name: 'Document', icon: <ClipboardList size={16} /> },
-    { id: 'versions', name: 'Versions', icon: <History size={16} /> },
-    { id: 'collaboration', name: 'Collaboration', icon: <MessageSquare size={16} /> },
-    { id: 'audit', name: 'Audit Trail', icon: <ClipboardList size={16} /> },
-    { id: 'restrictions', name: 'Masking', icon: <ClipboardList size={16} /> },
+    { id: 'versions', name: 'Versions', icon: <History size={16} />, requiresPermission: 'Collaborate' },
+    { id: 'collaboration', name: 'Collaboration', icon: <MessageSquare size={16} />, requiresPermission: 'Collaborate' },
+    { id: 'audit', name: 'Audit Trail', icon: <ClipboardList size={16} />, requiresPermission: 'Collaborate' },
+    { id: 'restrictions', name: 'Masking', icon: <ClipboardList size={16} />, requiresPermission: 'Masking' },
     { id: 'approval', name: 'Approvals', icon: <CheckCircle size={16} /> },
   ];
+
+  // Filter tabs based on permissions
+  const visibleTabs = tabs.filter((tab) => {
+    if (!tab.requiresPermission) return true;
+    if (tab.requiresPermission === 'Collaborate') return permissions.Collaborate;
+    if (tab.requiresPermission === 'Masking') return permissions.Masking;
+    return true;
+  });
 
   if (loading)
     return (
@@ -143,11 +194,10 @@ const DocumentView: React.FC = () => {
       
       <div className="mb-6 border-b border-gray-200 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-300 pb-2">
         <nav className="flex flex-nowrap -mb-px">
-          {tabs.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
-              // onClick={() => toast.error('You have no access to this module!')}
               className={`flex items-center py-3 px-4 sm:px-6 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
@@ -160,6 +210,30 @@ const DocumentView: React.FC = () => {
           ))}
         </nav>
       </div>
+      
+      {/* Show permission message if trying to access restricted tab */}
+      {activeTab === 'collaboration' && !permissions.Collaborate && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-8 text-center">
+          <div className="flex flex-col items-center">
+            <AlertCircle className="h-12 w-12 mb-3 text-yellow-600" />
+            <p className="text-lg font-semibold text-yellow-800">No Access</p>
+            <p className="text-sm text-yellow-700 mt-2">
+              You do not have permission to access the Collaboration tab.
+            </p>
+          </div>
+        </div>
+      )}
+      {activeTab === 'restrictions' && !permissions.Masking && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-8 text-center">
+          <div className="flex flex-col items-center">
+            <AlertCircle className="h-12 w-12 mb-3 text-yellow-600" />
+            <p className="text-lg font-semibold text-yellow-800">No Access</p>
+            <p className="text-sm text-yellow-700 mt-2">
+              You do not have permission to access the Masking tab.
+            </p>
+          </div>
+        </div>
+      )}
       
       {renderTabContent()}
       

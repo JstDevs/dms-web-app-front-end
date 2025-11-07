@@ -27,6 +27,10 @@ export interface FieldAllocationResponse {
     Delete: boolean;
     Print: boolean;
     Confidential: boolean;
+    Comment: boolean;
+    Collaborate: boolean;
+    Finalize: boolean;
+    Masking: boolean;
   };
 }
 
@@ -55,6 +59,10 @@ export const fetchFieldAllocations = async (
         Delete: true,
         Print: true,
         Confidential: true,
+        Comment: true,
+        Collaborate: true,
+        Finalize: true,
+        Masking: true,
       },
     };
   }

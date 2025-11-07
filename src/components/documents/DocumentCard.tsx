@@ -6,6 +6,7 @@ import {
   CheckCircle,
   AlertCircle,
   Send,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@chakra-ui/react';
 import axios from '@/api/axios';
@@ -32,12 +33,14 @@ interface DocumentCardProps {
     Delete?: boolean;
     Print?: boolean;
   };
+  onDelete?: (id: string) => void;
 }
 
 const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   document,
   onClick,
   permissions,
+  onDelete,
 }) => {
   const {
     FileName,
@@ -53,6 +56,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
   const [isRequesting, setIsRequesting] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [actualApprovalStatus, setActualApprovalStatus] = useState<'approved' | 'rejected' | 'pending' | null>(null);
   const { user: loggedUser } = useAuth();
 
@@ -112,6 +116,27 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
       toast.error('Failed to send approval request');
     } finally {
       setIsRequesting(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${FileName}"? This action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      if (onDelete) {
+        await onDelete(ID);
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -248,37 +273,49 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
         {/* Actions - pushed to bottom with mt-auto */}
         <div className="mt-auto pt-4 border-t border-gray-100">
-          <div className="flex justify-end">
-            {(actualApprovalStatus === 'pending' || actualApprovalStatus === null) &&
-              !requestSent &&
-              permissions.Add &&
-              permissions.Edit &&
-              permissions.Delete && (
-                <Button
-                  onClick={handleRequestApproval}
-                  loading={isRequesting}
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
-                  loadingText="Sending..."
-                >
-                  <Send className="w-4 h-4" />
-                  Request Approval
-                </Button>
-              )}
-
-            {requestSent && (
-              <div className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 rounded-lg">
-                <CheckCircle className="w-4 h-4" />
-                Request Sent
-              </div>
+          <div className="flex justify-between items-center gap-2">
+            {/* Delete Button - Left Side */}
+            {permissions.Delete && (
+              <Button
+                onClick={handleDelete}
+                loading={isDeleting}
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm"
+                loadingText="Deleting..."
+                title="Delete document"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </Button>
             )}
-          </div>
 
-          {/* {requestError && (
-            <div className="text-red-500 text-sm mt-2 text-right">
-              {requestError}
+            {/* Right Side Actions */}
+            <div className="flex justify-end gap-2">
+              {(actualApprovalStatus === 'pending' || actualApprovalStatus === null) &&
+                !requestSent &&
+                permissions.Add &&
+                permissions.Edit &&
+                permissions.Delete && (
+                  <Button
+                    onClick={handleRequestApproval}
+                    loading={isRequesting}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
+                    loadingText="Sending..."
+                  >
+                    <Send className="w-4 h-4" />
+                    Request Approval
+                  </Button>
+                )}
+
+              {requestSent && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 rounded-lg">
+                  <CheckCircle className="w-4 h-4" />
+                  Request Sent
+                </div>
+              )}
             </div>
-          )} */}
+          </div>
         </div>
       </div>
 

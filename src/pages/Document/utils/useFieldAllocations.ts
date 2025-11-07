@@ -17,6 +17,10 @@ export const useFieldAllocations = ({ departmentId, subDepartmentId, userId }: U
     Delete: false,
     Print: false,
     Confidential: false,
+    Comment: false,
+    Collaborate: false,
+    Finalize: false,
+    Masking: false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +35,10 @@ export const useFieldAllocations = ({ departmentId, subDepartmentId, userId }: U
         Delete: false,
         Print: false,
         Confidential: false,
+        Comment: false,
+        Collaborate: false,
+        Finalize: false,
+        Masking: false,
       });
       return;
     }
@@ -57,6 +65,10 @@ export const useFieldAllocations = ({ departmentId, subDepartmentId, userId }: U
             Delete: true,
             Print: true,
             Confidential: true,
+            Comment: true,
+            Collaborate: true,
+            Finalize: true,
+            Masking: true,
           });
           return;
         }
