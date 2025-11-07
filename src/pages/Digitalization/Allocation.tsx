@@ -198,78 +198,126 @@ export const AllocationPanel = () => {
         const fetchedUserIDs = allocations.map((a: any) => Number(a.UserID));
         console.log('Fetched UserIDs:', fetchedUserIDs);
         
-        // WORKAROUND: If backend doesn't return all allocations, try to fetch missing users directly
-        // Check if there are any users in usersList that should have allocations but weren't returned
-        // For now, we'll try to fetch UserID 29 specifically if it's in usersList but not in results
+        // WORKAROUND: If backend doesn't return all allocations, try alternative methods
+        // First, try fetching by LinkID which might return more complete results
         const usersInList = usersList.map((u: any) => Number(u.ID));
         const missingUsers = usersInList.filter(userId => !fetchedUserIDs.includes(userId));
         console.log('Users in list but not in fetched allocations:', missingUsers);
         
-        // Try to fetch missing user allocations directly
+        // If there are missing users, try alternative fetch methods
         if (missingUsers.length > 0) {
-          console.log('Attempting to fetch missing user allocations...');
-          const missingAllocs: any[] = [];
-          for (const userId of missingUsers) {
-            try {
-              console.log(`Fetching allocation for UserID ${userId}, Dept ${selectedDept}, SubDept ${selectedSubDept}...`);
-              const alloc = await fetchAllocationByUserAndDept(
-                userId,
-                Number(selectedDept),
-                selectedSubDept
-              );
-              if (alloc) {
-                console.log(`✅ Found missing allocation for UserID ${userId}:`, alloc);
-                missingAllocs.push(alloc);
-              } else {
-                console.log(`❌ No allocation found for UserID ${userId} (returned null)`);
-              }
-            } catch (err: any) {
-              console.log(`❌ Error fetching allocation for UserID ${userId}:`, err?.response?.status, err?.response?.data?.error || err?.message);
-              // If the endpoint doesn't exist, try fetching all allocations and filtering
-              if (err?.response?.status === 404) {
-                console.log(`   Endpoint doesn't exist for UserID ${userId}, will try alternative method`);
-              }
-            }
-          }
-          if (missingAllocs.length > 0) {
-            allocations = [...allocations, ...missingAllocs];
-            console.log(`✅ Added ${missingAllocs.length} missing allocations. Total now: ${allocations.length}`);
-          } else {
-            console.log(`⚠️ No missing allocations were found via individual user endpoint.`);
-            console.log(`   Backend issue: /allocation/by-dept/29/24 should return ALL allocations, not just one.`);
-            console.log(`   Attempting to fetch ALL allocations and filter client-side...`);
-            
-            // Last resort: Try to fetch all allocations and filter by department/subdepartment
-            // This is a workaround for backend bug
-            try {
-              const allAllocs = await fetchAllAllocations();
-              console.log(`Fetched ${allAllocs.length} total allocations from /allocation/all`);
+          console.log('Some users missing from dept endpoint, trying alternative methods...');
+          
+          // First, try fetching by LinkID (subdepartment) which might be more complete
+          try {
+            const linkAllocs = await fetchAllocationsByLink(selectedSubDept);
+            if (linkAllocs && linkAllocs.length > 0) {
+              console.log(`Fetched ${linkAllocs.length} allocations via LinkID endpoint`);
+              const linkUserIDs = linkAllocs.map((a: any) => Number(a.UserID));
+              const stillMissing = missingUsers.filter(userId => !linkUserIDs.includes(userId));
               
-              // Filter allocations that might belong to this dept/subdept
-              // Since we don't know the exact LinkID format, we'll show all allocations
-              // and let the user see them (or we can try to match by fields pattern)
-              if (allAllocs.length > allocations.length) {
-                console.log(`Found ${allAllocs.length} total allocations vs ${allocations.length} from dept endpoint`);
-                console.log(`All UserIDs in all allocations:`, allAllocs.map((a: any) => a.UserID));
+              // Merge LinkID allocations with existing ones (deduplicate by UserID)
+              const existingUserIDs = new Set(allocations.map((a: any) => Number(a.UserID)));
+              const newFromLink = linkAllocs.filter((a: any) => !existingUserIDs.has(Number(a.UserID)));
+              
+              if (newFromLink.length > 0) {
+                allocations = [...allocations, ...newFromLink];
+                console.log(`✅ Added ${newFromLink.length} allocations from LinkID endpoint. Total now: ${allocations.length}`);
+              }
+              
+              // Update missing users list after LinkID fetch
+              const updatedFetchedUserIDs = allocations.map((a: any) => Number(a.UserID));
+              const stillMissingAfterLink = usersInList.filter(userId => !updatedFetchedUserIDs.includes(userId));
+              
+              if (stillMissingAfterLink.length > 0) {
+                console.log(`Still missing ${stillMissingAfterLink.length} users after LinkID fetch:`, stillMissingAfterLink);
+                console.log(`Attempting to fetch missing user allocations individually...`);
                 
-                // Find missing users from all allocations (not already in current allocations)
-                const existingUserIDs = new Set(allocations.map((a: any) => Number(a.UserID)));
-                const missingFromAll = allAllocs.filter((a: any) => {
-                  const userId = Number(a.UserID);
-                  return !existingUserIDs.has(userId);
-                });
+                // Try individual user endpoint for remaining missing users
+                const missingAllocs: any[] = [];
+                for (const userId of stillMissingAfterLink) {
+                  try {
+                    console.log(`Fetching allocation for UserID ${userId}, Dept ${selectedDept}, SubDept ${selectedSubDept}...`);
+                    const alloc = await fetchAllocationByUserAndDept(
+                      userId,
+                      Number(selectedDept),
+                      selectedSubDept
+                    );
+                    if (alloc) {
+                      console.log(`✅ Found missing allocation for UserID ${userId}:`, alloc);
+                      missingAllocs.push(alloc);
+                    }
+                  } catch (err: any) {
+                    // Silently continue if individual fetch fails
+                    if (err?.response?.status !== 404) {
+                      console.log(`Error fetching allocation for UserID ${userId}:`, err?.response?.status);
+                    }
+                  }
+                }
                 
-                if (missingFromAll.length > 0) {
-                  console.log(`Found ${missingFromAll.length} additional allocations not in initial fetch:`, missingFromAll.map((a: any) => ({ UserID: a.UserID, id: a.id })));
-                  allocations = [...allocations, ...missingFromAll];
-                  console.log(`Added ${missingFromAll.length} missing allocations. Total now: ${allocations.length}`);
-                } else {
-                  console.log(`No additional allocations found (all users already in initial fetch)`);
+                if (missingAllocs.length > 0) {
+                  allocations = [...allocations, ...missingAllocs];
+                  console.log(`✅ Added ${missingAllocs.length} allocations from individual user endpoint. Total now: ${allocations.length}`);
+                }
+                
+                // Last resort: fetch all allocations and filter by matching users
+                const finalFetchedUserIDs = allocations.map((a: any) => Number(a.UserID));
+                const stillMissingFinal = usersInList.filter(userId => !finalFetchedUserIDs.includes(userId));
+                
+                if (stillMissingFinal.length > 0) {
+                  console.log(`⚠️ Still missing ${stillMissingFinal.length} users after all methods. Trying fetch-all approach...`);
+                  try {
+                    const allAllocs = await fetchAllAllocations();
+                    console.log(`Fetched ${allAllocs.length} total allocations from /allocation/all`);
+                    
+                    // Filter to only include allocations for users that are in our missing list
+                    // This prevents adding allocations from other departments
+                    const missingUserSet = new Set(stillMissingFinal);
+                    const existingUserIDsSet = new Set(allocations.map((a: any) => Number(a.UserID)));
+                    
+                    const relevantAllocs = allAllocs.filter((a: any) => {
+                      const userId = Number(a.UserID);
+                      // Only include if user is in missing list and not already in allocations
+                      return missingUserSet.has(userId) && !existingUserIDsSet.has(userId);
+                    });
+                    
+                    if (relevantAllocs.length > 0) {
+                      console.log(`Found ${relevantAllocs.length} additional allocations for missing users:`, relevantAllocs.map((a: any) => ({ UserID: a.UserID, id: a.id })));
+                      allocations = [...allocations, ...relevantAllocs];
+                      console.log(`✅ Added ${relevantAllocs.length} missing allocations. Total now: ${allocations.length}`);
+                    } else {
+                      console.log(`No additional allocations found for missing users in fetch-all`);
+                    }
+                  } catch (err: any) {
+                    console.log(`Could not fetch all allocations:`, err?.response?.status || err?.message);
+                  }
                 }
               }
-            } catch (err: any) {
-              console.log(`Could not fetch all allocations:`, err?.response?.status || err?.message);
-              console.log(`   Endpoint /allocation/all may not exist`);
+            }
+          } catch (err: any) {
+            console.log(`LinkID fetch failed, trying individual user endpoints...`, err?.response?.status || err?.message);
+            
+            // Fallback to individual user endpoint
+            const missingAllocs: any[] = [];
+            for (const userId of missingUsers) {
+              try {
+                const alloc = await fetchAllocationByUserAndDept(
+                  userId,
+                  Number(selectedDept),
+                  selectedSubDept
+                );
+                if (alloc) {
+                  console.log(`✅ Found missing allocation for UserID ${userId}:`, alloc);
+                  missingAllocs.push(alloc);
+                }
+              } catch (err: any) {
+                // Silently continue
+              }
+            }
+            
+            if (missingAllocs.length > 0) {
+              allocations = [...allocations, ...missingAllocs];
+              console.log(`✅ Added ${missingAllocs.length} missing allocations. Total now: ${allocations.length}`);
             }
           }
         }
@@ -477,19 +525,39 @@ export const AllocationPanel = () => {
         } catch (createError: any) {
           if (createError?.response?.status === 409) {
             // User already exists, try to fetch the allocation
-            // First try by department + subdepartment
-            let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
-            let existingAlloc = allocations.find(
-              (a: DocumentAccess) => Number(a.UserID) === Number(userID)
-            );
+            console.log(`409 Conflict: Allocation exists for UserID ${userID}, searching for it...`);
+            let existingAlloc: DocumentAccess | null = null;
+            
+            // Check if error response contains allocation data first
+            if (createError?.response?.data?.data) {
+              existingAlloc = createError.response.data.data;
+              console.log(`Found allocation in error response:`, existingAlloc);
+            }
+            
+            // If not in error response, try multiple search methods
+            if (!existingAlloc) {
+              // First try by department + subdepartment
+              let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
+              existingAlloc = allocations.find(
+                (a: DocumentAccess) => Number(a.UserID) === Number(userID)
+              ) || null;
+              
+              if (existingAlloc) {
+                console.log(`Found allocation via dept endpoint`);
+              }
+            }
             
             // If not found, try by LinkID
             if (!existingAlloc) {
               console.log('Allocation not found by dept, trying by LinkID...');
-              allocations = await fetchAllocationsByLink(selectedSubDept);
-              existingAlloc = allocations.find(
+              const linkAllocs = await fetchAllocationsByLink(selectedSubDept);
+              existingAlloc = linkAllocs.find(
                 (a: DocumentAccess) => Number(a.UserID) === Number(userID)
-              );
+              ) || null;
+              
+              if (existingAlloc) {
+                console.log(`Found allocation via LinkID endpoint`);
+              }
             }
             
             // If still not found, try fetching by user + dept + subdept
@@ -502,25 +570,41 @@ export const AllocationPanel = () => {
               );
               if (alloc) {
                 existingAlloc = alloc;
+                console.log(`Found allocation via user+dept+subdept endpoint`);
               }
             }
             
-            // Check if error response contains allocation data
-            if (!existingAlloc && createError?.response?.data?.data) {
-              existingAlloc = createError.response.data.data;
+            // Last resort: fetch all allocations and filter
+            if (!existingAlloc) {
+              console.log('Trying fetch-all approach as last resort...');
+              try {
+                const allAllocs = await fetchAllAllocations();
+                // Filter to find allocation for this specific user
+                existingAlloc = allAllocs.find(
+                  (a: DocumentAccess) => Number(a.UserID) === Number(userID)
+                ) || null;
+                
+                if (existingAlloc) {
+                  console.log(`Found allocation via fetch-all approach`);
+                }
+              } catch (err: any) {
+                console.log(`Fetch-all failed:`, err?.message);
+              }
             }
             
             if (existingAlloc) {
+              console.log(`Updating existing allocation ID ${existingAlloc.id} for UserID ${userID}`);
               await updateAllocation(existingAlloc.id, payload);
               // Update the user's allocationId in state
               setUsers((prev) =>
                 prev.map((u) =>
-                  u.username === username ? { ...u, allocationId: existingAlloc.id } : u
+                  u.username === username ? { ...u, allocationId: existingAlloc!.id } : u
                 )
               );
             } else {
               // If still not found, show error but don't throw - user can try again
-              console.error('Could not find existing allocation to update');
+              console.error(`Could not find existing allocation to update for UserID ${userID}`);
+              console.error(`Searched via: dept endpoint, LinkID endpoint, user+dept+subdept endpoint, and fetch-all`);
               toast.error(`User ${username} already exists but allocation not found. Please refresh and try again.`);
               throw createError;
             }
@@ -683,19 +767,39 @@ export const AllocationPanel = () => {
           } catch (createError: any) {
             if (createError?.response?.status === 409) {
               // User already exists, try to fetch the allocation
-              // First try by department + subdepartment
-              let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
-              let existingAlloc = allocations.find(
-                (a: DocumentAccess) => Number(a.UserID) === Number(userID)
-              );
+              console.log(`409 Conflict: Allocation exists for UserID ${userID}, searching for it...`);
+              let existingAlloc: DocumentAccess | null = null;
+              
+              // Check if error response contains allocation data first
+              if (createError?.response?.data?.data) {
+                existingAlloc = createError.response.data.data;
+                console.log(`Found allocation in error response:`, existingAlloc);
+              }
+              
+              // If not in error response, try multiple search methods
+              if (!existingAlloc) {
+                // First try by department + subdepartment
+                let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
+                existingAlloc = allocations.find(
+                  (a: DocumentAccess) => Number(a.UserID) === Number(userID)
+                ) || null;
+                
+                if (existingAlloc) {
+                  console.log(`Found allocation via dept endpoint`);
+                }
+              }
               
               // If not found, try by LinkID
               if (!existingAlloc) {
                 console.log('Allocation not found by dept, trying by LinkID...');
-                allocations = await fetchAllocationsByLink(selectedSubDept);
-                existingAlloc = allocations.find(
+                const linkAllocs = await fetchAllocationsByLink(selectedSubDept);
+                existingAlloc = linkAllocs.find(
                   (a: DocumentAccess) => Number(a.UserID) === Number(userID)
-                );
+                ) || null;
+                
+                if (existingAlloc) {
+                  console.log(`Found allocation via LinkID endpoint`);
+                }
               }
               
               // If still not found, try fetching by user + dept + subdept
@@ -708,19 +812,36 @@ export const AllocationPanel = () => {
                 );
                 if (alloc) {
                   existingAlloc = alloc;
+                  console.log(`Found allocation via user+dept+subdept endpoint`);
                 }
               }
               
-              // Check if error response contains allocation data
-              if (!existingAlloc && createError?.response?.data?.data) {
-                existingAlloc = createError.response.data.data;
+              // Last resort: fetch all allocations and filter
+              if (!existingAlloc) {
+                console.log('Trying fetch-all approach as last resort...');
+                try {
+                  const allAllocs = await fetchAllAllocations();
+                  // Filter to find allocation for this specific user, dept, and subdept
+                  // We'll match by UserID and check if it might belong to this dept/subdept
+                  existingAlloc = allAllocs.find(
+                    (a: DocumentAccess) => Number(a.UserID) === Number(userID)
+                  ) || null;
+                  
+                  if (existingAlloc) {
+                    console.log(`Found allocation via fetch-all approach`);
+                  }
+                } catch (err: any) {
+                  console.log(`Fetch-all failed:`, err?.message);
+                }
               }
               
               if (existingAlloc) {
+                console.log(`Updating existing allocation ID ${existingAlloc.id} for UserID ${userID}`);
                 await updateAllocation(existingAlloc.id, payload);
                 return { username: user.username, success: true };
               } else {
-                console.error('Could not find existing allocation to update');
+                console.error(`Could not find existing allocation to update for UserID ${userID}`);
+                console.error(`Searched via: dept endpoint, LinkID endpoint, user+dept+subdept endpoint, and fetch-all`);
                 return { 
                   username: user.username, 
                   success: false, 
@@ -819,6 +940,13 @@ export const AllocationPanel = () => {
     label: user.UserName,
     value: user.ID,
   }));
+  
+  // Check if there are any available users to add
+  const availableUsersToAdd = userOptions?.filter((user: any) => 
+    !users.some((u) => u.username === user.label)
+  ) || [];
+  const canAddMoreUsers = availableUsersToAdd.length > 0;
+  
   return (
     <div className="bg-white shadow-md rounded-xl p-3 md:p-6 space-y-6">
       {/* Header */}
@@ -1027,9 +1155,9 @@ export const AllocationPanel = () => {
               {allocationPermissions?.Add && (
                 <Button
                   onClick={() => setShowAddUserModal(true)}
-                  disabled={users.length === 1}
+                  disabled={!canAddMoreUsers}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
-                    users.length === 1
+                    !canAddMoreUsers
                       ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
