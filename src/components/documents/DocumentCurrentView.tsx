@@ -16,6 +16,7 @@ import { logDocumentActivity } from '@/utils/activityLogger';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from '@/api/axios';
+import { toast } from 'react-hot-toast';
 
 interface Field {
   LinkID: number;
@@ -218,48 +219,49 @@ const DocumentCurrentView = ({
   };
 
   const handleBrownload = async () => {
-    if (currentDocumentInfo?.filepath) {
-      try {
-        const response = await fetch(currentDocumentInfo.filepath);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+    toast.success("Brownload successful!")
+    // if (currentDocumentInfo?.filepath) {
+    //   try {
+    //     const response = await fetch(currentDocumentInfo.filepath);
+    //     const blob = await response.blob();
+    //     const url = window.URL.createObjectURL(blob);
 
-        const link = window.document.createElement('a');
-        link.href = url;
-        link.download = currentDocumentInfo?.FileName || 'document';
-        window.document.body.appendChild(link);
-        link.click();
-        window.document.body.removeChild(link);
+    //     const link = window.document.createElement('a');
+    //     link.href = url;
+    //     link.download = currentDocumentInfo?.FileName || 'document';
+    //     window.document.body.appendChild(link);
+    //     link.click();
+    //     window.document.body.removeChild(link);
 
-        // Clean up the blob URL
-        window.URL.revokeObjectURL(url);
+    //     // Clean up the blob URL
+    //     window.URL.revokeObjectURL(url);
         
-        // Log document download activity
-        try {
-          // console.log('🔍 Logging download activity for document:', currentDocumentInfo.ID);
-          await logDocumentActivity(
-            'DOWNLOADED',
-            user!.ID,
-            user!.UserName,
-            currentDocumentInfo.ID,
-            currentDocumentInfo.FileName,
-            `Downloaded by ${user!.UserName}`
-          );
-          console.log('✅ Download activity logged successfully');
+    //     // Log document download activity
+    //     try {
+    //       // console.log('🔍 Logging download activity for document:', currentDocumentInfo.ID);
+    //       await logDocumentActivity(
+    //         'DOWNLOADED',
+    //         user!.ID,
+    //         user!.UserName,
+    //         currentDocumentInfo.ID,
+    //         currentDocumentInfo.FileName,
+    //         `Downloaded by ${user!.UserName}`
+    //       );
+    //       console.log('✅ Download activity logged successfully');
           
-          // Refresh document data to show the new audit trail entry
-          if (document?.document?.[0]?.ID) {
-            console.log('🔄 Refreshing document data...');
-            await fetchDocument(String(document.document[0].ID));
-            console.log('✅ Document data refreshed');
-          }
-        } catch (logError) {
-          console.warn('Failed to log document download activity:', logError);
-        }
-      } catch (error) {
-        console.error('Download failed:', error);
-      }
-    }
+    //       // Refresh document data to show the new audit trail entry
+    //       if (document?.document?.[0]?.ID) {
+    //         console.log('🔄 Refreshing document data...');
+    //         await fetchDocument(String(document.document[0].ID));
+    //         console.log('✅ Document data refreshed');
+    //       }
+    //     } catch (logError) {
+    //       console.warn('Failed to log document download activity:', logError);
+    //     }
+    //   } catch (error) {
+    //     console.error('Download failed:', error);
+    //   }
+    // }
   };
   
   if (!document || !currentDocumentInfo) return null;
