@@ -254,7 +254,16 @@ const DocumentCurrentView = ({
     }
 
     try {
-      const formData = buildDocumentFormData(updatedDoc, null, false, currentDocumentInfo.ID);
+      // Metadata edits create minor versions (v1 → v1.1, v2 → v2.1, etc.)
+      const formData = buildDocumentFormData(
+        updatedDoc, 
+        null, 
+        false, 
+        currentDocumentInfo.ID,
+        undefined,
+        true,   // isMinorVersion: true - metadata edits create minor versions
+        false   // finalize: false
+      );
 
       // Ensure editable fields overwrite existing values even when empty
       formData.set('filename', formValues.FileName.trim());
@@ -273,7 +282,26 @@ const DocumentCurrentView = ({
         formData.set(`Date${i}`, dynamicFieldValues[`Date${i}`] ?? '');
       }
 
+      // Debug: Log version flags being sent
+      console.log('🔍 Version flags in FormData:');
+      console.log('isMinorVersion:', formData.get('isMinorVersion'), '(type:', typeof formData.get('isMinorVersion'), ')');
+      console.log('finalize:', formData.get('finalize'), '(type:', typeof formData.get('finalize'), ')');
+      console.log('Current version before edit:', document?.versions?.[0]?.VersionNumber);
+      
+      // Log all FormData entries for debugging
+      console.log('📋 All FormData entries:');
+      for (const [key, value] of formData.entries()) {
+        if (key === 'isMinorVersion' || key === 'finalize' || key === 'file') {
+          console.log(`  ${key}:`, value, typeof value === 'string' ? `(string)` : typeof value === 'object' ? `(File)` : `(${typeof value})`);
+        }
+      }
+
       const response = await editDocument(formData);
+
+      // Debug: Log backend response
+      console.log('📥 Backend response:', response);
+      console.log('📥 Response status:', response?.status);
+      console.log('📥 Response message:', response?.message);
 
       if (response?.status === false) {
         throw new Error(response?.message || 'Failed to update document');
@@ -294,7 +322,13 @@ const DocumentCurrentView = ({
         console.warn('Failed to log document update activity:', logError);
       }
 
-      await fetchDocument(String(currentDocumentInfo.ID));
+      // Refresh document to get updated version
+      const refreshedDocument = await fetchDocument(String(currentDocumentInfo.ID));
+      
+      // Debug: Log version after edit
+      console.log('✅ Version after edit:', refreshedDocument?.versions?.[0]?.VersionNumber);
+      console.log('✅ All versions:', refreshedDocument?.versions?.map(v => v.VersionNumber));
+      
       toast.success('Document updated successfully.');
       setIsEditing(false);
     } catch (error: any) {

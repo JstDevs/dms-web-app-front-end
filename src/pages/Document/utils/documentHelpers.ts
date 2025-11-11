@@ -5,13 +5,23 @@ const buildDocumentFormData = (
   file: File | null,
   isNew: boolean,
   editId?: number,
-  dynamicFields?: { [key: string]: any }
+  dynamicFields?: { [key: string]: any },
+  isMinorVersion?: boolean,
+  finalize?: boolean
 ) => {
   const formData = new FormData();
 
   // File and ID handling
   if (file) formData.append("file", file);
   if (!isNew && editId !== undefined) formData.append("id", String(editId));
+  
+  // Version control flags - backend expects string 'true'/'false' or boolean
+  if (isMinorVersion !== undefined) {
+    formData.append("isMinorVersion", String(isMinorVersion));
+  }
+  if (finalize !== undefined) {
+    formData.append("finalize", String(finalize));
+  }
 
   // Core document fields
   formData.append("filename", doc.FileName || "");

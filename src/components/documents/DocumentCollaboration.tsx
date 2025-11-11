@@ -421,7 +421,16 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
         Date10: currentDoc.Date10 || undefined,
       } as any;
 
-      const formData = buildDocumentFormData(docData, selectedFile, false, currentDoc.ID);
+      // File uploads create minor versions (v1 → v1.1, v2 → v2.1, etc.)
+      const formData = buildDocumentFormData(
+        docData, 
+        selectedFile, 
+        false, 
+        currentDoc.ID,
+        undefined,
+        true,   // isMinorVersion: true - file uploads create minor versions
+        false   // finalize: false
+      );
 
       // Simulate progress for UX
       const progressInterval = setInterval(() => {
@@ -483,21 +492,78 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
     setIsFinalizing(true);
     setShowFinalizeModal(false);
     try {
-      try {
-        await logCollaborationActivity(
-          'VERSION_FINALIZED',
-          loggedUser!.ID,
-          loggedUser!.UserName,
-          document.document[0].ID,
-          document.document[0].FileName,
-          'Version finalized'
-        );
-        await fetchDocument(String(document.document[0].ID));
-      } catch (logError) {
-        console.warn('Failed to log finalization activity:', logError);
+      const currentDoc = document.document[0];
+      
+      // Prepare document data for finalize request
+      const docData = {
+        ID: currentDoc.ID,
+        FileName: currentDoc.FileName,
+        FileDescription: currentDoc.FileDescription,
+        Description: currentDoc.Description,
+        FileDate: currentDoc.FileDate,
+        Remarks: currentDoc.Remarks,
+        Expiration: currentDoc.Expiration,
+        ExpirationDate: currentDoc.ExpirationDate,
+        Confidential: currentDoc.Confidential,
+        DepartmentId: currentDoc.DepartmentId,
+        SubDepartmentId: currentDoc.SubDepartmentId,
+        Active: currentDoc.Active,
+        publishing_status: currentDoc.publishing_status,
+        // Dynamic fields
+        Text1: currentDoc.Text1 || undefined,
+        Text2: currentDoc.Text2 || undefined,
+        Text3: currentDoc.Text3 || undefined,
+        Text4: currentDoc.Text4 || undefined,
+        Text5: currentDoc.Text5 || undefined,
+        Text6: currentDoc.Text6 || undefined,
+        Text7: currentDoc.Text7 || undefined,
+        Text8: currentDoc.Text8 || undefined,
+        Text9: currentDoc.Text9 || undefined,
+        Text10: currentDoc.Text10 || undefined,
+        Date1: currentDoc.Date1 || undefined,
+        Date2: currentDoc.Date2 || undefined,
+        Date3: currentDoc.Date3 || undefined,
+        Date4: currentDoc.Date4 || undefined,
+        Date5: currentDoc.Date5 || undefined,
+        Date6: currentDoc.Date6 || undefined,
+        Date7: currentDoc.Date7 || undefined,
+        Date8: currentDoc.Date8 || undefined,
+        Date9: currentDoc.Date9 || undefined,
+        Date10: currentDoc.Date10 || undefined,
+      } as any;
+
+      // Finalize version - bumps major version (v1.x → v2, v2.x → v3, etc.)
+      const formData = buildDocumentFormData(
+        docData,
+        null,      // No file upload for finalize
+        false,
+        currentDoc.ID,
+        undefined,
+        false,     // isMinorVersion: false - finalize is major version bump
+        true       // finalize: true - triggers major version increment
+      );
+
+      const response = await editDocument(formData);
+
+      if (response.status) {
+        try {
+          await logCollaborationActivity(
+            'VERSION_FINALIZED',
+            loggedUser!.ID,
+            loggedUser!.UserName,
+            document.document[0].ID,
+            document.document[0].FileName,
+            'Version finalized'
+          );
+          await fetchDocument(String(document.document[0].ID));
+        } catch (logError) {
+          console.warn('Failed to log finalization activity:', logError);
+        }
+        showMessage('Version finalized successfully! Check the Audit Trail tab to see the activity.');
+        toast.success('Version finalized successfully!', { duration: 4000, position: 'top-right' });
+      } else {
+        throw new Error(response.message || 'Failed to finalize version');
       }
-      showMessage('Version finalized successfully! Check the Audit Trail tab to see the activity.');
-      toast.success('Version finalized successfully!', { duration: 4000, position: 'top-right' });
     } catch (error) {
       console.error('Failed to finalize version:', error);
       showMessage('Failed to finalize version. Please try again.', true);
