@@ -138,23 +138,128 @@ const Dashboard: React.FC = () => {
 
           const allActivities = filteredActivities as any[];
 
+          // Helper function to normalize MIME types to file extensions
+          const normalizeFileType = (dataType: string, fileName?: string): string => {
+            if (!dataType) {
+              // Fallback to filename extension
+              if (fileName) {
+                const ext = fileName.split('.').pop()?.toLowerCase();
+                return ext || 'others';
+              }
+              return 'others';
+            }
+
+            const lowerType = dataType.toLowerCase().trim();
+            const upperType = dataType.toUpperCase().trim();
+            const originalType = dataType.trim();
+
+            // Check if it's already a simple extension (no slashes, no dots in the middle)
+            // Simple extensions like "pdf", "docx", "xlsx" etc.
+            if (!lowerType.includes('/') && !lowerType.includes('vnd') && !lowerType.includes('openxml') && 
+                !upperType.includes('VND') && !upperType.includes('OPENXML')) {
+              return lowerType;
+            }
+
+            // Handle MIME types - check both lowercase and uppercase variations
+            // Also handle cases where "application/" prefix might be missing
+            
+            // PDF
+            if (lowerType === 'application/pdf' || lowerType === 'pdf' || 
+                upperType.includes('PDF') && !upperType.includes('VND')) {
+              return 'pdf';
+            }
+            
+            // Word documents - handle multiple formats
+            // Full MIME type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+            // Without prefix: vnd.openxmlformats-officedocument.wordprocessingml.document
+            // Uppercase with dots: VND.OPENXMLFORMATS-OFFICEDOCUMENT.WORDPROCESSINGML.DOCUMENT
+            // Uppercase with slashes: APPLICATION/VND.OPENXMLFORMATS-OFFICEDOCUMENT.WORDPROCESSINGML.DOCUMENT
+            
+            // Simple check: if it contains wordprocessing (any case), it's a Word doc
+            const hasWordProcessing = /wordprocessing/i.test(originalType);
+            
+            // Check for VND.OPENXMLFORMATS pattern (uppercase with dots) - this is the key pattern
+            const hasVndOpenXml = /vnd\.openxmlformats/i.test(originalType);
+            
+            // Check for OFFICEDOCUMENT (indicates Office document)
+            const hasOfficeDocument = /officedocument/i.test(originalType);
+            
+            // If it has VND.OPENXMLFORMATS-OFFICEDOCUMENT pattern, it's likely a Word doc
+            // The pattern "VND.OPENXMLFORMATS-OFFICEDOCUMENT.WORDPROCESSINGML.DOCUMENT" is Word
+            // Also handle the case where it might be truncated like "VND.OPENXMLFORMATS-O..."
+            if (hasWordProcessing || 
+                (hasVndOpenXml && hasOfficeDocument && /wordprocessing|document/i.test(originalType)) ||
+                (hasVndOpenXml && hasWordProcessing) ||
+                // Direct check for the pattern user is seeing: VND.OPENXMLFORMATS-OFFICEDOCUMENT
+                (hasVndOpenXml && hasOfficeDocument && !/spreadsheet/i.test(originalType)) ||
+                lowerType === 'application/msword' ||
+                lowerType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                lowerType.includes('vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+              return 'docx';
+            }
+            
+            // Excel documents
+            if (lowerType.includes('spreadsheetml') || 
+                lowerType.includes('spreadsheet') ||
+                upperType.includes('SPREADSHEETML') ||
+                upperType.includes('SPREADSHEET') ||
+                lowerType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                lowerType === 'application/vnd.ms-excel' ||
+                lowerType.includes('vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
+              return 'xlsx';
+            }
+            
+            // Images
+            if (lowerType.startsWith('image/') || upperType.startsWith('IMAGE/')) {
+              if (lowerType === 'image/png' || upperType === 'IMAGE/PNG') return 'png';
+              if (lowerType === 'image/jpeg' || lowerType === 'image/jpg' || 
+                  upperType === 'IMAGE/JPEG' || upperType === 'IMAGE/JPG') return 'jpg';
+              return 'image';
+            }
+            
+            // Text files
+            if (lowerType === 'text/plain' || upperType === 'TEXT/PLAIN' || 
+                lowerType === 'text/plain' || lowerType === 'txt') {
+              return 'txt';
+            }
+            
+            // CSV
+            if (lowerType === 'text/csv' || lowerType === 'application/vnd.ms-excel' ||
+                upperType === 'TEXT/CSV' || lowerType === 'csv') {
+              return 'csv';
+            }
+            
+            // ZIP
+            if (lowerType === 'application/zip' || lowerType === 'application/x-zip-compressed' ||
+                upperType.includes('ZIP') || lowerType === 'zip') {
+              return 'zip';
+            }
+
+            // If MIME type doesn't match known types, try to extract from filename
+            if (fileName) {
+              const ext = fileName.split('.').pop()?.toLowerCase();
+              if (ext) return ext;
+            }
+
+            return 'others';
+          };
+
           // File types
           const typeCounter: Record<string, number> = {};
           for (const act of allActivities) {
-            const rawType = (act.documentNew?.DataType || '').toLowerCase();
-            let typeKey = '';
-            if (rawType) {
-              typeKey = rawType;
-            } else if (act.documentNew?.FileName) {
-              const match = act.documentNew.FileName.split('.').pop();
-              typeKey = (match || 'others').toLowerCase();
-            } else {
-              typeKey = 'others';
-            }
+            const rawType = act.documentNew?.DataType || '';
+            const fileName = act.documentNew?.FileName;
+            const typeKey = normalizeFileType(rawType, fileName);
+            
             const pretty =
               typeKey === 'pdf' ? 'PDF' :
-              typeKey === 'doc' || typeKey === 'docx' ? 'Word' :
+              typeKey === 'doc' || typeKey === 'docx' ? 'Docx' :
               typeKey === 'xls' || typeKey === 'xlsx' ? 'Excel' :
+              typeKey === 'png' || typeKey === 'jpg' || typeKey === 'jpeg' ? 'Image' :
+              typeKey === 'txt' ? 'Text' :
+              typeKey === 'csv' ? 'CSV' :
+              typeKey === 'zip' ? 'ZIP' :
+              typeKey === 'others' ? 'Others' :
               typeKey.toUpperCase();
             typeCounter[pretty] = (typeCounter[pretty] || 0) + 1;
           }
