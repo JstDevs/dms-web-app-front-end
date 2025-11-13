@@ -1,11 +1,11 @@
 // hooks/useDocumentTypeSelection.js
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 export const useDocumentTypeSelection = () => {
-  const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [selectedDocumentType, setSelectedDocumentType] = useState('');
-  const [documentTypeOptions, setDocumentTypeOptions] = useState([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
+  const [selectedDocumentTypeId, setSelectedDocumentTypeId] = useState('');
+  const [documentTypeOptions, setDocumentTypeOptions] = useState<any[]>([]);
 
   const {
     departmentOptions,
@@ -15,9 +15,9 @@ export const useDocumentTypeSelection = () => {
 
   // Update document types (sub-departments) when department selection changes
   useEffect(() => {
-    if (selectedDepartment && departmentOptions.length > 0) {
+    if (selectedDepartmentId && departmentOptions.length > 0) {
       const selectedDeptId = departmentOptions.find(
-        (dept) => dept.label === selectedDepartment
+        (dept) => dept.value === selectedDepartmentId
       )?.value;
 
       if (selectedDeptId) {
@@ -28,31 +28,48 @@ export const useDocumentTypeSelection = () => {
         // Only reset if the current document type doesn't exist in new options
         if (
           !documentTypes.some(
-            (docType: any) => docType.label === selectedDocumentType
+            (docType: any) => docType.value === selectedDocumentTypeId
           )
         ) {
-          setSelectedDocumentType('');
+          setSelectedDocumentTypeId('');
         }
       }
     } else {
       setDocumentTypeOptions([]);
-      if (selectedDocumentType) {
-        setSelectedDocumentType('');
+      if (selectedDocumentTypeId) {
+        setSelectedDocumentTypeId('');
       }
     }
-  }, [selectedDepartment, departmentOptions]);
+  }, [selectedDepartmentId, departmentOptions]);
+
+  const selectedDepartmentLabel = useMemo(() => {
+    return (
+      departmentOptions.find((dept) => dept.value === selectedDepartmentId)
+        ?.label ?? ''
+    );
+  }, [departmentOptions, selectedDepartmentId]);
+
+  const selectedDocumentTypeLabel = useMemo(() => {
+    return (
+      documentTypeOptions.find(
+        (docType: any) => docType.value === selectedDocumentTypeId
+      )?.label ?? ''
+    );
+  }, [documentTypeOptions, selectedDocumentTypeId]);
 
   const resetSelection = () => {
-    setSelectedDepartment('');
-    setSelectedDocumentType('');
+    setSelectedDepartmentId('');
+    setSelectedDocumentTypeId('');
     setDocumentTypeOptions([]);
   };
 
   return {
-    selectedDepartment,
-    setSelectedDepartment,
-    selectedDocumentType,
-    setSelectedDocumentType,
+    selectedDepartmentId,
+    setSelectedDepartmentId,
+    selectedDepartmentLabel,
+    selectedDocumentTypeId,
+    setSelectedDocumentTypeId,
+    selectedDocumentTypeLabel,
     departmentOptions,
     documentTypeOptions,
     loadingDepartments,

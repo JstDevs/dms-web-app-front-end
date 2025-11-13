@@ -63,21 +63,127 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   const [versionNumber, setVersionNumber] = useState<string | null>(null);
   const { user: loggedUser } = useAuth();
 
-  // Fetch actual approval status from approval requests
+  // Fetch actual approval status from approval status endpoint
   React.useEffect(() => {
     const fetchApprovalStatus = async () => {
       try {
+        // Try the new status endpoint first
+        try {
+          const statusResponse = await axios.get(`/documents/${ID}/approvals/status`);
+          if (statusResponse.data) {
+            const finalStatus = statusResponse.data.finalStatus;
+            console.log('DocumentCard status endpoint response:', {
+              finalStatus,
+              allorMajority: statusResponse.data.allorMajority,
+              currentLevel: statusResponse.data.currentLevel,
+              totalLevels: statusResponse.data.totalLevels,
+              levelsCompleted: statusResponse.data.levelsCompleted
+            });
+            
+            if (finalStatus === 'APPROVED') {
+              setActualApprovalStatus('approved');
+              return;
+            } else if (finalStatus === 'REJECTED') {
+              setActualApprovalStatus('rejected');
+              return;
+            } else if (finalStatus === 'IN_PROGRESS' || finalStatus === 'PENDING') {
+              setActualApprovalStatus('pending');
+              return;
+            }
+          }
+        } catch (statusError: any) {
+          // If status endpoint returns 404, fall back to legacy endpoint
+          if (statusError?.response?.status !== 404) {
+            console.error('Failed to fetch approval status:', statusError);
+          }
+        }
+
+        // Fallback to legacy endpoint
         const response = await axios.get(`/documents/documents/${ID}/approvals`);
         if (response.data.success && response.data.data.length > 0) {
           const requests = response.data.data;
-          const hasApproved = requests.some((req: any) => req.Status === 'APPROVED' || req.Status === '1');
-          const hasRejected = requests.some((req: any) => req.Status === 'REJECTED');
           
-          if (hasApproved) {
-            setActualApprovalStatus('approved');
-          } else if (hasRejected) {
-            setActualApprovalStatus('rejected');
+          // Get rule from status endpoint or try to fetch from document's approval matrix
+          let rule: 'ALL' | 'MAJORITY' = 'ALL';
+          try {
+            const statusResp = await axios.get(`/documents/${ID}/approvals/status`);
+            if (statusResp.data?.allorMajority) {
+              rule = statusResp.data.allorMajority;
+            } else if (statusResp.data?.finalStatus === 'REJECTED' || statusResp.data?.finalStatus === 'APPROVED') {
+              // If finalStatus is set, use it directly
+              setActualApprovalStatus(statusResp.data.finalStatus.toLowerCase() as 'approved' | 'rejected');
+              return;
+            }
+          } catch {
+            // Try to get rule from document details and approval matrix
+            try {
+              const docResponse = await axios.get(`/documents/documents/${ID}`);
+              if (docResponse.data?.success && docResponse.data?.data?.document?.[0]) {
+                const doc = docResponse.data.data.document[0];
+                if (doc.DepartmentId && doc.SubDepartmentId) {
+                  const matrixResp = await axios.get('/approvalMatrix', {
+                    params: { DepartmentId: doc.DepartmentId, SubDepartmentId: doc.SubDepartmentId }
+                  });
+                  if (matrixResp.data?.approvalMatrix?.AllorMajority) {
+                    rule = matrixResp.data.approvalMatrix.AllorMajority;
+                  }
+                }
+              }
+            } catch {
+              // Rule not available, use default
+            }
+          }
+          
+          // Filter out cancelled requests
+          const activeRequests = requests.filter((req: any) => 
+            req.IsCancelled === 0 || req.IsCancelled === false || req.IsCancelled === '0' || req.IsCancelled === null
+          );
+          
+          // Check final status: if all levels are completed, determine final status
+          const allProcessed = activeRequests.every((req: any) => {
+            const status = req.Status;
+            const hasApprovalDate = req.ApprovalDate !== null && req.ApprovalDate !== undefined;
+            return (
+              status === 'APPROVED' || 
+              status === 'REJECTED' || 
+              status === '1' || 
+              status === '0' ||
+              hasApprovalDate
+            );
+          });
+          
+          if (allProcessed && activeRequests.length > 0) {
+            // All levels completed - calculate final status based on rule
+            const rejected = activeRequests.filter((req: any) => {
+              const status = req.Status;
+              return status === 'REJECTED' || status === '0' || 
+                     (status === 'PENDING' && req.ApprovalDate && req.RejectionReason);
+            });
+            const approved = activeRequests.filter((req: any) => {
+              const status = req.Status;
+              return status === 'APPROVED' || status === '1';
+            });
+            
+            console.log('DocumentCard approval calculation:', {
+              rule,
+              total: activeRequests.length,
+              approved: approved.length,
+              rejected: rejected.length,
+              requests: activeRequests.map((r: any) => ({ id: r.ID, status: r.Status, level: r.SequenceLevel }))
+            });
+            
+            if (rule === 'ALL') {
+              // ALL rule: all levels must be APPROVED
+              setActualApprovalStatus(approved.length === activeRequests.length ? 'approved' : 'rejected');
+            } else if (rule === 'MAJORITY') {
+              // MAJORITY rule: count approvals vs rejections
+              setActualApprovalStatus(approved.length > rejected.length ? 'approved' : 'rejected');
+            } else {
+              // Fallback: any rejection means rejected
+              setActualApprovalStatus(rejected.length > 0 ? 'rejected' : 'approved');
+            }
           } else {
+            // Still in progress
             setActualApprovalStatus('pending');
           }
         } else {
@@ -369,6 +475,13 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
                     Request Approval
                   </Button>
                 )}
+
+              {/* Hide button if already approved or rejected */}
+              {(actualApprovalStatus === 'approved' || actualApprovalStatus === 'rejected') && (
+                <div className="text-xs text-gray-500 italic">
+                  {actualApprovalStatus === 'approved' ? 'Approval completed' : 'Approval rejected'}
+                </div>
+              )}
 
               {requestSent && (
                 <div className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-green-700 bg-green-50 rounded-lg border border-green-200 shadow-sm">
