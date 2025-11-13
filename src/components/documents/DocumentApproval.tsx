@@ -398,7 +398,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
 
     setProcessingId(request.id);
     try {
-      const response = await actOnDocumentApproval(documentId, request.id, {
+      await actOnDocumentApproval(documentId, request.id, {
         action,
         comments: comments[request.id]?.trim(),
         approverId: user?.ID,
@@ -609,7 +609,8 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
         ) : (
           <div className="space-y-4">
             {activePendingRequests.map((request) => {
-              const isCurrentUser = request.approverId === user?.ID;
+              // Use both direct and number comparison to handle type differences
+              const isCurrentUser = request.approverId === user?.ID || Number(request.approverId) === Number(user?.ID);
               const requestBadge =
                 statusColors[request.status] ??
                 'bg-gray-100 text-gray-800';

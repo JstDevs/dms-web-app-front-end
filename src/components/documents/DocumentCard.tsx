@@ -17,6 +17,7 @@ import axios from '@/api/axios';
 import toast from 'react-hot-toast';
 import { requestDocumentApproval, actOnDocumentApproval } from '@/api/documentApprovals';
 import { useAuth } from '@/contexts/AuthContext';
+import ModernModal from '@/components/ui/ModernModal';
 
 interface DocumentCardProps {
   document: {
@@ -69,6 +70,9 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   const [pendingRequest, setPendingRequest] = useState<any>(null);
   const [allPendingRequests, setAllPendingRequests] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
   
   // Check if current user is the approver (same logic as DocumentApproval.tsx)
   // Check both the stored pendingRequest and all pending requests
@@ -377,9 +381,18 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     }
   }, [ID, pendingRequest, allPendingRequests, isCurrentUserApprover, user?.ID]);
 
-  const handleReject = useCallback(async (e: React.MouseEvent) => {
+  const handleRejectClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!isCurrentUserApprover || isProcessing) return;
+    setRejectReason('');
+    setIsRejectModalOpen(true);
+  }, [isCurrentUserApprover, isProcessing]);
+
+  const handleRejectConfirm = useCallback(async () => {
+    if (!rejectReason.trim()) {
+      toast.error('Rejection reason is required.');
+      return;
+    }
 
     // Get the request to use - prefer pendingRequest, fallback to finding in allPendingRequests
     const requestToUse = pendingRequest || allPendingRequests.find((req: any) => {
@@ -387,30 +400,26 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
       return approverId === user?.ID || Number(approverId) === Number(user?.ID);
     });
 
-    if (!requestToUse) return;
-
-    // Prompt for rejection reason
-    const reason = window.prompt('Please provide a reason for rejection:');
-    if (!reason || !reason.trim()) {
-      if (reason !== null) { // User clicked OK but left it empty
-        toast.error('Rejection reason is required.');
-      }
+    if (!requestToUse) {
+      setIsRejectModalOpen(false);
       return;
     }
 
+    setIsRejectModalOpen(false);
     setIsProcessing(true);
     try {
       // Handle both camelCase (id) and PascalCase (ID) from different API responses
       const requestId = requestToUse.id ?? requestToUse.ID;
       await actOnDocumentApproval(Number(ID), Number(requestId), {
         action: 'REJECT',
-        comments: reason.trim(),
+        comments: rejectReason.trim(),
         approverId: user?.ID,
       });
 
       toast.success('Document rejected.');
       setPendingRequest(null);
       setAllPendingRequests([]);
+      setRejectReason('');
       // Refresh status
       setTimeout(() => {
         setRefreshTrigger(prev => prev + 1);
@@ -424,17 +433,15 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     } finally {
       setIsProcessing(false);
     }
-  }, [ID, pendingRequest, allPendingRequests, isCurrentUserApprover, user?.ID]);
+  }, [ID, pendingRequest, allPendingRequests, isCurrentUserApprover, user?.ID, rejectReason]);
 
-  const handleDelete = useCallback(async (e: React.MouseEvent) => {
+  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${FileName}"? This action cannot be undone.`
-    );
-    
-    if (!confirmed) return;
+    setIsDeleteModalOpen(true);
+  }, []);
 
+  const handleDeleteConfirm = useCallback(async () => {
+    setIsDeleteModalOpen(false);
     setIsDeleting(true);
     try {
       if (onDelete) {
@@ -445,7 +452,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     } finally {
       setIsDeleting(false);
     }
-  }, [FileName, onDelete, ID]);
+  }, [onDelete, ID]);
 
   const getStatusBadge = useMemo(() => {
     // Use actual approval status from API if available
@@ -519,7 +526,12 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
   return (
     <div
-      onClick={onClick}
+      onClick={() => {
+        // Don't navigate if modal is open
+        if (!isDeleteModalOpen && !isRejectModalOpen) {
+          onClick();
+        }
+      }}
       className="group relative flex flex-col h-full bg-white rounded-2xl border-2 border-gray-200 shadow-md hover:shadow-2xl hover:border-blue-400 transition-all duration-300 cursor-pointer overflow-hidden"
     >
       {/* Professional top accent bar with gradient - always visible */}
@@ -631,7 +643,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
             {/* Delete Button - Left Side */}
             {permissions.Delete && (
               <Button
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 loading={isDeleting}
                 size="sm"
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 flex items-center gap-2"
@@ -664,7 +676,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
                     Approve
                   </Button>
                   <Button
-                    onClick={handleReject}
+                    onClick={handleRejectClick}
                     loading={isProcessing}
                     disabled={!isCurrentUserApprover || isProcessing}
                     size="sm"
@@ -722,6 +734,137 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
       
       {/* Subtle corner accent */}
       <div className="absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-tl from-blue-100/0 to-blue-100/0 group-hover:from-blue-100/20 group-hover:to-blue-100/10 rounded-tl-full transition-all duration-300 pointer-events-none" />
+
+      {/* Delete Confirmation Modal */}
+      <ModernModal 
+        isOpen={isDeleteModalOpen} 
+        onClose={() => setIsDeleteModalOpen(false)}
+        size="md"
+      >
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-start gap-4 mb-6">
+            <div className="flex-shrink-0 p-3 rounded-full bg-gradient-to-br from-red-100 to-red-200 shadow-lg">
+              <AlertCircle className="w-7 h-7 text-red-600" />
+            </div>
+            <div className="flex-1 pt-1">
+              <h3 className="text-2xl font-bold text-gray-900 mb-1">Confirm Delete</h3>
+              <p className="text-sm text-gray-500">This action cannot be undone</p>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="mb-6">
+            <p className="text-gray-700 leading-relaxed">
+              Are you sure you want to delete <span className="font-semibold text-gray-900">"{FileName}"</span>?
+            </p>
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                This will permanently remove the document and all associated data.
+              </p>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDeleteModalOpen(false);
+              }}
+              size="sm"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 hover:shadow-md"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteConfirm();
+              }}
+              loading={isDeleting}
+              size="sm"
+              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+              loadingText="Deleting..."
+            >
+              Delete Document
+            </Button>
+          </div>
+        </div>
+      </ModernModal>
+
+      {/* Reject Approval Modal */}
+      <ModernModal 
+        isOpen={isRejectModalOpen} 
+        onClose={() => setIsRejectModalOpen(false)}
+        size="md"
+      >
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-start gap-4 mb-6">
+            <div className="flex-shrink-0 p-3 rounded-full bg-gradient-to-br from-orange-100 to-red-200 shadow-lg">
+              <XCircle className="w-7 h-7 text-red-600" />
+            </div>
+            <div className="flex-1 pt-1">
+              <h3 className="text-2xl font-bold text-gray-900 mb-1">Reject Document Approval</h3>
+              <p className="text-sm text-gray-500">Please provide a reason for rejection</p>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="mb-6">
+            <label 
+              htmlFor="reject-reason" 
+              className="block text-sm font-semibold text-gray-700 mb-3"
+            >
+              Rejection Reason <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              id="reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Enter your reason for rejection..."
+              rows={5}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none transition-all duration-200 text-gray-700 placeholder-gray-400"
+              autoFocus
+            />
+            <p className="mt-2 text-xs text-gray-500">
+              A clear reason helps document owners understand why the approval was rejected.
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsRejectModalOpen(false);
+                setRejectReason('');
+              }}
+              size="sm"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 hover:shadow-md"
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRejectConfirm();
+              }}
+              loading={isProcessing}
+              size="sm"
+              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-md"
+              loadingText="Rejecting..."
+              disabled={!rejectReason.trim() || isProcessing}
+            >
+              Reject Approval
+            </Button>
+          </div>
+        </div>
+      </ModernModal>
     </div>
   );
 });

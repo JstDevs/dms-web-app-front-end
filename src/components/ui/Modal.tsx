@@ -33,21 +33,25 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
       <div
         ref={modalRef}
-        className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] relative overflow-y-auto p-4"
+        className="bg-white rounded-xl max-w-md w-full relative overflow-y-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-600 hover:text-black transition-colors"
+          className="absolute top-4 right-4 text-gray-600 hover:text-black transition-colors z-10"
           aria-label="Close modal"
         >
           <X size={24} />
         </button>
 
         {/* Content */}
-        <div className="flex justify-center">{children}</div>
+        <div>{children}</div>
       </div>
     </div>
   );
