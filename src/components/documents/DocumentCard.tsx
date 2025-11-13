@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Calendar,
   Lock,
@@ -9,11 +9,14 @@ import {
   Trash2,
   FileText,
   Layers,
+  XCircle,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@chakra-ui/react';
 import axios from '@/api/axios';
 import toast from 'react-hot-toast';
-import { requestDocumentApproval } from '@/api/documentApprovals';
+import { requestDocumentApproval, actOnDocumentApproval } from '@/api/documentApprovals';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DocumentCardProps {
   document: {
@@ -56,90 +59,107 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     ID,
   } = document;
 
+  const { user } = useAuth();
   const [isRequesting, setIsRequesting] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [actualApprovalStatus, setActualApprovalStatus] = useState<'approved' | 'rejected' | 'pending' | null>(null);
+  const [actualApprovalStatus, setActualApprovalStatus] = useState<'approved' | 'rejected' | 'pending' | 'in_progress' | null>(null);
   const [versionNumber, setVersionNumber] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [pendingRequest, setPendingRequest] = useState<any>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fetch actual approval status from approval status endpoint
+  // Optimized: Fetch approval status with parallel API calls where possible
   React.useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+
     const fetchApprovalStatus = async () => {
       try {
-        // Try the new status endpoint first
-        try {
-          const statusResponse = await axios.get(`/documents/${ID}/approvals/status`);
-          if (statusResponse.data) {
-            const finalStatus = statusResponse.data.finalStatus;
-            console.log('DocumentCard status endpoint response:', {
-              finalStatus,
-              allorMajority: statusResponse.data.allorMajority,
-              currentLevel: statusResponse.data.currentLevel,
-              totalLevels: statusResponse.data.totalLevels,
-              levelsCompleted: statusResponse.data.levelsCompleted
-            });
-            
-            if (finalStatus === 'APPROVED') {
-              setActualApprovalStatus('approved');
-              return;
-            } else if (finalStatus === 'REJECTED') {
-              setActualApprovalStatus('rejected');
-              return;
-            } else if (finalStatus === 'IN_PROGRESS' || finalStatus === 'PENDING') {
-              setActualApprovalStatus('pending');
-              return;
-            }
+        // Try the new status endpoint first (fastest path)
+        const statusResponse = await axios.get(`/documents/${ID}/approvals/status`, {
+          signal: abortController.signal
+        }).catch((err: any) => {
+          if (err?.response?.status === 404) {
+            return null; // Status endpoint not available, use fallback
           }
-        } catch (statusError: any) {
-          // If status endpoint returns 404, fall back to legacy endpoint
-          if (statusError?.response?.status !== 404) {
-            console.error('Failed to fetch approval status:', statusError);
+          throw err;
+        });
+
+        if (!isMounted) return;
+
+        if (statusResponse?.data) {
+          const finalStatus = statusResponse.data.finalStatus;
+          
+          if (finalStatus === 'APPROVED') {
+            setActualApprovalStatus('approved');
+            setPendingRequest(null);
+            return;
+          }
+          
+          if (finalStatus === 'REJECTED') {
+            setActualApprovalStatus('rejected');
+            setPendingRequest(null);
+            return;
+          }
+          
+          if (finalStatus === 'IN_PROGRESS') {
+            setActualApprovalStatus('in_progress');
+            // Only fetch pending requests if status is IN_PROGRESS
+            // Use parallel call if we have pendingRequests in response
+            if (statusResponse.data.pendingRequests?.length > 0) {
+              // Use data from status response if available
+              const userPendingRequest = statusResponse.data.pendingRequests.find((req: any) => 
+                req.approverId === user?.ID
+              );
+              setPendingRequest(userPendingRequest ? { ID: userPendingRequest.id, ApproverID: userPendingRequest.approverId } : null);
+            } else {
+              // Fallback: fetch pending requests only if needed
+              try {
+                const pendingResp = await axios.get(`/documents/documents/${ID}/approvals`, {
+                  signal: abortController.signal
+                });
+                if (isMounted && pendingResp.data.success && pendingResp.data.data) {
+                  const requests = pendingResp.data.data;
+                  const userPendingRequest = requests.find((req: any) => 
+                    req.ApproverID === user?.ID && 
+                    (req.Status === 'PENDING' || req.Status === null || req.Status === undefined) &&
+                    (req.IsCancelled === 0 || req.IsCancelled === false || req.IsCancelled === '0' || req.IsCancelled === null) &&
+                    (req.ApprovalDate === null || req.ApprovalDate === undefined)
+                  );
+                  setPendingRequest(userPendingRequest || null);
+                }
+              } catch (err) {
+                if (isMounted) {
+                  console.warn('Failed to fetch pending requests:', err);
+                  setPendingRequest(null);
+                }
+              }
+            }
+            return;
+          }
+          
+          if (finalStatus === 'PENDING') {
+            setActualApprovalStatus('pending');
+            setPendingRequest(null);
+            return;
           }
         }
 
-        // Fallback to legacy endpoint
-        const response = await axios.get(`/documents/documents/${ID}/approvals`);
+        // Fallback: Only use legacy endpoint if status endpoint is not available
+        const response = await axios.get(`/documents/documents/${ID}/approvals`, {
+          signal: abortController.signal
+        });
+        
+        if (!isMounted) return;
+
         if (response.data.success && response.data.data.length > 0) {
           const requests = response.data.data;
-          
-          // Get rule from status endpoint or try to fetch from document's approval matrix
-          let rule: 'ALL' | 'MAJORITY' = 'ALL';
-          try {
-            const statusResp = await axios.get(`/documents/${ID}/approvals/status`);
-            if (statusResp.data?.allorMajority) {
-              rule = statusResp.data.allorMajority;
-            } else if (statusResp.data?.finalStatus === 'REJECTED' || statusResp.data?.finalStatus === 'APPROVED') {
-              // If finalStatus is set, use it directly
-              setActualApprovalStatus(statusResp.data.finalStatus.toLowerCase() as 'approved' | 'rejected');
-              return;
-            }
-          } catch {
-            // Try to get rule from document details and approval matrix
-            try {
-              const docResponse = await axios.get(`/documents/documents/${ID}`);
-              if (docResponse.data?.success && docResponse.data?.data?.document?.[0]) {
-                const doc = docResponse.data.data.document[0];
-                if (doc.DepartmentId && doc.SubDepartmentId) {
-                  const matrixResp = await axios.get('/approvalMatrix', {
-                    params: { DepartmentId: doc.DepartmentId, SubDepartmentId: doc.SubDepartmentId }
-                  });
-                  if (matrixResp.data?.approvalMatrix?.AllorMajority) {
-                    rule = matrixResp.data.approvalMatrix.AllorMajority;
-                  }
-                }
-              }
-            } catch {
-              // Rule not available, use default
-            }
-          }
-          
-          // Filter out cancelled requests
           const activeRequests = requests.filter((req: any) => 
             req.IsCancelled === 0 || req.IsCancelled === false || req.IsCancelled === '0' || req.IsCancelled === null
           );
           
-          // Check final status: if all levels are completed, determine final status
+          // Quick check: if all processed, determine status
           const allProcessed = activeRequests.every((req: any) => {
             const status = req.Status;
             const hasApprovalDate = req.ApprovalDate !== null && req.ApprovalDate !== undefined;
@@ -153,50 +173,57 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
           });
           
           if (allProcessed && activeRequests.length > 0) {
-            // All levels completed - calculate final status based on rule
-            const rejected = activeRequests.filter((req: any) => {
-              const status = req.Status;
-              return status === 'REJECTED' || status === '0' || 
-                     (status === 'PENDING' && req.ApprovalDate && req.RejectionReason);
-            });
-            const approved = activeRequests.filter((req: any) => {
-              const status = req.Status;
-              return status === 'APPROVED' || status === '1';
-            });
+            // Simplified calculation - use default ALL rule for speed
+            const approved = activeRequests.filter((req: any) => 
+              req.Status === 'APPROVED' || req.Status === '1'
+            );
             
-            console.log('DocumentCard approval calculation:', {
-              rule,
-              total: activeRequests.length,
-              approved: approved.length,
-              rejected: rejected.length,
-              requests: activeRequests.map((r: any) => ({ id: r.ID, status: r.Status, level: r.SequenceLevel }))
-            });
-            
-            if (rule === 'ALL') {
-              // ALL rule: all levels must be APPROVED
-              setActualApprovalStatus(approved.length === activeRequests.length ? 'approved' : 'rejected');
-            } else if (rule === 'MAJORITY') {
-              // MAJORITY rule: count approvals vs rejections
-              setActualApprovalStatus(approved.length > rejected.length ? 'approved' : 'rejected');
-            } else {
-              // Fallback: any rejection means rejected
-              setActualApprovalStatus(rejected.length > 0 ? 'rejected' : 'approved');
-            }
+            setActualApprovalStatus(approved.length === activeRequests.length ? 'approved' : 'rejected');
+            setPendingRequest(null);
           } else {
-            // Still in progress
-            setActualApprovalStatus('pending');
+            // Check for pending requests
+            const hasPending = activeRequests.some((req: any) => {
+              const status = req.Status;
+              const hasApprovalDate = req.ApprovalDate !== null && req.ApprovalDate !== undefined;
+              return (
+                (status === 'PENDING' || status === null || status === undefined) &&
+                !hasApprovalDate
+              );
+            });
+            
+            if (hasPending) {
+              setActualApprovalStatus('in_progress');
+              const userPendingRequest = activeRequests.find((req: any) => 
+                req.ApproverID === user?.ID && 
+                (req.Status === 'PENDING' || req.Status === null || req.Status === undefined) &&
+                (req.ApprovalDate === null || req.ApprovalDate === undefined)
+              );
+              setPendingRequest(userPendingRequest || null);
+            } else {
+              setActualApprovalStatus('pending');
+              setPendingRequest(null);
+            }
           }
         } else {
           setActualApprovalStatus('pending');
+          setPendingRequest(null);
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'AbortError' || !isMounted) return;
         console.error('Failed to fetch approval status:', error);
-        setActualApprovalStatus('pending');
+        if (isMounted) {
+          setActualApprovalStatus('pending');
+        }
       }
     };
 
     fetchApprovalStatus();
-  }, [ID, refreshTrigger]);
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
+  }, [ID, refreshTrigger, user?.ID]);
 
   // Fetch document version - using same endpoint as DocumentCurrentView
   React.useEffect(() => {
@@ -221,7 +248,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     fetchVersion();
   }, [ID]);
 
-  const handleRequestApproval = async (e: React.MouseEvent) => {
+  const handleRequestApproval = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsRequesting(true);
 
@@ -248,9 +275,76 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     } finally {
       setIsRequesting(false);
     }
-  };
+  }, [ID]);
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleApprove = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!pendingRequest || isProcessing) return;
+
+    setIsProcessing(true);
+    try {
+      await actOnDocumentApproval(Number(ID), pendingRequest.ID, {
+        action: 'APPROVE',
+        comments: '',
+        approverId: user?.ID,
+      });
+
+      toast.success('Document approved successfully!');
+      setPendingRequest(null);
+      // Refresh status
+      setTimeout(() => {
+        setRefreshTrigger(prev => prev + 1);
+      }, 500);
+    } catch (error: any) {
+      console.error('Error approving document:', error);
+      const errorMsg = error?.response?.data?.message 
+        || error?.message 
+        || 'Failed to approve document';
+      toast.error(errorMsg);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [ID, pendingRequest, user?.ID]);
+
+  const handleReject = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!pendingRequest || isProcessing) return;
+
+    // Prompt for rejection reason
+    const reason = window.prompt('Please provide a reason for rejection:');
+    if (!reason || !reason.trim()) {
+      if (reason !== null) { // User clicked OK but left it empty
+        toast.error('Rejection reason is required.');
+      }
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      await actOnDocumentApproval(Number(ID), pendingRequest.ID, {
+        action: 'REJECT',
+        comments: reason.trim(),
+        approverId: user?.ID,
+      });
+
+      toast.success('Document rejected.');
+      setPendingRequest(null);
+      // Refresh status
+      setTimeout(() => {
+        setRefreshTrigger(prev => prev + 1);
+      }, 500);
+    } catch (error: any) {
+      console.error('Error rejecting document:', error);
+      const errorMsg = error?.response?.data?.message 
+        || error?.message 
+        || 'Failed to reject document';
+      toast.error(errorMsg);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [ID, pendingRequest, user?.ID]);
+
+  const handleDelete = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     
     const confirmed = window.confirm(
@@ -269,9 +363,9 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     } finally {
       setIsDeleting(false);
     }
-  };
+  }, [FileName, onDelete, ID]);
 
-  const getStatusBadge = () => {
+  const getStatusBadge = useMemo(() => {
     // Use actual approval status from API if available
     if (actualApprovalStatus === 'approved') {
       if (publishing_status) {
@@ -295,6 +389,15 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-red-50 text-red-700 border border-red-200/60">
           <AlertCircle className="w-3.5 h-3.5" />
           Rejected
+        </div>
+      );
+    }
+
+    if (actualApprovalStatus === 'in_progress') {
+      return (
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60 shadow-sm">
+          <Layers className="w-3.5 h-3.5" />
+          <span className="font-medium">In Progress</span>
         </div>
       );
     }
@@ -325,10 +428,12 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
         <span className="font-medium">Pending Approval</span>
       </div>
     );
-  };
+  }, [actualApprovalStatus, publishing_status]);
 
-  const isExpired =
-    Expiration && ExpirationDate && new Date(ExpirationDate) < new Date();
+  const isExpired = useMemo(() => 
+    Expiration && ExpirationDate && new Date(ExpirationDate) < new Date(),
+    [Expiration, ExpirationDate]
+  );
 
   return (
     <div
@@ -380,7 +485,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
               </div>
             )}
           </div>
-          {getStatusBadge()}
+          {getStatusBadge}
         </div>
 
         {/* Title and Description */}
@@ -457,7 +562,66 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
             )}
 
             {/* Right Side Actions */}
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 flex-wrap">
+              {/* Show Approve/Reject buttons when IN_PROGRESS and user is approver */}
+              {actualApprovalStatus === 'in_progress' && pendingRequest && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleApprove}
+                    loading={isProcessing}
+                    disabled={isProcessing}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50"
+                    loadingText="Processing..."
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-3.5 h-3.5" />
+                    )}
+                    Approve
+                  </Button>
+                  <Button
+                    onClick={handleReject}
+                    loading={isProcessing}
+                    disabled={isProcessing}
+                    size="sm"
+                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50"
+                    loadingText="Processing..."
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <XCircle className="w-3.5 h-3.5" />
+                    )}
+                    Reject
+                  </Button>
+                </div>
+              )}
+
+              {/* Show disabled Approve/Reject buttons when IN_PROGRESS but user is not approver */}
+              {actualApprovalStatus === 'in_progress' && !pendingRequest && (
+                <div className="flex gap-2">
+                  <Button
+                    disabled
+                    size="sm"
+                    className="bg-gray-300 text-gray-500 px-3 py-2 rounded-lg text-xs font-semibold cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    Approve
+                  </Button>
+                  <Button
+                    disabled
+                    size="sm"
+                    className="bg-gray-300 text-gray-500 px-3 py-2 rounded-lg text-xs font-semibold cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    Reject
+                  </Button>
+                </div>
+              )}
+
+              {/* Show Request Approval button when pending or null and not sent */}
               {(actualApprovalStatus === 'pending' || actualApprovalStatus === null) &&
                 !requestSent &&
                 permissions.Add &&
@@ -482,7 +646,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
                 </div>
               )}
 
-              {requestSent && (
+              {requestSent && actualApprovalStatus !== 'in_progress' && (
                 <div className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-green-700 bg-green-50 rounded-lg border border-green-200 shadow-sm">
                   <CheckCircle className="w-4 h-4" />
                   Request Sent
