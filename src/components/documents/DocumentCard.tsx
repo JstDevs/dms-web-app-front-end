@@ -67,7 +67,33 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   const [versionNumber, setVersionNumber] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [pendingRequest, setPendingRequest] = useState<any>(null);
+  const [allPendingRequests, setAllPendingRequests] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Check if current user is the approver (same logic as DocumentApproval.tsx)
+  // Check both the stored pendingRequest and all pending requests
+  const isCurrentUserApprover = useMemo(() => {
+    if (!user?.ID) return false;
+    
+    // First check if we have a stored pendingRequest
+    if (pendingRequest) {
+      const approverId = pendingRequest.approverId ?? pendingRequest.ApproverID;
+      // Use direct comparison like DocumentApproval.tsx: request.approverId === user?.ID
+      if (approverId === user.ID || Number(approverId) === Number(user.ID)) {
+        return true;
+      }
+    }
+    
+    // Also check all pending requests (fallback)
+    if (allPendingRequests.length > 0) {
+      return allPendingRequests.some((req: any) => {
+        const approverId = req.approverId ?? req.ApproverID;
+        return approverId === user.ID || Number(approverId) === Number(user.ID);
+      });
+    }
+    
+    return false;
+  }, [pendingRequest, allPendingRequests, user?.ID]);
 
   // Optimized: Fetch approval status with parallel API calls where possible
   React.useEffect(() => {
@@ -94,46 +120,70 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
           if (finalStatus === 'APPROVED') {
             setActualApprovalStatus('approved');
             setPendingRequest(null);
+            setAllPendingRequests([]);
             return;
           }
           
           if (finalStatus === 'REJECTED') {
             setActualApprovalStatus('rejected');
             setPendingRequest(null);
+            setAllPendingRequests([]);
             return;
           }
           
           if (finalStatus === 'IN_PROGRESS') {
             setActualApprovalStatus('in_progress');
-            // Only fetch pending requests if status is IN_PROGRESS
-            // Use parallel call if we have pendingRequests in response
-            if (statusResponse.data.pendingRequests?.length > 0) {
-              // Use data from status response if available
-              const userPendingRequest = statusResponse.data.pendingRequests.find((req: any) => 
-                req.approverId === user?.ID
-              );
-              setPendingRequest(userPendingRequest ? { ID: userPendingRequest.id, ApproverID: userPendingRequest.approverId } : null);
-            } else {
-              // Fallback: fetch pending requests only if needed
-              try {
-                const pendingResp = await axios.get(`/documents/documents/${ID}/approvals`, {
-                  signal: abortController.signal
+            // Always fetch pending requests to ensure we have the latest data
+            // This matches DocumentApproval.tsx which always fetches from legacy endpoint
+            try {
+              const pendingResp = await axios.get(`/documents/documents/${ID}/approvals`, {
+                signal: abortController.signal
+              });
+              if (isMounted && pendingResp.data.success && pendingResp.data.data) {
+                const requests = pendingResp.data.data;
+                // Filter for pending requests first (same logic as DocumentApproval)
+                const pendingRequests = requests.filter((req: any) => {
+                  const status = req.Status;
+                  const isCancelled = req.IsCancelled;
+                  const hasApprovalDate = req.ApprovalDate !== null && req.ApprovalDate !== undefined;
+                  
+                  // Exclude if already decided
+                  const isDecided = 
+                    hasApprovalDate ||
+                    status === 'APPROVED' ||
+                    status === 'REJECTED' ||
+                    status === '1' ||
+                    status === '0';
+                  
+                  // Only include if truly pending and not cancelled
+                  const isPending =
+                    (status === 'PENDING' ||
+                    status === 'Pending' ||
+                    status === 'pending' ||
+                    status === null ||
+                    status === undefined) &&
+                    !isDecided;
+                  
+                  return isPending && (isCancelled === 0 || isCancelled === false || isCancelled === '0' || isCancelled === null);
                 });
-                if (isMounted && pendingResp.data.success && pendingResp.data.data) {
-                  const requests = pendingResp.data.data;
-                  const userPendingRequest = requests.find((req: any) => 
-                    req.ApproverID === user?.ID && 
-                    (req.Status === 'PENDING' || req.Status === null || req.Status === undefined) &&
-                    (req.IsCancelled === 0 || req.IsCancelled === false || req.IsCancelled === '0' || req.IsCancelled === null) &&
-                    (req.ApprovalDate === null || req.ApprovalDate === undefined)
-                  );
-                  setPendingRequest(userPendingRequest || null);
-                }
-              } catch (err) {
-                if (isMounted) {
-                  console.warn('Failed to fetch pending requests:', err);
-                  setPendingRequest(null);
-                }
+                
+                // Store all pending requests
+                setAllPendingRequests(pendingRequests);
+                
+                // Find request for current user - use both direct and number comparison
+                // Same comparison as DocumentApproval: req.approverId === user?.ID
+                const userPendingRequest = pendingRequests.find((req: any) => {
+                  const approverId = req.ApproverID;
+                  // Try direct comparison first (like DocumentApproval), then number comparison
+                  return approverId === user?.ID || Number(approverId) === Number(user?.ID);
+                });
+                setPendingRequest(userPendingRequest || null);
+              }
+            } catch (err) {
+              if (isMounted) {
+                console.warn('Failed to fetch pending requests:', err);
+                setPendingRequest(null);
+                setAllPendingRequests([]);
               }
             }
             return;
@@ -142,6 +192,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
           if (finalStatus === 'PENDING') {
             setActualApprovalStatus('pending');
             setPendingRequest(null);
+            setAllPendingRequests([]);
             return;
           }
         }
@@ -180,6 +231,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
             
             setActualApprovalStatus(approved.length === activeRequests.length ? 'approved' : 'rejected');
             setPendingRequest(null);
+            setAllPendingRequests([]);
           } else {
             // Check for pending requests
             const hasPending = activeRequests.some((req: any) => {
@@ -193,20 +245,28 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
             
             if (hasPending) {
               setActualApprovalStatus('in_progress');
-              const userPendingRequest = activeRequests.find((req: any) => 
-                req.ApproverID === user?.ID && 
+              // Filter for pending requests first
+              const pendingRequests = activeRequests.filter((req: any) => 
                 (req.Status === 'PENDING' || req.Status === null || req.Status === undefined) &&
                 (req.ApprovalDate === null || req.ApprovalDate === undefined)
               );
+              // Store all pending requests
+              setAllPendingRequests(pendingRequests);
+              // Find request for current user - use both direct and number comparison
+              const userPendingRequest = pendingRequests.find((req: any) => {
+                return req.ApproverID === user?.ID || Number(req.ApproverID) === Number(user?.ID);
+              });
               setPendingRequest(userPendingRequest || null);
             } else {
               setActualApprovalStatus('pending');
               setPendingRequest(null);
+              setAllPendingRequests([]);
             }
           }
         } else {
           setActualApprovalStatus('pending');
           setPendingRequest(null);
+          setAllPendingRequests([]);
         }
       } catch (error: any) {
         if (error.name === 'AbortError' || !isMounted) return;
@@ -279,11 +339,21 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
   const handleApprove = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!pendingRequest || isProcessing) return;
+    if (!isCurrentUserApprover || isProcessing) return;
+
+    // Get the request to use - prefer pendingRequest, fallback to finding in allPendingRequests
+    const requestToUse = pendingRequest || allPendingRequests.find((req: any) => {
+      const approverId = req.approverId ?? req.ApproverID;
+      return approverId === user?.ID || Number(approverId) === Number(user?.ID);
+    });
+
+    if (!requestToUse) return;
 
     setIsProcessing(true);
     try {
-      await actOnDocumentApproval(Number(ID), pendingRequest.ID, {
+      // Handle both camelCase (id) and PascalCase (ID) from different API responses
+      const requestId = requestToUse.id ?? requestToUse.ID;
+      await actOnDocumentApproval(Number(ID), Number(requestId), {
         action: 'APPROVE',
         comments: '',
         approverId: user?.ID,
@@ -291,6 +361,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
       toast.success('Document approved successfully!');
       setPendingRequest(null);
+      setAllPendingRequests([]);
       // Refresh status
       setTimeout(() => {
         setRefreshTrigger(prev => prev + 1);
@@ -304,11 +375,19 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     } finally {
       setIsProcessing(false);
     }
-  }, [ID, pendingRequest, user?.ID]);
+  }, [ID, pendingRequest, allPendingRequests, isCurrentUserApprover, user?.ID]);
 
   const handleReject = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!pendingRequest || isProcessing) return;
+    if (!isCurrentUserApprover || isProcessing) return;
+
+    // Get the request to use - prefer pendingRequest, fallback to finding in allPendingRequests
+    const requestToUse = pendingRequest || allPendingRequests.find((req: any) => {
+      const approverId = req.approverId ?? req.ApproverID;
+      return approverId === user?.ID || Number(approverId) === Number(user?.ID);
+    });
+
+    if (!requestToUse) return;
 
     // Prompt for rejection reason
     const reason = window.prompt('Please provide a reason for rejection:');
@@ -321,7 +400,9 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
     setIsProcessing(true);
     try {
-      await actOnDocumentApproval(Number(ID), pendingRequest.ID, {
+      // Handle both camelCase (id) and PascalCase (ID) from different API responses
+      const requestId = requestToUse.id ?? requestToUse.ID;
+      await actOnDocumentApproval(Number(ID), Number(requestId), {
         action: 'REJECT',
         comments: reason.trim(),
         approverId: user?.ID,
@@ -329,6 +410,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
       toast.success('Document rejected.');
       setPendingRequest(null);
+      setAllPendingRequests([]);
       // Refresh status
       setTimeout(() => {
         setRefreshTrigger(prev => prev + 1);
@@ -342,7 +424,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     } finally {
       setIsProcessing(false);
     }
-  }, [ID, pendingRequest, user?.ID]);
+  }, [ID, pendingRequest, allPendingRequests, isCurrentUserApprover, user?.ID]);
 
   const handleDelete = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -563,15 +645,15 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
             {/* Right Side Actions */}
             <div className="flex justify-end gap-2 flex-wrap">
-              {/* Show Approve/Reject buttons when IN_PROGRESS and user is approver */}
-              {actualApprovalStatus === 'in_progress' && pendingRequest && (
+              {/* Show Approve/Reject buttons when IN_PROGRESS - enable/disable based on if user is approver */}
+              {actualApprovalStatus === 'in_progress' && (
                 <div className="flex gap-2">
                   <Button
                     onClick={handleApprove}
                     loading={isProcessing}
-                    disabled={isProcessing}
+                    disabled={!isCurrentUserApprover || isProcessing}
                     size="sm"
-                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50"
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     loadingText="Processing..."
                   >
                     {isProcessing ? (
@@ -584,9 +666,9 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
                   <Button
                     onClick={handleReject}
                     loading={isProcessing}
-                    disabled={isProcessing}
+                    disabled={!isCurrentUserApprover || isProcessing}
                     size="sm"
-                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50"
+                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     loadingText="Processing..."
                   >
                     {isProcessing ? (
@@ -594,28 +676,6 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
                     ) : (
                       <XCircle className="w-3.5 h-3.5" />
                     )}
-                    Reject
-                  </Button>
-                </div>
-              )}
-
-              {/* Show disabled Approve/Reject buttons when IN_PROGRESS but user is not approver */}
-              {actualApprovalStatus === 'in_progress' && !pendingRequest && (
-                <div className="flex gap-2">
-                  <Button
-                    disabled
-                    size="sm"
-                    className="bg-gray-300 text-gray-500 px-3 py-2 rounded-lg text-xs font-semibold cursor-not-allowed flex items-center gap-1.5"
-                  >
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    Approve
-                  </Button>
-                  <Button
-                    disabled
-                    size="sm"
-                    className="bg-gray-300 text-gray-500 px-3 py-2 rounded-lg text-xs font-semibold cursor-not-allowed flex items-center gap-1.5"
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
                     Reject
                   </Button>
                 </div>
