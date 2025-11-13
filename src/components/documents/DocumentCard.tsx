@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@chakra-ui/react';
 import axios from '@/api/axios';
-import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { requestDocumentApproval } from '@/api/documentApprovals';
 
 interface DocumentCardProps {
   document: {
@@ -61,7 +61,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   const [isDeleting, setIsDeleting] = useState(false);
   const [actualApprovalStatus, setActualApprovalStatus] = useState<'approved' | 'rejected' | 'pending' | null>(null);
   const [versionNumber, setVersionNumber] = useState<string | null>(null);
-  const { user: loggedUser } = useAuth();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Fetch actual approval status from approval status endpoint
   React.useEffect(() => {
@@ -196,7 +196,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     };
 
     fetchApprovalStatus();
-  }, [ID]);
+  }, [ID, refreshTrigger]);
 
   // Fetch document version - using same endpoint as DocumentCurrentView
   React.useEffect(() => {
@@ -226,26 +226,25 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     setIsRequesting(true);
 
     try {
-      const response = await axios.post(
-        `/documents/documents/${ID}/approvals`,
-        {
-          requestedBy: loggedUser?.ID,
-          approverId: '1',
-          approverName: loggedUser?.UserName,
-          dueDate: '',
-          comments: 'Please approve this document',
-        }
-      );
+      // Use the same API as DocumentApproval.tsx which properly gets approvers from approval matrix
+      const response = await requestDocumentApproval(Number(ID));
 
-      if (response.data.success) {
+      if (response?.success) {
         toast.success('Approval request sent successfully!');
         setRequestSent(true);
+        // Trigger a refresh of approval status after a short delay
+        setTimeout(() => {
+          setRefreshTrigger(prev => prev + 1);
+        }, 1000);
       } else {
-        toast.error(response.data.message);
+        toast.error('Unable to start approval workflow.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error requesting approval:', error);
-      toast.error('Failed to send approval request');
+      const errorMsg = error?.response?.data?.message 
+        || error?.message 
+        || 'Failed to send approval request';
+      toast.error(errorMsg);
     } finally {
       setIsRequesting(false);
     }

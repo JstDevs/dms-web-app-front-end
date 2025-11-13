@@ -26,6 +26,8 @@ import {
   ApprovalHistoryEntry,
   fetchLegacyApprovalRequests,
 } from '@/api/documentApprovals';
+import { listDocumentApprovers } from '@/api/documentApprovers';
+import { useUsers } from '@/pages/Users/useUser';
 
 interface DocumentApprovalProps {
   document: CurrentDocument | null;
@@ -65,6 +67,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
 }) => {
   const documentId = document?.document?.[0]?.ID ?? null;
   const { user } = useAuth();
+  const { users } = useUsers();
   const [status, setStatus] = useState<ApprovalStatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [requesting, setRequesting] = useState(false);
@@ -72,6 +75,18 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [comments, setComments] = useState<CommentsState>({});
+  
+  // Create a map of approver ID to name from users and approval matrix
+  const approverNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    
+    // First, add all users to the map
+    users.forEach((u) => {
+      map.set(u.ID, u.UserName);
+    });
+    
+    return map;
+  }, [users]);
 
   const pendingRequests = status?.pendingRequests ?? [];
   const historyEntries = status?.history ?? [];
@@ -96,8 +111,46 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
     if (!documentId) return;
 
     setLoading(true);
+    
+    // Fetch approval matrix approvers to get correct approver names
+    let matrixApproversMap = new Map<number, string>();
+    if (document?.document?.[0]) {
+      try {
+        const deptId = document.document[0].DepartmentId;
+        const subDeptId = document.document[0].SubDepartmentId;
+        if (deptId && subDeptId) {
+          const approversResponse = await listDocumentApprovers({
+            DepartmentId: deptId,
+            SubDepartmentId: subDeptId,
+          });
+          
+          // Create a map of approver ID to name from approval matrix
+          approversResponse?.approvers?.forEach((approver) => {
+            if (approver.ApproverID && approver.Active !== false) {
+              // Use ApproverName from matrix if available, otherwise lookup from users
+              const name = approver.ApproverName || approverNameMap.get(approver.ApproverID);
+              if (name) {
+                matrixApproversMap.set(approver.ApproverID, name);
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to fetch approval matrix approvers:', error);
+      }
+    }
+    
+    // Helper function to get approver name from matrix or users map
+    const getApproverName = (approverId: number, fallbackName?: string): string => {
+      return matrixApproversMap.get(approverId) || 
+             approverNameMap.get(approverId) || 
+             fallbackName || 
+             `User ${approverId}`;
+    };
+    
     try {
       const response = await getDocumentApprovalStatus(documentId);
+      
       // Always try legacy endpoint to get the most up-to-date data
       try {
         const legacy = await fetchLegacyApprovalRequests(documentId);
@@ -141,7 +194,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
             .map<ApprovalRequestSummary>((r) => ({
               id: Number(r.ID),
               approverId: Number(r.ApproverID),
-              approverName: r.ApproverName,
+              approverName: getApproverName(Number(r.ApproverID), r.ApproverName),
               sequenceLevel: Number(r.SequenceLevel ?? 1),
               status: 'PENDING',
               requestedDate: r.RequestedDate,
@@ -163,7 +216,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
             .map<ApprovalHistoryEntry>((r) => ({
               id: Number(r.ID),
               approverId: Number(r.ApproverID),
-              approverName: r.ApproverName,
+              approverName: getApproverName(Number(r.ApproverID), r.ApproverName),
               sequenceLevel: Number(r.SequenceLevel ?? 1),
               status: (r.Status === 'APPROVED' || r.Status === '1') ? 'APPROVED' : 'REJECTED',
               actedAt: r.ApprovalDate ?? r.RequestedDate,
@@ -213,6 +266,21 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
           }
           
           // Merge with status API response if available, otherwise use legacy data
+          // Update approver names in response if they exist
+          const updatedPendingRequests = response?.pendingRequests?.length 
+            ? response.pendingRequests.map(req => ({
+                ...req,
+                approverName: getApproverName(req.approverId, req.approverName)
+              }))
+            : pending;
+            
+          const updatedHistory = response?.history?.length
+            ? response.history.map(entry => ({
+                ...entry,
+                approverName: getApproverName(entry.approverId, entry.approverName)
+              }))
+            : history;
+          
           setStatus({
             documentId: documentId,
             currentLevel: response?.currentLevel ?? (pending[0]?.sequenceLevel ?? 1),
@@ -221,20 +289,44 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
             allorMajority: rule,
             levelsCompleted: response?.levelsCompleted ?? history.length,
             levels: response?.levels ?? [],
-            pendingRequests: response?.pendingRequests?.length ? response.pendingRequests : pending,
-            history: response?.history?.length ? response.history : history,
+            pendingRequests: updatedPendingRequests,
+            history: updatedHistory,
             canRequestApproval: response?.canRequestApproval ?? false,
             trackingId: response?.trackingId,
           });
         } else if (response) {
-          setStatus(response);
+          // Update approver names in response if they exist
+          const updatedResponse = {
+            ...response,
+            pendingRequests: response.pendingRequests?.map(req => ({
+              ...req,
+              approverName: getApproverName(req.approverId, req.approverName)
+            })),
+            history: response.history?.map(entry => ({
+              ...entry,
+              approverName: getApproverName(entry.approverId, entry.approverName)
+            }))
+          };
+          setStatus(updatedResponse);
         } else {
           setStatus(null);
         }
       } catch (legacyError) {
         // If legacy fails, use status API response if available
         if (response) {
-          setStatus(response);
+          // Update approver names in response if they exist
+          const updatedResponse = {
+            ...response,
+            pendingRequests: response.pendingRequests?.map(req => ({
+              ...req,
+              approverName: getApproverName(req.approverId, req.approverName)
+            })),
+            history: response.history?.map(entry => ({
+              ...entry,
+              approverName: getApproverName(entry.approverId, entry.approverName)
+            }))
+          };
+          setStatus(updatedResponse);
         } else {
           setStatus(null);
         }
@@ -248,7 +340,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [documentId, document]);
+  }, [documentId, document, approverNameMap]);
 
   useEffect(() => {
     if (documentId) {

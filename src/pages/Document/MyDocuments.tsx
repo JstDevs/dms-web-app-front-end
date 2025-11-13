@@ -46,7 +46,7 @@ const MyDocuments: React.FC = () => {
   const ITEMS_PER_PAGE = 10;
   
   // Fetch allocation permissions for applied department/subdepartment
-  const { permissions: allocationPermissions } = useAllocationPermissions({
+  const { permissions: allocationPermissions, loading: loadingPermissions } = useAllocationPermissions({
     departmentId: appliedDepartment ? Number(appliedDepartment) : null,
     subDepartmentId: appliedSubDepartment ? Number(appliedSubDepartment) : null,
     userId: user?.ID || null,
@@ -521,13 +521,6 @@ const MyDocuments: React.FC = () => {
         {/* Filter Panel */}
         {/* {showFilters && ( */}
           <div className="bg-gray-50 p-4 rounded-md mb-4">
-            {filterLoading && (
-              <div className="mb-4 flex items-center justify-center text-blue-600 bg-blue-50 p-3 rounded-md">
-                <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></div>
-                <span className="text-sm font-medium">Applying filters...</span>
-              </div>
-            )}
-            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Select
                 label="Department"
@@ -535,9 +528,6 @@ const MyDocuments: React.FC = () => {
                 onChange={(e) => {
                   setDepartment(e.target.value);
                   setSubDepartment(''); // Reset document type when department changes
-                  // Clear applied filters when department changes - user must click Apply Filters again
-                  setAppliedDepartment('');
-                  setAppliedSubDepartment('');
                   setError(""); // Clear any errors
                 }}
                 options={departmentOptions}
@@ -549,9 +539,6 @@ const MyDocuments: React.FC = () => {
                 value={subDepartment}
                 onChange={(e) => {
                   setSubDepartment(e.target.value);
-                  // Clear applied filters when document type changes - user must click Apply Filters again
-                  setAppliedDepartment('');
-                  setAppliedSubDepartment('');
                   setError(""); // Clear any errors
                 }}
                 options={documentTypeOptions}
@@ -568,9 +555,6 @@ const MyDocuments: React.FC = () => {
                   value={startDate}
                   onChange={(e) => {
                     setStartDate(e.target.value);
-                    // Clear applied date filters when changed - user must click Apply Filters again
-                    setAppliedStartDate('');
-                    setAppliedEndDate('');
                   }}
                   className="w-full"
                   disabled={filterLoading}
@@ -588,9 +572,6 @@ const MyDocuments: React.FC = () => {
                   value={endDate}
                   onChange={(e) => {
                     setEndDate(e.target.value);
-                    // Clear applied date filters when changed - user must click Apply Filters again
-                    setAppliedStartDate('');
-                    setAppliedEndDate('');
                   }}
                   className="w-full"
                   disabled={filterLoading}
@@ -608,6 +589,12 @@ const MyDocuments: React.FC = () => {
               {error && (
                 <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md">
                   <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
+              {filterLoading && (
+                <div className="mb-3 flex items-center justify-center text-blue-600 bg-blue-50 p-3 rounded-md">
+                  <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></div>
+                  <span className="text-sm font-medium">Applying filters...</span>
                 </div>
               )}
               <div className="flex justify-between items-center">
@@ -662,7 +649,7 @@ const MyDocuments: React.FC = () => {
       </div>
 
       {/* Documents Grid */}
-      {appliedDepartment && appliedSubDepartment && !allocationPermissions.View ? (
+      {appliedDepartment && appliedSubDepartment && !loadingPermissions && !filterLoading && !loading && !allocationPermissions.View ? (
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-8 text-center">
           <div className="flex flex-col items-center">
             <svg
