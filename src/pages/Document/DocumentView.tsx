@@ -59,7 +59,7 @@ const DocumentView: React.FC = () => {
     if (documentId) {
       fetchDocument(documentId);
     }
-  }, [documentId]);
+  }, [documentId, fetchDocument]);
 
   // Log document view when document is loaded
   useEffect(() => {
@@ -235,7 +235,9 @@ const DocumentView: React.FC = () => {
         </div>
       )}
       
-      {renderTabContent()}
+      <div className="w-full">
+        {renderTabContent()}
+      </div>
       
     </div>
   );

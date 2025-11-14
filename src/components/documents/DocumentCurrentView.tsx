@@ -282,26 +282,8 @@ const DocumentCurrentView = ({
         formData.set(`Date${i}`, dynamicFieldValues[`Date${i}`] ?? '');
       }
 
-      // Debug: Log version flags being sent
-      console.log('🔍 Version flags in FormData:');
-      console.log('isMinorVersion:', formData.get('isMinorVersion'), '(type:', typeof formData.get('isMinorVersion'), ')');
-      console.log('finalize:', formData.get('finalize'), '(type:', typeof formData.get('finalize'), ')');
-      console.log('Current version before edit:', document?.versions?.[0]?.VersionNumber);
-      
-      // Log all FormData entries for debugging
-      console.log('📋 All FormData entries:');
-      for (const [key, value] of formData.entries()) {
-        if (key === 'isMinorVersion' || key === 'finalize' || key === 'file') {
-          console.log(`  ${key}:`, value, typeof value === 'string' ? `(string)` : typeof value === 'object' ? `(File)` : `(${typeof value})`);
-        }
-      }
 
       const response = await editDocument(formData);
-
-      // Debug: Log backend response
-      console.log('📥 Backend response:', response);
-      console.log('📥 Response status:', response?.status);
-      console.log('📥 Response message:', response?.message);
 
       if (response?.status === false) {
         throw new Error(response?.message || 'Failed to update document');
@@ -323,11 +305,7 @@ const DocumentCurrentView = ({
       }
 
       // Refresh document to get updated version
-      const refreshedDocument = await fetchDocument(String(currentDocumentInfo.ID));
-      
-      // Debug: Log version after edit
-      console.log('✅ Version after edit:', refreshedDocument?.versions?.[0]?.VersionNumber);
-      console.log('✅ All versions:', refreshedDocument?.versions?.map(v => v.VersionNumber));
+      await fetchDocument(String(currentDocumentInfo.ID));
       
       toast.success('Document updated successfully.');
       setIsEditing(false);
@@ -476,7 +454,6 @@ const DocumentCurrentView = ({
         
         // Log document download activity
         try {
-          // console.log('🔍 Logging download activity for document:', currentDocumentInfo.ID);
           await logDocumentActivity(
             'DOWNLOADED',
             user!.ID,
@@ -485,13 +462,10 @@ const DocumentCurrentView = ({
             currentDocumentInfo.FileName,
             `Downloaded by ${user!.UserName}`
           );
-          console.log('✅ Download activity logged successfully');
           
           // Refresh document data to show the new audit trail entry
           if (document?.document?.[0]?.ID) {
-            console.log('🔄 Refreshing document data...');
             await fetchDocument(String(document.document[0].ID));
-            console.log('✅ Document data refreshed');
           }
         } catch (logError) {
           console.warn('Failed to log document download activity:', logError);
@@ -522,7 +496,6 @@ const DocumentCurrentView = ({
         
     //     // Log document download activity
     //     try {
-    //       // console.log('🔍 Logging download activity for document:', currentDocumentInfo.ID);
     //       await logDocumentActivity(
     //         'DOWNLOADED',
     //         user!.ID,
@@ -531,13 +504,10 @@ const DocumentCurrentView = ({
     //         currentDocumentInfo.FileName,
     //         `Downloaded by ${user!.UserName}`
     //       );
-    //       console.log('✅ Download activity logged successfully');
           
     //       // Refresh document data to show the new audit trail entry
     //       if (document?.document?.[0]?.ID) {
-    //         console.log('🔄 Refreshing document data...');
     //         await fetchDocument(String(document.document[0].ID));
-    //         console.log('✅ Document data refreshed');
     //       }
     //     } catch (logError) {
     //       console.warn('Failed to log document download activity:', logError);
@@ -547,13 +517,60 @@ const DocumentCurrentView = ({
     //   }
     // }
   };
+
   
-  if (!document || !currentDocumentInfo) return null;
+  // Show loading state if document is not yet loaded
+  if (!document || !currentDocumentInfo) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-4" />
+          <p className="text-gray-600 text-sm font-medium">Loading document information...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if file is PDF based on file extension
+  const isPDF = currentDocumentInfo?.filepath 
+    ? currentDocumentInfo.filepath.toLowerCase().endsWith('.pdf') || 
+      currentDocumentInfo?.FileName?.toLowerCase().endsWith('.pdf')
+    : false;
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
       {isViewerOpen && currentDocumentInfo?.filepath ? (
         <Modal isOpen={isViewerOpen} onClose={() => setIsViewerOpen(false)}>
-          <img src={currentDocumentInfo?.filepath || ''} alt="" />
+          {isPDF ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <iframe
+                src={`${currentDocumentInfo.filepath}#toolbar=1`}
+                title="PDF Viewer"
+                className="w-full border-0 rounded-lg"
+                style={{ 
+                  height: '85vh',
+                  minHeight: '600px',
+                  maxHeight: '85vh'
+                }}
+                onError={(e) => {
+                  console.error('PDF loading error:', e);
+                  toast.error('Failed to load PDF. Please try downloading the file instead.');
+                }}
+              />
+            </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center p-4">
+              <img 
+                src={currentDocumentInfo.filepath} 
+                alt={currentDocumentInfo?.FileName || 'Document'} 
+                className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-lg"
+                onError={(e) => {
+                  console.error('Image loading error:', e);
+                  toast.error('Failed to load image.');
+                }}
+              />
+            </div>
+          )}
         </Modal>
       ) : (
         <>
@@ -672,7 +689,7 @@ const DocumentCurrentView = ({
           </div>
 
           {/* Document Information */}
-          <div className="px-6 py-6">
+          <div className="px-6 py-6 min-h-[400px]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2 relative group">
             <div className="relative">
               <Info className="h-5 w-5 text-blue-500 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110" />
