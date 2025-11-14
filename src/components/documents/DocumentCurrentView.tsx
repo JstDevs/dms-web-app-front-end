@@ -440,11 +440,69 @@ const DocumentCurrentView = ({
       try {
         const response = await fetch(currentDocumentInfo.filepath);
         const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+        
+        // Determine the correct MIME type based on detected file type
+        const detectedType = getFileType();
+        let mimeType = blob.type;
+        let fileName = currentDocumentInfo?.FileName || 'document';
+        
+        // Override MIME type based on detected file type to ensure correct download
+        switch (detectedType) {
+          case 'pdf':
+            mimeType = 'application/pdf';
+            if (!fileName.toLowerCase().endsWith('.pdf')) {
+              fileName = `${fileName}.pdf`;
+            }
+            break;
+          case 'docx':
+            mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            if (!fileName.toLowerCase().endsWith('.docx')) {
+              fileName = `${fileName}.docx`;
+            }
+            break;
+          case 'doc':
+            mimeType = 'application/msword';
+            if (!fileName.toLowerCase().endsWith('.doc')) {
+              fileName = `${fileName}.doc`;
+            }
+            break;
+          case 'image':
+            // For images, use DataType if available, otherwise infer from filename or use blob type
+            if (currentDocumentInfo.DataType && currentDocumentInfo.DataType.startsWith('image/')) {
+              mimeType = currentDocumentInfo.DataType;
+            } else if (!mimeType || mimeType === 'application/octet-stream') {
+              // Try to infer from filename
+              const lowerFileName = fileName.toLowerCase();
+              if (lowerFileName.endsWith('.png')) {
+                mimeType = 'image/png';
+              } else if (lowerFileName.endsWith('.jpg') || lowerFileName.endsWith('.jpeg')) {
+                mimeType = 'image/jpeg';
+              } else if (lowerFileName.endsWith('.gif')) {
+                mimeType = 'image/gif';
+              } else if (lowerFileName.endsWith('.webp')) {
+                mimeType = 'image/webp';
+              } else {
+                // Keep original blob type if it's a valid image type
+                mimeType = blob.type || 'image/png';
+              }
+            }
+            break;
+          default:
+            // For other types, use DataType if available, otherwise use blob type
+            if (currentDocumentInfo.DataType && currentDocumentInfo.DataType.startsWith('application/')) {
+              mimeType = currentDocumentInfo.DataType;
+            } else if (!mimeType || mimeType === 'application/octet-stream') {
+              mimeType = currentDocumentInfo.DataType || blob.type || 'application/octet-stream';
+            }
+        }
+        
+        // Create a new blob with the correct MIME type
+        const correctedBlob = new Blob([blob], { type: mimeType });
+        const url = window.URL.createObjectURL(correctedBlob);
 
         const link = window.document.createElement('a');
         link.href = url;
-        link.download = currentDocumentInfo?.FileName || 'document';
+        link.download = fileName;
         window.document.body.appendChild(link);
         link.click();
         window.document.body.removeChild(link);
@@ -472,6 +530,7 @@ const DocumentCurrentView = ({
         }
       } catch (error) {
         console.error('Download failed:', error);
+        toast.error('Failed to download document. Please try again.');
       }
     }
   };
