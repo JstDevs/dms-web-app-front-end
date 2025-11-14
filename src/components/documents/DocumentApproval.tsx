@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Loader2,
   Layers,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from '@/api/axios';
@@ -25,6 +26,7 @@ import {
   ApprovalRequestSummary,
   ApprovalHistoryEntry,
   fetchLegacyApprovalRequests,
+  cancelDocumentApproval,
 } from '@/api/documentApprovals';
 import { listDocumentApprovers } from '@/api/documentApprovers';
 import { useUsers } from '@/pages/Users/useUser';
@@ -32,6 +34,18 @@ import { useUsers } from '@/pages/Users/useUser';
 interface DocumentApprovalProps {
   document: CurrentDocument | null;
   onRefresh?: () => void;
+  permissions?: {
+    View?: boolean;
+    Add?: boolean;
+    Edit?: boolean;
+    Delete?: boolean;
+    Print?: boolean;
+    Confidential?: boolean;
+    Comment?: boolean;
+    Collaborate?: boolean;
+    Finalize?: boolean;
+    Masking?: boolean;
+  };
 }
 
 type CommentsState = Record<number, string>;
@@ -52,6 +66,7 @@ const statusColors: Record<string, string> = {
   APPROVED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
   'IN_PROGRESS': 'bg-blue-100 text-blue-800',
+  CANCELLED: 'bg-gray-100 text-gray-800',
 };
 
 const statusIcons: Record<string, JSX.Element> = {
@@ -59,11 +74,13 @@ const statusIcons: Record<string, JSX.Element> = {
   APPROVED: <CheckCircle className="h-4 w-4 mr-1" />,
   REJECTED: <XCircle className="h-4 w-4 mr-1" />,
   IN_PROGRESS: <Layers className="h-4 w-4 mr-1" />,
+  CANCELLED: <X className="h-4 w-4 mr-1" />,
 };
 
 const DocumentApproval: React.FC<DocumentApprovalProps> = ({
   document,
   onRefresh,
+  permissions,
 }) => {
   const documentId = document?.document?.[0]?.ID ?? null;
   const { user } = useAuth();
@@ -75,6 +92,9 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [comments, setComments] = useState<CommentsState>({});
+  const [cancelling, setCancelling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
   
   // Create a map of approver ID to name from users and approval matrix
   const approverNameMap = useMemo(() => {
@@ -247,7 +267,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
           
           const totalLevels = response?.totalLevels ?? Math.max(1, ...rows.map((x: any) => Number(x.SequenceLevel ?? 1)));
           
-          let calculatedFinalStatus: 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' = 'PENDING';
+          let calculatedFinalStatus: 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'CANCELLED' = 'PENDING';
           
           if (pending.length === 0 && history.length > 0) {
             // All levels completed - calculate final status based on rule
@@ -378,6 +398,50 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
     }
   };
 
+  const handleOpenCancelModal = () => {
+    if (!canCancelApproval) {
+      showMessage('You do not have permission to cancel approvals.', true);
+      return;
+    }
+    setShowCancelModal(true);
+  };
+
+  const handleCancelApproval = async () => {
+    if (!canCancelApproval) {
+      showMessage('You do not have permission to cancel approvals.', true);
+      setShowCancelModal(false);
+      return;
+    }
+    if (!documentId) return;
+    setCancelling(true);
+    try {
+      const response = await cancelDocumentApproval(documentId, {
+        reason: cancelReason.trim() || undefined,
+        approverId: user?.ID,
+      });
+      
+      if (response?.success) {
+        showMessage('Approval request cancelled successfully.');
+        setShowCancelModal(false);
+        setCancelReason('');
+        // Force refresh - wait a bit for backend to process
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await loadStatus();
+        onRefresh?.();
+      } else {
+        showMessage(response?.message || 'Unable to cancel approval request.', true);
+      }
+    } catch (error: any) {
+      console.error('Failed to cancel approval', error);
+      const errorMsg = error?.response?.data?.message 
+        || error?.message 
+        || 'Failed to cancel approval request. Please try again.';
+      showMessage(errorMsg, true);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const updateComment = (requestId: number, value: string) => {
     setComments((prev) => ({
       ...prev,
@@ -432,6 +496,57 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
     }
   };
 
+  const finalStatus = status?.finalStatus ?? 'PENDING';
+  // Normalize status to uppercase for comparison
+  const normalizedStatus = finalStatus.toUpperCase();
+  const statusLabel =
+    finalStatus.charAt(0) + finalStatus.slice(1).toLowerCase();
+  const badgeClasses =
+    statusColors[finalStatus] ?? 'bg-gray-100 text-gray-800';
+  const statusIcon = statusIcons[finalStatus] ?? (
+    <Clock className="h-4 w-4 mr-1" />
+  );
+
+  // Allow requesting approval if:
+  // 1. Status is CANCELLED (always allow)
+  // 2. OR Backend explicitly says we can (canRequestApproval: true)
+  // 3. OR there are no pending requests AND status is not APPROVED (cancelled or completed)
+  // 4. OR status is PENDING/REJECTED (no active approval workflow)
+  // 5. OR no status exists yet (no approval workflow)
+  const canRequestApproval = useMemo(() => {
+    // Always allow if cancelled (case-insensitive check)
+    if (normalizedStatus === 'CANCELLED') {
+      console.log('[DocumentApproval] Status is CANCELLED, allowing request');
+      return true;
+    }
+    
+    // If backend explicitly allows it, honor that
+    if (status?.canRequestApproval === true) {
+      console.log('[DocumentApproval] Backend explicitly allows request');
+      return true;
+    }
+    
+    if (status?.canRequestApproval === false) {
+      console.log('[DocumentApproval] Backend returned canRequestApproval=false, falling back to calculated logic.');
+    }
+    
+    // Otherwise, check conditions
+    const result = (
+      activePendingRequests.length === 0 ||
+      normalizedStatus === 'PENDING' ||
+      normalizedStatus === 'REJECTED' ||
+      !status
+    );
+    console.log('[DocumentApproval] Calculated canRequestApproval:', {
+      result,
+      normalizedStatus,
+      activePendingRequestsLength: activePendingRequests.length,
+      hasStatus: !!status
+    });
+    return result;
+  }, [normalizedStatus, status?.canRequestApproval, activePendingRequests.length, status]);
+  const canCancelApproval = permissions?.Finalize ?? false;
+
   if (!documentId) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center text-gray-500">
@@ -447,21 +562,6 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
       </div>
     );
   }
-
-  const finalStatus = status?.finalStatus ?? 'PENDING';
-  const statusLabel =
-    finalStatus.charAt(0) + finalStatus.slice(1).toLowerCase();
-  const badgeClasses =
-    statusColors[finalStatus] ?? 'bg-gray-100 text-gray-800';
-  const statusIcon = statusIcons[finalStatus] ?? (
-    <Clock className="h-4 w-4 mr-1" />
-  );
-
-  const canRequestApproval =
-    status?.canRequestApproval ??
-    (finalStatus === 'PENDING' ||
-      finalStatus === 'REJECTED' ||
-      !status);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -488,6 +588,72 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
         </div>
       )}
 
+      {/* Cancel Approval Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Cancel Approval Request
+              </h3>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-4">
+              Are you sure you want to cancel the approval request for this document? 
+              This will cancel all pending approval requests.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason (Optional)
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm resize-none"
+                placeholder="Enter reason for cancellation..."
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelReason('');
+                }}
+                disabled={cancelling}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelApproval}
+                disabled={cancelling}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {cancelling ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <X className="h-4 w-4" />
+                    Confirm Cancel
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="px-4 sm:px-6 py-4 bg-gray-50 border-b border-gray-200 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center space-x-2">
@@ -505,19 +671,48 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleRequestApproval}
-            disabled={!canRequestApproval || requesting}
-            className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {requesting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <CheckCircle className="h-4 w-4 mr-2" />
+          <div className="flex items-center gap-2">
+            {activePendingRequests.length > 0 && canCancelApproval && (
+              <button
+                type="button"
+                onClick={handleOpenCancelModal}
+                disabled={cancelling}
+                className="inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {cancelling ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <X className="h-4 w-4 mr-2" />
+                )}
+                {cancelling ? 'Cancelling...' : 'Cancel Approval'}
+              </button>
             )}
-            {requesting ? 'Submitting...' : 'Request Approval'}
-          </button>
+            {activePendingRequests.length > 0 && !canCancelApproval && (
+              <p className="text-xs text-gray-500">
+                You need the Finalize permission to cancel approvals.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={handleRequestApproval}
+              disabled={!canRequestApproval || requesting}
+              className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              title={!canRequestApproval ? `Cannot request: status=${finalStatus}, pending=${activePendingRequests.length}, canRequest=${status?.canRequestApproval}` : ''}
+            >
+              {requesting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              {requesting ? 'Submitting...' : 'Request Approval'}
+            </button>
+            {/* Debug info - remove in production */}
+            {/* {process.env.NODE_ENV === 'development' && (
+              <div className="text-xs text-gray-500 mt-1">
+                Debug: canRequest={String(canRequestApproval)}, status={finalStatus}, pending={activePendingRequests.length}
+              </div>
+            )} */}
+          </div>
         </div>
 
         {!status && (

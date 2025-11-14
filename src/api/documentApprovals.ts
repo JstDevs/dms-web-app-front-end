@@ -40,7 +40,7 @@ export interface ApprovalStatusResponse {
   documentId: number;
   currentLevel: number;
   totalLevels: number;
-  finalStatus: 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED';
+  finalStatus: 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   allorMajority: 'ALL' | 'MAJORITY';
   levelsCompleted: number;
   levels: ApprovalStatusLevel[];
@@ -121,5 +121,41 @@ export const fetchLegacyApprovalRequests = async (documentId: number) => {
   const response = await axios.get(`/documents/documents/${documentId}/approvals`);
   // Expecting { success: boolean, data: LegacyApprovalRequest[] }
   return response.data as { success: boolean; data: LegacyApprovalRequest[] };
+};
+
+export interface CancelApprovalResponse {
+  success: boolean;
+  message?: string;
+}
+
+/**
+ * Cancel a document approval request
+ * This will cancel all pending approval requests for the document
+ */
+export const cancelDocumentApproval = async (
+  documentId: number,
+  payload?: { reason?: string; approverId?: number }
+) => {
+  const backendPayload: any = {
+    isCancelled: true,
+  };
+  
+  if (payload?.reason) {
+    backendPayload.reason = payload.reason;
+  }
+  
+  if (payload?.approverId) {
+    backendPayload.approverId = payload.approverId;
+  }
+  
+  console.log('Cancelling approval request:', { documentId, backendPayload });
+  
+  const response = await axios.put<CancelApprovalResponse>(
+    `/documents/${documentId}/approvals/cancel`,
+    backendPayload
+  );
+  
+  console.log('Cancel approval response:', response.data);
+  return response.data;
 };
 

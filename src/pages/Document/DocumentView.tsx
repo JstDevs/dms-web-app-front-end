@@ -116,7 +116,13 @@ const DocumentView: React.FC = () => {
       case 'restrictions':
         return <FieldRestrictions document={currentDocument} />;
       case 'approval':
-        return <DocumentApproval document={currentDocument} onRefresh={() => documentId && fetchDocument(documentId)} />;
+        return (
+          <DocumentApproval
+            document={currentDocument}
+            permissions={permissions}
+            onRefresh={() => documentId && fetchDocument(documentId)}
+          />
+        );
       default:
         return null;
     }
