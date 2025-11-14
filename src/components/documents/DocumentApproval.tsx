@@ -3,6 +3,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from 'react';
 import { CurrentDocument } from '@/types/Document';
 import {
@@ -107,6 +108,49 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
     
     return map;
   }, [users]);
+  const approverMatrixCacheRef = useRef<Map<string, Map<number, string>>>(new Map());
+  
+  useEffect(() => {
+    approverMatrixCacheRef.current.clear();
+  }, [approverNameMap]);
+  
+  const fetchMatrixApprovers = useCallback(
+    async (deptId?: number | null, subDeptId?: number | null) => {
+      if (!deptId || !subDeptId) {
+        return new Map<number, string>();
+      }
+      
+      const cacheKey = `${deptId}-${subDeptId}`;
+      if (approverMatrixCacheRef.current.has(cacheKey)) {
+        return approverMatrixCacheRef.current.get(cacheKey)!;
+      }
+      
+      try {
+        const approversResponse = await listDocumentApprovers({
+          DepartmentId: deptId,
+          SubDepartmentId: subDeptId,
+        });
+        
+        const matrixApproversMap = new Map<number, string>();
+        approversResponse?.approvers?.forEach((approver) => {
+          if (approver.ApproverID && approver.Active !== false) {
+            const name =
+              approver.ApproverName || approverNameMap.get(approver.ApproverID);
+            if (name) {
+              matrixApproversMap.set(approver.ApproverID, name);
+            }
+          }
+        });
+        
+        approverMatrixCacheRef.current.set(cacheKey, matrixApproversMap);
+        return matrixApproversMap;
+      } catch (error) {
+        console.warn('Failed to fetch approval matrix approvers:', error);
+        return new Map<number, string>();
+      }
+    },
+    [approverNameMap]
+  );
 
   const pendingRequests = status?.pendingRequests ?? [];
   const historyEntries = status?.history ?? [];
@@ -131,87 +175,83 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
     if (!documentId) return;
 
     setLoading(true);
-    
-    // Fetch approval matrix approvers to get correct approver names
-    let matrixApproversMap = new Map<number, string>();
-    if (document?.document?.[0]) {
-      try {
-        const deptId = document.document[0].DepartmentId;
-        const subDeptId = document.document[0].SubDepartmentId;
-        if (deptId && subDeptId) {
-          const approversResponse = await listDocumentApprovers({
-            DepartmentId: deptId,
-            SubDepartmentId: subDeptId,
-          });
-          
-          // Create a map of approver ID to name from approval matrix
-          approversResponse?.approvers?.forEach((approver) => {
-            if (approver.ApproverID && approver.Active !== false) {
-              // Use ApproverName from matrix if available, otherwise lookup from users
-              const name = approver.ApproverName || approverNameMap.get(approver.ApproverID);
-              if (name) {
-                matrixApproversMap.set(approver.ApproverID, name);
-              }
-            }
-          });
-        }
-      } catch (error) {
-        console.warn('Failed to fetch approval matrix approvers:', error);
-      }
-    }
-    
-    // Helper function to get approver name from matrix or users map
-    const getApproverName = (approverId: number, fallbackName?: string): string => {
-      return matrixApproversMap.get(approverId) || 
-             approverNameMap.get(approverId) || 
-             fallbackName || 
-             `User ${approverId}`;
+
+    const deptId = document?.document?.[0]?.DepartmentId ?? null;
+    const subDeptId = document?.document?.[0]?.SubDepartmentId ?? null;
+
+    const normalizeLegacyRows = (legacyData: any): any[] => {
+      const raw = legacyData as any;
+      if (Array.isArray(raw?.data)) return raw.data;
+      if (Array.isArray(raw)) return raw;
+      if (Array.isArray(raw?.approvals)) return raw.approvals;
+      if (Array.isArray(raw?.result)) return raw.result;
+      return [];
     };
-    
+
     try {
-      const response = await getDocumentApprovalStatus(documentId);
-      
-      // Always try legacy endpoint to get the most up-to-date data
-      try {
-        const legacy = await fetchLegacyApprovalRequests(documentId);
-        const raw = (legacy as any);
-        const rows: any[] = Array.isArray(raw?.data)
-          ? raw.data
-          : Array.isArray(raw)
-            ? raw
-            : Array.isArray(raw?.approvals)
-              ? raw.approvals
-              : Array.isArray(raw?.result)
-                ? raw.result
-                : [];
-        
-        if (rows.length > 0) {
-          const pending = rows
-            .filter((r) => {
-              const status = r.Status;
-              const isCancelled = r.IsCancelled;
-              const hasApprovalDate = r.ApprovalDate !== null && r.ApprovalDate !== undefined;
-              
-              // Exclude if already decided (has ApprovalDate or status is APPROVED/REJECTED)
-              const isDecided = 
-                hasApprovalDate ||
-                status === 'APPROVED' ||
-                status === 'REJECTED' ||
-                status === '1' ||
-                status === '0';
-              
-              // Only include if truly pending and not cancelled
-              const isPending =
-                (status === 'PENDING' ||
-                status === 'Pending' ||
-                status === 'pending' ||
-                status === null ||
-                status === undefined) &&
-                !isDecided;
-              
-              return isPending && (isCancelled === 0 || isCancelled === false || isCancelled === '0');
-            })
-            .map<ApprovalRequestSummary>((r) => ({
+      const [statusResult, legacyResult, matrixResult] = await Promise.allSettled([
+        getDocumentApprovalStatus(documentId),
+        fetchLegacyApprovalRequests(documentId),
+        fetchMatrixApprovers(deptId, subDeptId),
+      ]);
+
+      const response =
+        statusResult.status === 'fulfilled' ? statusResult.value : null;
+      if (statusResult.status === 'rejected') {
+        console.error('Failed to load approval status', statusResult.reason);
+      }
+
+      const legacyData = legacyResult.status === 'fulfilled' ? legacyResult.value : null;
+      if (legacyResult.status === 'rejected') {
+        console.warn('Failed to fetch legacy approval requests:', legacyResult.reason);
+      }
+
+      const matrixApproversMap =
+        matrixResult.status === 'fulfilled'
+          ? matrixResult.value
+          : new Map<number, string>();
+      if (matrixResult.status === 'rejected') {
+        console.warn('Failed to resolve matrix approvers:', matrixResult.reason);
+      }
+
+      const getApproverName = (approverId: number, fallbackName?: string): string => {
+        return (
+          matrixApproversMap.get(approverId) ||
+          approverNameMap.get(approverId) ||
+          fallbackName ||
+          `User ${approverId}`
+        );
+      };
+
+      const rows = normalizeLegacyRows(legacyData);
+
+      const pending: ApprovalRequestSummary[] = [];
+      const history: ApprovalHistoryEntry[] = [];
+
+      rows.forEach((r: any) => {
+        const statusValue =
+          r.Status === null || r.Status === undefined
+            ? null
+            : String(r.Status).toUpperCase();
+        const notCancelled =
+          r.IsCancelled === 0 ||
+          r.IsCancelled === false ||
+          r.IsCancelled === '0';
+
+        if (!notCancelled) {
+          return;
+        }
+
+        const hasApprovalDate =
+          r.ApprovalDate !== null && r.ApprovalDate !== undefined;
+        const isApproved = statusValue === 'APPROVED' || statusValue === '1';
+        const isRejected = statusValue === 'REJECTED' || statusValue === '0';
+        const isDecided = hasApprovalDate || isApproved || isRejected;
+
+        if (!isDecided) {
+          const isPendingStatus = statusValue === 'PENDING' || statusValue === null;
+          if (isPendingStatus) {
+            pending.push({
               id: Number(r.ID),
               approverId: Number(r.ApproverID),
               approverName: getApproverName(Number(r.ApproverID), r.ApproverName),
@@ -219,137 +259,98 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
               status: 'PENDING',
               requestedDate: r.RequestedDate,
               comments: r.Comments ?? undefined,
-            }));
-
-          const history = rows
-            .filter((r) => {
-              const status = r.Status;
-              const isCancelled = r.IsCancelled;
-              const isProcessed = 
-                status === 'APPROVED' || 
-                status === 'REJECTED' || 
-                status === '1' || 
-                status === '0' ||
-                (r.ApprovalDate !== null && r.ApprovalDate !== undefined);
-              return isProcessed && (isCancelled === 0 || isCancelled === false || isCancelled === '0');
-            })
-            .map<ApprovalHistoryEntry>((r) => ({
-              id: Number(r.ID),
-              approverId: Number(r.ApproverID),
-              approverName: getApproverName(Number(r.ApproverID), r.ApproverName),
-              sequenceLevel: Number(r.SequenceLevel ?? 1),
-              status: (r.Status === 'APPROVED' || r.Status === '1') ? 'APPROVED' : 'REJECTED',
-              actedAt: r.ApprovalDate ?? r.RequestedDate,
-              comments: r.Comments ?? undefined,
-              rejectionReason: r.RejectionReason ?? undefined,
-            }));
-
-          // Get rule from status endpoint, or try to fetch from approval matrix
-          let rule: 'ALL' | 'MAJORITY' = response?.allorMajority ?? 'ALL';
-          
-          // If rule not in status response, try to get from approval matrix
-          if (!response?.allorMajority && document?.document?.[0]) {
-            try {
-              const deptId = document.document[0].DepartmentId;
-              const subDeptId = document.document[0].SubDepartmentId;
-              if (deptId && subDeptId) {
-                const matrixResponse = await axios.get('/approvalMatrix', {
-                  params: { DepartmentId: deptId, SubDepartmentId: subDeptId }
-                });
-                if (matrixResponse.data?.approvalMatrix?.AllorMajority) {
-                  rule = matrixResponse.data.approvalMatrix.AllorMajority;
-                }
-              }
-            } catch {
-              // Rule not available, use default
-            }
+            });
           }
-          
-          const totalLevels = response?.totalLevels ?? Math.max(1, ...rows.map((x: any) => Number(x.SequenceLevel ?? 1)));
-          
-          let calculatedFinalStatus: 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'CANCELLED' = 'PENDING';
-          
-          if (pending.length === 0 && history.length > 0) {
-            // All levels completed - calculate final status based on rule
-            if (rule === 'ALL') {
-              // ALL rule: all levels must be APPROVED
-              const allApproved = history.every((h) => h.status === 'APPROVED');
-              calculatedFinalStatus = allApproved ? 'APPROVED' : 'REJECTED';
-            } else if (rule === 'MAJORITY') {
-              // MAJORITY rule: count approvals vs rejections
-              const approvedCount = history.filter((h) => h.status === 'APPROVED').length;
-              const rejectedCount = history.filter((h) => h.status === 'REJECTED').length;
-              calculatedFinalStatus = approvedCount > rejectedCount ? 'APPROVED' : 'REJECTED';
-            }
-          } else if (pending.length > 0) {
-            calculatedFinalStatus = 'IN_PROGRESS';
-          }
-          
-          // Merge with status API response if available, otherwise use legacy data
-          // Update approver names in response if they exist
-          const updatedPendingRequests = response?.pendingRequests?.length 
-            ? response.pendingRequests.map(req => ({
-                ...req,
-                approverName: getApproverName(req.approverId, req.approverName)
-              }))
-            : pending;
-            
-          const updatedHistory = response?.history?.length
-            ? response.history.map(entry => ({
-                ...entry,
-                approverName: getApproverName(entry.approverId, entry.approverName)
-              }))
-            : history;
-          
-          setStatus({
-            documentId: documentId,
-            currentLevel: response?.currentLevel ?? (pending[0]?.sequenceLevel ?? 1),
-            totalLevels,
-            finalStatus: response?.finalStatus ?? calculatedFinalStatus,
-            allorMajority: rule,
-            levelsCompleted: response?.levelsCompleted ?? history.length,
-            levels: response?.levels ?? [],
-            pendingRequests: updatedPendingRequests,
-            history: updatedHistory,
-            canRequestApproval: response?.canRequestApproval ?? false,
-            trackingId: response?.trackingId,
+          return;
+        }
+
+        history.push({
+          id: Number(r.ID),
+          approverId: Number(r.ApproverID),
+          approverName: getApproverName(Number(r.ApproverID), r.ApproverName),
+          sequenceLevel: Number(r.SequenceLevel ?? 1),
+          status: isApproved ? 'APPROVED' : 'REJECTED',
+          actedAt: r.ApprovalDate ?? r.RequestedDate,
+          comments: r.Comments ?? undefined,
+          rejectionReason: r.RejectionReason ?? undefined,
+        });
+      });
+
+      let rule: 'ALL' | 'MAJORITY' = response?.allorMajority ?? 'ALL';
+
+      if (!response?.allorMajority && deptId && subDeptId) {
+        try {
+          const matrixResponse = await axios.get('/approvalMatrix', {
+            params: { DepartmentId: deptId, SubDepartmentId: subDeptId },
           });
-        } else if (response) {
-          // Update approver names in response if they exist
-          const updatedResponse = {
-            ...response,
-            pendingRequests: response.pendingRequests?.map(req => ({
-              ...req,
-              approverName: getApproverName(req.approverId, req.approverName)
-            })),
-            history: response.history?.map(entry => ({
-              ...entry,
-              approverName: getApproverName(entry.approverId, entry.approverName)
-            }))
-          };
-          setStatus(updatedResponse);
-        } else {
-          setStatus(null);
+          if (matrixResponse.data?.approvalMatrix?.AllorMajority) {
+            rule = matrixResponse.data.approvalMatrix.AllorMajority;
+          }
+        } catch {
+          // Use default rule when unavailable
         }
-      } catch (legacyError) {
-        // If legacy fails, use status API response if available
-        if (response) {
-          // Update approver names in response if they exist
-          const updatedResponse = {
-            ...response,
-            pendingRequests: response.pendingRequests?.map(req => ({
-              ...req,
-              approverName: getApproverName(req.approverId, req.approverName)
-            })),
-            history: response.history?.map(entry => ({
-              ...entry,
-              approverName: getApproverName(entry.approverId, entry.approverName)
-            }))
-          };
-          setStatus(updatedResponse);
-        } else {
-          setStatus(null);
+      }
+
+      const legacyLevels = rows.length
+        ? Math.max(1, ...rows.map((x: any) => Number(x.SequenceLevel ?? 1)))
+        : 1;
+      const totalLevels = response?.totalLevels ?? legacyLevels;
+
+      let calculatedFinalStatus: 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'CANCELLED' =
+        'PENDING';
+
+      if (pending.length === 0 && history.length > 0) {
+        if (rule === 'ALL') {
+          const allApproved = history.every((h) => h.status === 'APPROVED');
+          calculatedFinalStatus = allApproved ? 'APPROVED' : 'REJECTED';
+        } else if (rule === 'MAJORITY') {
+          const approvedCount = history.filter((h) => h.status === 'APPROVED').length;
+          const rejectedCount = history.filter((h) => h.status === 'REJECTED').length;
+          calculatedFinalStatus = approvedCount > rejectedCount ? 'APPROVED' : 'REJECTED';
         }
+      } else if (pending.length > 0) {
+        calculatedFinalStatus = 'IN_PROGRESS';
+      }
+
+      const updatedPendingRequests = response?.pendingRequests?.length
+        ? response.pendingRequests.map((req) => ({
+            ...req,
+            approverName: getApproverName(req.approverId, req.approverName),
+          }))
+        : pending;
+
+      const updatedHistory = response?.history?.length
+        ? response.history.map((entry) => ({
+            ...entry,
+            approverName: getApproverName(entry.approverId, entry.approverName),
+          }))
+        : history;
+
+      if (!response && rows.length === 0) {
+        setStatus(null);
+      } else if (response && rows.length === 0) {
+        setStatus({
+          ...response,
+          pendingRequests: updatedPendingRequests,
+          history: updatedHistory,
+        });
+      } else {
+        const resolvedPending = updatedPendingRequests ?? [];
+        const resolvedHistory = updatedHistory ?? [];
+
+        setStatus({
+          documentId,
+          currentLevel: response?.currentLevel ?? (resolvedPending[0]?.sequenceLevel ?? 1),
+          totalLevels,
+          finalStatus: response?.finalStatus ?? calculatedFinalStatus,
+          allorMajority: rule,
+          levelsCompleted: response?.levelsCompleted ?? resolvedHistory.length,
+          levels: response?.levels ?? [],
+          pendingRequests: resolvedPending,
+          history: resolvedHistory,
+          canRequestApproval: response?.canRequestApproval ?? false,
+          trackingId: response?.trackingId,
+        });
       }
     } catch (error) {
       console.error('Failed to load approval status', error);
@@ -360,7 +361,7 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [documentId, document, approverNameMap]);
+  }, [documentId, document, approverNameMap, fetchMatrixApprovers]);
 
   useEffect(() => {
     if (documentId) {
