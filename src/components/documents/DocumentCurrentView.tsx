@@ -531,11 +531,121 @@ const DocumentCurrentView = ({
     );
   }
 
-  // Check if file is PDF based on file extension
-  const isPDF = currentDocumentInfo?.filepath 
-    ? currentDocumentInfo.filepath.toLowerCase().endsWith('.pdf') || 
-      currentDocumentInfo?.FileName?.toLowerCase().endsWith('.pdf')
-    : false;
+  // Helper function to detect file type
+  const getFileType = () => {
+    if (!currentDocumentInfo) return 'unknown';
+    
+    const filepath = currentDocumentInfo.filepath?.toLowerCase() || '';
+    const filename = currentDocumentInfo.FileName?.toLowerCase() || '';
+    const dataType = currentDocumentInfo.DataType?.toLowerCase() || '';
+    
+    // Check by file extension first
+    if (filepath.endsWith('.pdf') || filename.endsWith('.pdf')) {
+      return 'pdf';
+    }
+    
+    if (filepath.endsWith('.docx') || filename.endsWith('.docx')) {
+      return 'docx';
+    }
+    
+    if (filepath.endsWith('.doc') || filename.endsWith('.doc')) {
+      return 'doc';
+    }
+    
+    // Check by MIME type from DataType field
+    if (dataType.includes('pdf') || dataType === 'application/pdf') {
+      return 'pdf';
+    }
+    
+    if (
+      dataType.includes('wordprocessingml') ||
+      dataType.includes('msword') ||
+      dataType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      dataType === 'application/msword'
+    ) {
+      return filepath.endsWith('.doc') || filename.endsWith('.doc') ? 'doc' : 'docx';
+    }
+    
+    // Check if it's an image
+    if (
+      dataType.startsWith('image/') ||
+      filepath.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) ||
+      filename.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)
+    ) {
+      return 'image';
+    }
+    
+    return 'unknown';
+  };
+
+  const fileType = getFileType();
+  const isPDF = fileType === 'pdf';
+  const isWord = fileType === 'docx' || fileType === 'doc';
+  const isImage = fileType === 'image';
+
+  // Helper function to format file type for display
+  const getFormattedFileType = () => {
+    if (!currentDocumentInfo?.DataType) return 'N/A';
+    
+    const dataType = currentDocumentInfo.DataType.toLowerCase();
+    
+    // PDF
+    if (dataType.includes('pdf') || fileType === 'pdf') {
+      return 'PDF Document';
+    }
+    
+    // Word documents
+    if (
+      dataType.includes('wordprocessingml') ||
+      dataType.includes('msword') ||
+      fileType === 'docx' ||
+      fileType === 'doc'
+    ) {
+      return fileType === 'doc' ? 'Word Document (.doc)' : 'Word Document (.docx)';
+    }
+    
+    // Excel
+    if (dataType.includes('spreadsheetml') || dataType.includes('ms-excel')) {
+      return 'Excel Spreadsheet';
+    }
+    
+    // Images
+    if (dataType.startsWith('image/') || isImage) {
+      const imageType = dataType.split('/')[1]?.toUpperCase() || 'Image';
+      return `${imageType} Image`;
+    }
+    
+    // Text files
+    if (dataType.includes('text/plain') || dataType.includes('txt')) {
+      return 'Text File';
+    }
+    
+    // CSV
+    if (dataType.includes('csv') || dataType.includes('text/csv')) {
+      return 'CSV File';
+    }
+    
+    // ZIP
+    if (dataType.includes('zip')) {
+      return 'ZIP Archive';
+    }
+    
+    // If it's a long MIME type, try to extract a readable name
+    if (dataType.includes('application/')) {
+      const parts = dataType.split('/');
+      if (parts.length > 1) {
+        const subtype = parts[1].split('.');
+        if (subtype.length > 0) {
+          return subtype[subtype.length - 1].toUpperCase();
+        }
+      }
+    }
+    
+    // Fallback to original DataType but truncate if too long
+    return currentDocumentInfo.DataType.length > 30
+      ? `${currentDocumentInfo.DataType.substring(0, 30)}...`
+      : currentDocumentInfo.DataType;
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
@@ -558,7 +668,42 @@ const DocumentCurrentView = ({
                 }}
               />
             </div>
-          ) : (
+          ) : isWord ? (
+            <div className="w-full h-full flex flex-col items-center justify-center p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-2xl w-full">
+                <div className="flex flex-col items-center text-center mb-4">
+                  <FileText className="h-16 w-16 text-blue-600 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Word Document Viewer
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Word documents cannot be viewed directly in the browser. Please download the file to view it.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleDownload}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download Document
+                  </button>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-500 mb-2">Or try viewing online:</p>
+                    <a
+                      href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(currentDocumentInfo.filepath)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-700 text-sm font-medium underline"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Open in Microsoft Office Online Viewer
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : isImage ? (
             <div className="w-full h-full flex items-center justify-center p-4">
               <img 
                 src={currentDocumentInfo.filepath} 
@@ -569,6 +714,30 @@ const DocumentCurrentView = ({
                   toast.error('Failed to load image.');
                 }}
               />
+            </div>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center p-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-w-2xl w-full">
+                <div className="flex flex-col items-center text-center mb-4">
+                  <FileText className="h-16 w-16 text-gray-600 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Document Preview Not Available
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    This file type cannot be previewed in the browser. Please download the file to view it.
+                  </p>
+                  <p className="text-xs text-gray-500 mb-4">
+                    File Type: {currentDocumentInfo.DataType || 'Unknown'}
+                  </p>
+                </div>
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm font-medium mx-auto"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Document
+                </button>
+              </div>
             </div>
           )}
         </Modal>
@@ -718,7 +887,7 @@ const DocumentCurrentView = ({
                   currentDocumentInfo?.DataType ? 'text-gray-900' : 'text-gray-500 italic'
                 }`}
               >
-                {currentDocumentInfo?.DataType || 'N/A'}
+                {getFormattedFileType()}
               </p>
             </div>
 
