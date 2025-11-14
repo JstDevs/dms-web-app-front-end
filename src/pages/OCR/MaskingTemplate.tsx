@@ -9,11 +9,12 @@ import {
   fetchTemplates,
   updateTemplate,
 } from './utils/template';
-import { useOCRFields } from './Fields/useOCRFields';
 import {
   convertBufferToFile,
   convertPdfToImage,
 } from './utils/templateHelpers';
+import { fetchAvailableFields } from '@/pages/Document/utils/fieldAllocationService';
+import { fetchFieldsByLink } from '@/pages/Digitalization/utils/allocationServices';
 // import { Template } from "./utils/useTemplates";
 import {
   ArrowLeft,
@@ -108,8 +109,6 @@ export const TemplateOCR = () => {
 
   const imgRef = useRef<HTMLImageElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
-  const { fields, loading: fieldsLoading, error: fieldsError } = useOCRFields();
   // Use the nested department hook
   const {
     departmentOptions,
@@ -119,6 +118,11 @@ export const TemplateOCR = () => {
   const [subDepartmentOptions, setSubDepartmentOptions] = useState<
     { value: string; label: string }[]
   >([]);
+
+  // Fields state - filtered by department and document type (like Allocation)
+  const [fields, setFields] = useState<Array<{ ID: number; Field: string }>>([]);
+  const [fieldsLoading, setFieldsLoading] = useState(false);
+  const [fieldsError, setFieldsError] = useState<string | null>(null);
 
   // Update sub-departments when department selection changes
   useEffect(() => {
@@ -143,6 +147,80 @@ export const TemplateOCR = () => {
       }
     }
   }, [formData.department, departmentOptions]);
+
+  // Fetch fields when Department and Document Type are selected (like Allocation)
+  useEffect(() => {
+    const fetchFields = async () => {
+      if (!formData.department || !formData.subdepartment) {
+        setFields([]);
+        setFieldsError(null);
+        return;
+      }
+
+      setFieldsLoading(true);
+      setFieldsError(null);
+      try {
+        // Load both: available universe + current configuration (same as Allocation)
+        const [available, current] = await Promise.all([
+          fetchAvailableFields(Number(formData.department), Number(formData.subdepartment)),
+          fetchFieldsByLink(Number(formData.subdepartment)),
+        ]);
+
+        // Build map from current by-link to check active status
+        const currentMap = new Map<number, any>(
+          (current || []).map((c: any) => [Number(c.FieldNumber), c])
+        );
+
+        // Merge available fields with active status from fields by link
+        const fieldsWithActive = (available || []).map((f: any) => {
+          const fid = Number(f.ID ?? f.FieldNumber ?? 0);
+          const currentMatch = currentMap.get(fid);
+          const activeVal = currentMatch ? (currentMatch as any).Active : (f as any)?.Active;
+          const isActive = activeVal === 1 || activeVal === '1' || activeVal === true || activeVal === 'true';
+          
+          return {
+            ID: fid,
+            Field: String(currentMatch?.Description ?? f.Field ?? f.Description ?? ''),
+            IsActive: isActive,
+          };
+        });
+
+        // Include any current rows that aren't in available (union)
+        const baseIds = new Set(fieldsWithActive.map(f => f.ID));
+        const union = [
+          ...fieldsWithActive,
+          ...(current || [])
+            .filter((c: any) => !baseIds.has(Number(c.FieldNumber)))
+            .map((c: any) => {
+              const activeVal = (c as any).Active;
+              const isActive = activeVal === 1 || activeVal === '1' || activeVal === true || activeVal === 'true';
+              return {
+                ID: Number(c.FieldNumber),
+                Field: c.Description,
+                IsActive: isActive,
+              };
+            }),
+        ];
+
+        // Filter to show only active fields (like Allocation)
+        const activeFieldsOnly = union.filter(f => f.IsActive === true);
+        
+        // Map to the format expected by the dropdown
+        setFields(activeFieldsOnly.map(f => ({
+          ID: f.ID,
+          Field: f.Field,
+        })));
+      } catch (error) {
+        console.error('Failed to fetch fields:', error);
+        setFieldsError('Failed to load fields');
+        setFields([]);
+      } finally {
+        setFieldsLoading(false);
+      }
+    };
+
+    fetchFields();
+  }, [formData.department, formData.subdepartment]);
 
   // Filter templates based on search term
   const filteredTemplates = useMemo(() => {
@@ -991,21 +1069,47 @@ export const TemplateOCR = () => {
           {/* Field Dropdown + Save/Delete */}
           {currentView !== 'view' && (
             <div className="flex gap-2 w-full items-end max-sm:flex-col">
-              <Select
-                label="Fields"
-                value={selectedField?.ID || ''}
-                onChange={(e: any) => {
-                  const selected = fields.find(
-                    (f) => f.ID === parseInt(e.target.value)
-                  );
-                  setSelectedField(selected || null);
-                }}
-                placeholder="Select a Field"
-                options={fields.map((field) => ({
-                  value: field.ID.toString(),
-                  label: field.Field,
-                }))}
-              />
+              <div className="flex-1">
+                <Select
+                  label="Fields"
+                  value={selectedField?.ID || ''}
+                  onChange={(e: any) => {
+                    const selected = fields.find(
+                      (f) => f.ID === parseInt(e.target.value)
+                    );
+                    setSelectedField(selected || null);
+                  }}
+                  placeholder={
+                    !formData.department || !formData.subdepartment
+                      ? 'Select Department and Document Type First'
+                      : fieldsLoading
+                      ? 'Loading fields...'
+                      : fieldsError
+                      ? 'Error loading fields'
+                      : fields.length === 0
+                      ? 'No active fields available'
+                      : 'Select a Field'
+                  }
+                  options={fields.map((field) => ({
+                    value: field.ID.toString(),
+                    label: field.Field,
+                  }))}
+                  disabled={
+                    fieldsLoading ||
+                    !formData.department ||
+                    !formData.subdepartment ||
+                    fields.length === 0
+                  }
+                />
+                {fieldsError && (
+                  <p className="text-sm text-red-600 mt-1">{fieldsError}</p>
+                )}
+                {!fieldsLoading && !fieldsError && formData.department && formData.subdepartment && fields.length === 0 && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    No active fields found for this department and document type. Please configure fields in Allocation first.
+                  </p>
+                )}
+              </div>
               <div className="flex-1 flex gap-2">
                 <Button
                   className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm flex-initial px-4"
@@ -1193,20 +1297,6 @@ export const TemplateOCR = () => {
       </div>
     </div>
   );
-
-  if (fieldsLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">Loading...</div>
-    );
-  }
-
-  if (fieldsError) {
-    return (
-      <div className="flex items-center justify-center h-64 text-red-600">
-        Error: {fieldsError}
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-[50vh] bg-gray-50">
