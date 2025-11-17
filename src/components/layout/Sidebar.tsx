@@ -46,17 +46,18 @@ const navItems: NavItem[] = [
         submenu: [
           { name: 'Manual Upload', path: '/documents/manual-upload', moduleId: 3 },
           { name: 'Batch Upload', path: '/documents/batch-upload', moduleId: 8 },
-        ]
-      },
-      {
-        name: 'OCR',
-        icon: FileText,
-        path: '/ocr/upload',
-        submenu: [
           { name: 'OCR Upload', path: '/ocr/upload', moduleId: 9 },
-          { name: 'Unrecorded', path: '/ocr/unrecorded', moduleId: 9 },
         ]
       },
+      // {
+      //   name: 'OCR',
+      //   icon: FileText,
+      //   path: '/ocr/upload',
+      //   submenu: [
+      //     { name: 'OCR Upload', path: '/ocr/upload', moduleId: 9 },
+      //     { name: 'Unrecorded', path: '/ocr/unrecorded', moduleId: 9 },
+      //   ]
+      // },
     ],
   },
   {
