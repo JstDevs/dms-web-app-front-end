@@ -24,6 +24,7 @@ import axios from '@/api/axios';
 import { toast } from 'react-hot-toast';
 import { editDocument } from '@/pages/Document/utils/uploadAPIs';
 import { buildDocumentFormData, type DocumentUploadProp } from '@/pages/Document/utils/documentHelpers';
+import { convertPdfToPdfA } from '@/utils/pdfConverter';
 
 interface Field {
   LinkID: number;
@@ -445,6 +446,7 @@ const DocumentCurrentView = ({
         const detectedType = getFileType();
         let mimeType = blob.type;
         let fileName = currentDocumentInfo?.FileName || 'document';
+        let finalBlob = blob;
         
         // Override MIME type based on detected file type to ensure correct download
         switch (detectedType) {
@@ -452,6 +454,38 @@ const DocumentCurrentView = ({
             mimeType = 'application/pdf';
             if (!fileName.toLowerCase().endsWith('.pdf')) {
               fileName = `${fileName}.pdf`;
+            }
+            
+            // Convert PDF to PDF/A format for archiving
+            // PDF/A is an ISO-standardized format for long-term document preservation
+            try {
+              toast.loading('Converting PDF to PDF/A format...', { id: 'pdfa-conversion' });
+              const conversionResult = await convertPdfToPdfA(blob, currentDocumentInfo.ID);
+              finalBlob = conversionResult.blob;
+              
+              // Check if conversion actually happened
+              if (conversionResult.converted) {
+                // Update filename to indicate PDF/A format
+                const baseName = fileName.replace(/\.pdf$/i, '');
+                fileName = `${baseName}_PDFA.pdf`;
+                toast.success('PDF converted to PDF/A format', { id: 'pdfa-conversion' });
+              } else {
+                // Backend API not available - download original PDF
+                toast.dismiss('pdfa-conversion');
+                toast(
+                  'PDF/A conversion not available. Downloading original PDF. Please implement backend conversion endpoint.',
+                  { 
+                    id: 'pdfa-conversion',
+                    duration: 4000,
+                    icon: 'ℹ️'
+                  }
+                );
+              }
+            } catch (conversionError) {
+              console.warn('PDF/A conversion failed, downloading original PDF:', conversionError);
+              toast.dismiss('pdfa-conversion');
+              toast.error('PDF/A conversion failed. Downloading original PDF.', { duration: 3000 });
+              // Continue with original PDF
             }
             break;
           case 'docx':
@@ -509,7 +543,7 @@ const DocumentCurrentView = ({
         }
         
         // Create a new blob with the correct MIME type
-        const correctedBlob = new Blob([blob], { type: mimeType });
+        const correctedBlob = new Blob([finalBlob], { type: mimeType });
         const url = window.URL.createObjectURL(correctedBlob);
 
         const link = window.document.createElement('a');

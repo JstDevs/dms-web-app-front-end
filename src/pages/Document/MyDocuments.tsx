@@ -12,7 +12,7 @@ import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useAllocationPermissions } from './utils/useAllocationPermissions';
 import { PaginationControls } from '@/components/ui/PaginationControls';
 import { logDocumentActivity } from '@/utils/activityLogger';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
 
 const MyDocuments: React.FC = () => {
