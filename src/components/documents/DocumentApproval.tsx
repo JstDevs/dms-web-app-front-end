@@ -514,7 +514,14 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
   // 3. OR there are no pending requests AND status is not APPROVED (cancelled or completed)
   // 4. OR status is PENDING/REJECTED (no active approval workflow)
   // 5. OR no status exists yet (no approval workflow)
+  // NOTE: Do NOT allow if status is APPROVED (all approvers have already approved)
   const canRequestApproval = useMemo(() => {
+    // Never allow if already approved (all approvers have approved)
+    if (normalizedStatus === 'APPROVED') {
+      console.log('[DocumentApproval] Status is APPROVED, disabling request');
+      return false;
+    }
+    
     // Always allow if cancelled (case-insensitive check)
     if (normalizedStatus === 'CANCELLED') {
       console.log('[DocumentApproval] Status is CANCELLED, allowing request');
@@ -698,7 +705,13 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
               onClick={handleRequestApproval}
               disabled={!canRequestApproval || requesting}
               className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-              title={!canRequestApproval ? `Cannot request: status=${finalStatus}, pending=${activePendingRequests.length}, canRequest=${status?.canRequestApproval}` : ''}
+              title={
+                !canRequestApproval
+                  ? normalizedStatus === 'APPROVED'
+                    ? 'Approval already completed. All approvers have approved this document.'
+                    : `Cannot request approval: status=${finalStatus}, pending=${activePendingRequests.length}`
+                  : ''
+              }
             >
               {requesting ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

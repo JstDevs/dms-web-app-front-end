@@ -466,6 +466,18 @@ const DocumentCurrentView = ({
               fileName = `${fileName}.doc`;
             }
             break;
+          case 'xlsx':
+            mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+            if (!fileName.toLowerCase().endsWith('.xlsx')) {
+              fileName = `${fileName}.xlsx`;
+            }
+            break;
+          case 'xls':
+            mimeType = 'application/vnd.ms-excel';
+            if (!fileName.toLowerCase().endsWith('.xls')) {
+              fileName = `${fileName}.xls`;
+            }
+            break;
           case 'image':
             // For images, use DataType if available, otherwise infer from filename or use blob type
             if (currentDocumentInfo.DataType && currentDocumentInfo.DataType.startsWith('image/')) {
@@ -611,6 +623,15 @@ const DocumentCurrentView = ({
       return 'doc';
     }
     
+    // Check for Excel files by extension
+    if (filepath.endsWith('.xlsx') || filename.endsWith('.xlsx')) {
+      return 'xlsx';
+    }
+    
+    if (filepath.endsWith('.xls') || filename.endsWith('.xls')) {
+      return 'xls';
+    }
+    
     // Check by MIME type from DataType field
     if (dataType.includes('pdf') || dataType === 'application/pdf') {
       return 'pdf';
@@ -623,6 +644,18 @@ const DocumentCurrentView = ({
       dataType === 'application/msword'
     ) {
       return filepath.endsWith('.doc') || filename.endsWith('.doc') ? 'doc' : 'docx';
+    }
+    
+    // Check for Excel files by MIME type
+    if (
+      dataType.includes('spreadsheetml') ||
+      dataType.includes('spreadsheet') ||
+      dataType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      dataType === 'application/vnd.ms-excel' ||
+      dataType.includes('vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
+      dataType.includes('vnd.ms-excel')
+    ) {
+      return filepath.endsWith('.xls') || filename.endsWith('.xls') ? 'xls' : 'xlsx';
     }
     
     // Check if it's an image
@@ -640,6 +673,7 @@ const DocumentCurrentView = ({
   const fileType = getFileType();
   const isPDF = fileType === 'pdf';
   const isWord = fileType === 'docx' || fileType === 'doc';
+  const isExcel = fileType === 'xlsx' || fileType === 'xls';
   const isImage = fileType === 'image';
 
   // Helper function to format file type for display
@@ -664,8 +698,14 @@ const DocumentCurrentView = ({
     }
     
     // Excel
-    if (dataType.includes('spreadsheetml') || dataType.includes('ms-excel')) {
-      return 'Excel Spreadsheet';
+    if (
+      dataType.includes('spreadsheetml') ||
+      dataType.includes('spreadsheet') ||
+      dataType.includes('ms-excel') ||
+      fileType === 'xlsx' ||
+      fileType === 'xls'
+    ) {
+      return fileType === 'xls' ? 'Excel Spreadsheet (.xls)' : 'Excel Spreadsheet (.xlsx)';
     }
     
     // Images
@@ -754,6 +794,41 @@ const DocumentCurrentView = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-700 text-sm font-medium underline"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Open in Microsoft Office Online Viewer
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : isExcel ? (
+            <div className="w-full h-full flex flex-col items-center justify-center p-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6 max-w-2xl w-full">
+                <div className="flex flex-col items-center text-center mb-4">
+                  <FileText className="h-16 w-16 text-green-600 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Excel Spreadsheet Viewer
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Excel spreadsheets cannot be viewed directly in the browser. Please download the file to view it.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleDownload}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg shadow-sm hover:bg-green-700 transition-colors text-sm font-medium"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download Spreadsheet
+                  </button>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-500 mb-2">Or try viewing online:</p>
+                    <a
+                      href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(currentDocumentInfo.filepath)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 text-green-600 hover:text-green-700 text-sm font-medium underline"
                     >
                       <Eye className="h-4 w-4" />
                       Open in Microsoft Office Online Viewer
