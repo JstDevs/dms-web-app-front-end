@@ -333,7 +333,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
               </p>
             </div>
             <div className="bg-white backdrop-blur-sm rounded-lg px-4 py-2">
-              <div className="flex items-center gap-2 text-black">
+              <div className="flex items-center gap-2 text-black"> 
                 <Shield className="h-5 w-5" />
                 <span className="font-semibold">{restrictions.length}</span>
                 <span className="text-sm">
@@ -364,6 +364,9 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
                   </p>
                   <p className="text-2xl font-bold text-blue-900">
                     {restrictions.length}
+                  </p>                  
+                  <p className="text-xs text-blue-500 mt-1">
+                    Restriction amount
                   </p>
                 </div>
               </div>
