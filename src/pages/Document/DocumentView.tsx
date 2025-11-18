@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useDocument } from '../../contexts/DocumentContext';
 import { logDocumentActivity } from '@/utils/activityLogger';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,7 +33,15 @@ const DocumentView: React.FC = () => {
   const { currentDocument, loading, fetchDocument } = useDocument();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<TabType>('document');
+  
+  // Get filter state from URL query parameters to preserve when going back
+  const getBackUrl = () => {
+    const searchParams = new URLSearchParams(location.search);
+    const queryString = searchParams.toString();
+    return queryString ? `/documents/library?${queryString}` : '/documents/library';
+  };
 
   // Fetch allocation permissions for current document
   const { permissions } = useAllocationPermissions({
@@ -187,7 +195,7 @@ const DocumentView: React.FC = () => {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center flex-1 w-full">
           <button
-            onClick={() => navigate('/documents/library')}
+            onClick={() => navigate(getBackUrl())}
             className="mr-2 p-1 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100"
           >
             <ChevronLeft size={20} />

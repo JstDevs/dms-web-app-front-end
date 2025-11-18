@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 // import { useDocument } from "@/contexts/DocumentContext";
 import DocumentCard from '@/components/documents/DocumentCard';
 // import { Input, Select } from "@/components/ui"; // Assuming you have these UI components
@@ -18,7 +18,24 @@ import { toast } from 'react-hot-toast';
 const MyDocuments: React.FC = () => {
   // const { documents } = useDocument();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { departmentOptions, getSubDepartmentOptions, loading: loadingDepartments } = useNestedDepartmentOptions();
+  
+  // Initialize filter state from URL query parameters
+  const getInitialStateFromURL = useCallback(() => {
+    return {
+      searchTerm: searchParams.get('search') || '',
+      department: searchParams.get('department') || '',
+      subDepartment: searchParams.get('subDepartment') || '',
+      startDate: searchParams.get('startDate') || '',
+      endDate: searchParams.get('endDate') || '',
+      appliedDepartment: searchParams.get('appliedDepartment') || '',
+      appliedSubDepartment: searchParams.get('appliedSubDepartment') || '',
+      appliedStartDate: searchParams.get('appliedStartDate') || '',
+      appliedEndDate: searchParams.get('appliedEndDate') || '',
+      currentPage: parseInt(searchParams.get('page') || '1', 10),
+    };
+  }, [searchParams]);
   
   // State for filter selections (what user selects)
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +55,27 @@ const MyDocuments: React.FC = () => {
   const [filteredDocs, setFilteredDocs] = useState<any[]>([]);
   const { selectedRole, user } = useAuth(); // assuming user object has user.id
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Initialize state from URL on mount and when URL changes (e.g., when navigating back)
+  const hasInitializedFromURL = useRef(false);
+  useEffect(() => {
+    const urlState = getInitialStateFromURL();
+    
+    // Only initialize from URL if we haven't done it yet, or if URL has applied filters
+    if (!hasInitializedFromURL.current || urlState.appliedDepartment || urlState.appliedSubDepartment) {
+      if (urlState.searchTerm) setSearchTerm(urlState.searchTerm);
+      if (urlState.department) setDepartment(urlState.department);
+      if (urlState.subDepartment) setSubDepartment(urlState.subDepartment);
+      if (urlState.startDate) setStartDate(urlState.startDate);
+      if (urlState.endDate) setEndDate(urlState.endDate);
+      if (urlState.appliedDepartment) setAppliedDepartment(urlState.appliedDepartment);
+      if (urlState.appliedSubDepartment) setAppliedSubDepartment(urlState.appliedSubDepartment);
+      if (urlState.appliedStartDate) setAppliedStartDate(urlState.appliedStartDate);
+      if (urlState.appliedEndDate) setAppliedEndDate(urlState.appliedEndDate);
+      if (urlState.currentPage > 1) setCurrentPage(urlState.currentPage);
+      hasInitializedFromURL.current = true;
+    }
+  }, [getInitialStateFromURL, searchParams]);
   const [paginationData, setPaginationData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [filterLoading, setFilterLoading] = useState<boolean>(false);
@@ -60,23 +98,25 @@ const MyDocuments: React.FC = () => {
   }, [department, getSubDepartmentOptions]);
   
   // Set default department to first available option (for UI only, not applied)
+  // Only set default if not already set from URL
   useEffect(() => {
-    if (departmentOptions.length > 0 && !department) {
+    if (departmentOptions.length > 0 && !department && !searchParams.get('department')) {
       const firstDept = departmentOptions[0].value;
       setDepartment(firstDept);
       // Don't set appliedDepartment here - wait for Apply Filters button
     }
-  }, [departmentOptions, department]);
+  }, [departmentOptions, department, searchParams]);
   
   // Set default document type when department is selected (for UI only, not applied)
+  // Only set default if not already set from URL
   useEffect(() => {
     if (department && documentTypeOptions.length > 0) {
-      // If no document type is selected, set the first one
-      if (!subDepartment) {
+      // If no document type is selected, set the first one (unless it's in URL)
+      if (!subDepartment && !searchParams.get('subDepartment')) {
         const firstDocType = documentTypeOptions[0].value;
         setSubDepartment(firstDocType);
         // Don't set appliedSubDepartment here - wait for Apply Filters button
-      } else {
+      } else if (subDepartment) {
         // If a document type is selected, check if it's still valid
         const isValid = documentTypeOptions.some(opt => opt.value === subDepartment);
         if (!isValid) {
@@ -92,11 +132,18 @@ const MyDocuments: React.FC = () => {
       setSubDepartment('');
       // Don't clear appliedSubDepartment here - wait for Apply Filters button
     }
-  }, [department, documentTypeOptions, subDepartment]);
+  }, [department, documentTypeOptions, subDepartment, searchParams]);
 
-  // Auto-apply initial filters once on first visit only
+  // Auto-apply initial filters once on first visit only (skip if restoring from URL)
   const hasAppliedInitial = useRef(false);
   useEffect(() => {
+    // Don't auto-apply if we're restoring from URL (URL has applied filters)
+    const urlState = getInitialStateFromURL();
+    if (urlState.appliedDepartment || urlState.appliedSubDepartment) {
+      hasAppliedInitial.current = true;
+      return;
+    }
+    
     if (
       !hasAppliedInitial.current &&
       department &&
@@ -109,7 +156,7 @@ const MyDocuments: React.FC = () => {
       setAppliedSubDepartment(subDepartment);
       setCurrentPage(1);
     }
-  }, [department, subDepartment, appliedDepartment, appliedSubDepartment]);
+  }, [department, subDepartment, appliedDepartment, appliedSubDepartment, getInitialStateFromURL]);
   
   // Debounce search term to prevent too many API calls
   useEffect(() => {
@@ -133,6 +180,31 @@ const MyDocuments: React.FC = () => {
       setCurrentPage(1);
     }
   }, [appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate, debouncedSearchTerm]);
+  
+  // Update URL when applied filters or page changes (skip during initial URL restoration)
+  useEffect(() => {
+    // Don't update URL if we're still initializing from URL
+    if (!hasInitializedFromURL.current) {
+      return;
+    }
+    
+    const newParams = new URLSearchParams();
+    if (debouncedSearchTerm) newParams.set('search', debouncedSearchTerm);
+    if (department) newParams.set('department', department);
+    if (subDepartment) newParams.set('subDepartment', subDepartment);
+    if (startDate) newParams.set('startDate', startDate);
+    if (endDate) newParams.set('endDate', endDate);
+    if (appliedDepartment) newParams.set('appliedDepartment', appliedDepartment);
+    if (appliedSubDepartment) newParams.set('appliedSubDepartment', appliedSubDepartment);
+    if (appliedStartDate) newParams.set('appliedStartDate', appliedStartDate);
+    if (appliedEndDate) newParams.set('appliedEndDate', appliedEndDate);
+    if (currentPage > 1) newParams.set('page', currentPage.toString());
+    
+    // Only update URL if there are actual filters applied
+    if (appliedDepartment || appliedSubDepartment || appliedStartDate || appliedEndDate || debouncedSearchTerm || currentPage > 1) {
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate, debouncedSearchTerm, currentPage, department, subDepartment, startDate, endDate, setSearchParams]);
 
   const loadDocuments = useCallback(async () => {
       // Only load if both department and document type are applied
@@ -404,16 +476,34 @@ const MyDocuments: React.FC = () => {
   const documentCards = useMemo(() => 
     filteredDocs.map((document) => {
       const doc = document.newdoc;
+      // Preserve current filter state in URL when navigating to document
+      const currentParams = new URLSearchParams();
+      if (debouncedSearchTerm) currentParams.set('search', debouncedSearchTerm);
+      if (department) currentParams.set('department', department);
+      if (subDepartment) currentParams.set('subDepartment', subDepartment);
+      if (startDate) currentParams.set('startDate', startDate);
+      if (endDate) currentParams.set('endDate', endDate);
+      if (appliedDepartment) currentParams.set('appliedDepartment', appliedDepartment);
+      if (appliedSubDepartment) currentParams.set('appliedSubDepartment', appliedSubDepartment);
+      if (appliedStartDate) currentParams.set('appliedStartDate', appliedStartDate);
+      if (appliedEndDate) currentParams.set('appliedEndDate', appliedEndDate);
+      if (currentPage > 1) currentParams.set('page', currentPage.toString());
+      
+      const queryString = currentParams.toString();
+      const documentUrl = queryString 
+        ? `/documents/${doc.ID}?${queryString}`
+        : `/documents/${doc.ID}`;
+      
       return (
         <DocumentCard
           key={doc.ID}
           document={doc}
-          onClick={() => navigate(`/documents/${doc.ID}`)}
+          onClick={() => navigate(documentUrl)}
           permissions={allocationPermissions}
           onDelete={handleDelete}
         />
       );
-    }), [filteredDocs, allocationPermissions, navigate, handleDelete]
+    }), [filteredDocs, allocationPermissions, navigate, handleDelete, debouncedSearchTerm, department, subDepartment, startDate, endDate, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate, currentPage]
   );
   // Department/subDept options
   // const departments = Array.from(new Set(documents.map((d) => d.DepartmentId)));
@@ -442,6 +532,20 @@ const MyDocuments: React.FC = () => {
     setAppliedEndDate(endDate);
     setCurrentPage(1);
     setError(""); // Clear any previous errors
+    
+    // Update URL query parameters
+    const newParams = new URLSearchParams();
+    if (searchTerm) newParams.set('search', searchTerm);
+    if (department) newParams.set('department', department);
+    if (subDepartment) newParams.set('subDepartment', subDepartment);
+    if (startDate) newParams.set('startDate', startDate);
+    if (endDate) newParams.set('endDate', endDate);
+    if (department) newParams.set('appliedDepartment', department);
+    if (subDepartment) newParams.set('appliedSubDepartment', subDepartment);
+    if (startDate) newParams.set('appliedStartDate', startDate);
+    if (endDate) newParams.set('appliedEndDate', endDate);
+    newParams.set('page', '1');
+    setSearchParams(newParams, { replace: true });
   };
 
   const clearFilters = () => {
@@ -469,6 +573,9 @@ const MyDocuments: React.FC = () => {
     
     setCurrentPage(1);
     setError("");
+    
+    // Clear URL query parameters
+    setSearchParams({}, { replace: true });
   };
   // if (!myDocumentPermissions.View) {
   //   return (
