@@ -1,13 +1,15 @@
 import React from 'react';
 import { Input } from '@/components/ui/Input';
 import { FieldAllocation } from '../utils/fieldAllocationService';
-import { Calendar, FileText, AlertCircle } from 'lucide-react';
+import { Calendar, FileText, AlertCircle, Scan } from 'lucide-react';
+import { Button } from '@chakra-ui/react';
 
 interface DynamicFieldProps {
   field: FieldAllocation;
   value: string | null;
   onChange: (value: string) => void;
   required?: boolean;
+  onScanField?: (fieldId: number) => void;
 }
 
 export const DynamicField: React.FC<DynamicFieldProps> = ({
@@ -15,6 +17,7 @@ export const DynamicField: React.FC<DynamicFieldProps> = ({
   value,
   onChange,
   required = false,
+  onScanField,
 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
@@ -64,16 +67,27 @@ export const DynamicField: React.FC<DynamicFieldProps> = ({
           {required && <span className="text-red-500 ml-1">*</span>}
         </span>
       </label>
-      <div className="relative w-full">
-        <Input
-          type="text"
-          className="w-full pl-12 pr-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-          value={value || ''}
-          onChange={handleChange}
-          required={required}
-          placeholder={`Enter ${field.Field.toLowerCase()}`}
-        />
-        <FileText className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+      <div className="relative w-full flex gap-2">
+        <div className="relative flex-1">
+          <Input
+            type="text"
+            className="w-full pl-12 pr-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            value={value || ''}
+            onChange={handleChange}
+            required={required}
+            placeholder={`Enter ${field.Field.toLowerCase()}`}
+          />
+          <FileText className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+        </div>
+        {onScanField && (
+          <Button
+            onClick={() => onScanField(field.ID)}
+            className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all flex items-center justify-center"
+            title="Scan with OCR"
+          >
+            <Scan className="w-4 h-4" />
+          </Button>
+        )}
       </div>
       {field.Description && (
         <p className="text-sm text-gray-600 flex items-start gap-2 mt-1 bg-gray-50 p-2 rounded">
@@ -90,6 +104,7 @@ interface DynamicFieldsSectionProps {
   values: { [key: string]: string | null };
   onChange: (fieldId: number, value: string) => void;
   requiredFields?: number[];
+  onScanField?: (fieldId: number) => void;
 }
 
 export const DynamicFieldsSection: React.FC<DynamicFieldsSectionProps> = ({
@@ -97,6 +112,7 @@ export const DynamicFieldsSection: React.FC<DynamicFieldsSectionProps> = ({
   values,
   onChange,
   requiredFields = [],
+  onScanField,
 }) => {
   if (fields.length === 0) {
     return null;
@@ -143,6 +159,7 @@ export const DynamicFieldsSection: React.FC<DynamicFieldsSectionProps> = ({
                   value={values[`field_${field.ID}`] || null}
                   onChange={(value) => onChange(field.ID, value)}
                   required={requiredFields.includes(field.ID)}
+                  onScanField={onScanField}
                 />
               </div>
             ))}
@@ -170,6 +187,7 @@ export const DynamicFieldsSection: React.FC<DynamicFieldsSectionProps> = ({
                   value={values[`field_${field.ID}`] || null}
                   onChange={(value) => onChange(field.ID, value)}
                   required={requiredFields.includes(field.ID)}
+                  onScanField={onScanField}
                 />
               </div>
             ))}

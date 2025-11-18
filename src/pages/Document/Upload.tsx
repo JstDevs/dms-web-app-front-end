@@ -43,6 +43,7 @@ import { logDocumentActivity } from '@/utils/activityLogger';
 import { PaginationControls } from '@/components/ui/PaginationControls';
 import { useFieldAllocations } from './utils/useFieldAllocations';
 import { DynamicFieldsSection } from './components/DynamicFields';
+import { OCRModal } from './components/OCRModal';
 interface DocumentWrapper {
   newdoc: DocumentUploadProp;
   isRestricted: boolean;
@@ -58,13 +59,15 @@ const allowedTypes = [
 ];
 export default function DocumentUpload() {
   const [documents, setDocuments] = useState<DocumentWrapper[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [search, setSearch] = useState('');
   const [editId, setEditId] = useState<number | null>(null);
   const [paginationData, setPaginationData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dynamicFieldValues, setDynamicFieldValues] = useState<{ [key: string]: string | null }>({});
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
+  const [preselectedFieldForOcr, setPreselectedFieldForOcr] = useState<number | null>(null);
   const [newDoc, setNewDoc] = useState<Partial<DocumentUploadProp>>({
     FileName: '',
     FileDescription: '',
@@ -498,6 +501,20 @@ export default function DocumentUpload() {
     }));
   };
 
+  const handleOcrApplyToField = (fieldId: number, text: string) => {
+    handleDynamicFieldChange(fieldId, text);
+    setIsOcrModalOpen(false);
+    setPreselectedFieldForOcr(null);
+    toast.success(`Text applied to field successfully`);
+  };
+
+  // Check if file is OCR-compatible
+  const isOcrCompatible = (file: File | null): boolean => {
+    if (!file) return false;
+    const ocrTypes = ['image/png', 'image/jpeg', 'application/pdf'];
+    return ocrTypes.includes(file.type);
+  };
+
   return (
     <div className="flex flex-col space-y-6 animate-fade-in">
       {/* Enhanced Header */}
@@ -821,6 +838,36 @@ export default function DocumentUpload() {
                           />
                         </div>
                       )}
+
+                      {/* OCR Button */}
+                      {isOcrCompatible(selectedFile) && (
+                        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-blue-600 rounded-lg">
+                                <Search className="w-5 h-5 text-white" />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-800">
+                                  Extract Text with OCR
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Scan document and populate fields automatically
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => setIsOcrModalOpen(true)}
+                              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
+                            >
+                              <div className="flex items-center">
+                                <Search className="w-5 h-5 mr-2" />
+                                Run OCR
+                              </div>
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -899,6 +946,18 @@ export default function DocumentUpload() {
         </CardContent>
       </Card>
 
+      {/* OCR Modal */}
+      {selectedFile && (
+        <OCRModal
+          isOpen={isOcrModalOpen}
+          onClose={() => setIsOcrModalOpen(false)}
+          file={selectedFile}
+          fields={getActiveFields().filter(f => f.Type !== 'date' && f.Type !== 'Date')}
+          onApplyToField={handleOcrApplyToField}
+          preselectedFieldId={preselectedFieldForOcr}
+        />
+      )}
+
       {/* Dynamic Fields Section - Shows only active fields from allocation */}
       {newDoc.DepartmentId && newDoc.SubDepartmentId && (
         <>
@@ -919,6 +978,14 @@ export default function DocumentUpload() {
               values={dynamicFieldValues}
               onChange={handleDynamicFieldChange}
               requiredFields={getActiveFields().filter(field => field.Add).map(field => field.ID)}
+              onScanField={(fieldId) => {
+                if (selectedFile && isOcrCompatible(selectedFile)) {
+                  setPreselectedFieldForOcr(fieldId);
+                  setIsOcrModalOpen(true);
+                } else {
+                  toast.error('Please attach a PDF or image file first to use OCR');
+                }
+              }}
             />
           )}
 
