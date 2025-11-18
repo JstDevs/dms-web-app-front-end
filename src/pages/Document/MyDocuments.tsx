@@ -319,29 +319,43 @@ const MyDocuments: React.FC = () => {
             }))
           });
           
-          // Backfill next pages until we have up to ITEMS_PER_PAGE matching docs
+          // Fetch ALL pages to get all matching documents for this department/subdepartment
+          // This is needed because we do client-side filtering and pagination
           const appliedDeptId = Number(appliedDepartment);
           const appliedSubDeptId = Number(appliedSubDepartment);
-          let filteredPageDocs = pageDocuments.filter((doc: any) => {
+          let allFilteredDocs = pageDocuments.filter((doc: any) => {
             const docDeptId = Number(doc.newdoc?.DepartmentId || 0);
             const docSubDeptId = Number(doc.newdoc?.SubDepartmentId || 0);
             return docDeptId === appliedDeptId && docSubDeptId === appliedSubDeptId;
           });
 
-          if (filteredPageDocs.length < ITEMS_PER_PAGE) {
-            const totalPages = effectivePagination?.totalPages || 1;
-            let nextPage = currentPage + 1;
-            while (filteredPageDocs.length < ITEMS_PER_PAGE && nextPage <= totalPages) {
-              try {
-                const nextResp = await fetchDocuments(
-                  Number(selectedRole?.ID),
-                  nextPage,
-                  debouncedSearchTerm,
-                  appliedDepartment,
-                  appliedSubDepartment,
-                  appliedStartDate,
-                  appliedEndDate
-                );
+          // Fetch remaining pages to get all matching documents
+          const totalPages = effectivePagination?.totalPages || 1;
+          if (totalPages > 1) {
+            // Get all pages except the current page
+            const remainingPages = [];
+            for (let p = 1; p <= totalPages; p++) {
+              if (p !== currentPage) {
+                remainingPages.push(p);
+              }
+            }
+
+            try {
+              const pageResults = await Promise.all(
+                remainingPages.map((p) =>
+                  fetchDocuments(
+                    Number(selectedRole?.ID),
+                    p,
+                    debouncedSearchTerm,
+                    appliedDepartment,
+                    appliedSubDepartment,
+                    appliedStartDate,
+                    appliedEndDate
+                  )
+                )
+              );
+
+              pageResults.forEach((nextResp) => {
                 const nextRaw = nextResp.data as any;
                 const nextData = (nextRaw && (nextRaw.data ?? nextRaw)) as any;
                 const nextDocs = Array.isArray(nextData?.documents) ? nextData.documents : [];
@@ -350,20 +364,19 @@ const MyDocuments: React.FC = () => {
                   const docSubDeptId = Number(doc.newdoc?.SubDepartmentId || 0);
                   return docDeptId === appliedDeptId && docSubDeptId === appliedSubDeptId;
                 });
-                filteredPageDocs = filteredPageDocs.concat(nextFiltered);
-              } catch (e) {
-                break;
-              }
-              nextPage += 1;
-            }
-            if (filteredPageDocs.length > ITEMS_PER_PAGE) {
-              filteredPageDocs = filteredPageDocs.slice(0, ITEMS_PER_PAGE);
+                allFilteredDocs = allFilteredDocs.concat(nextFiltered);
+              });
+            } catch (e) {
+              console.warn('Failed to fetch some pages:', e);
+              // Continue with what we have
             }
           }
 
-          setDocuments(filteredPageDocs);
+          // Store ALL matching documents (not just 10)
+          // Client-side pagination will handle slicing per page
+          setDocuments(allFilteredDocs);
           setPaginationData(effectivePagination);
-          // Filtering effect will keep the same set
+          // Filtering effect will handle additional filtering (confidential, etc.)
         }
         
         setError(""); // Clear any previous errors
@@ -374,7 +387,7 @@ const MyDocuments: React.FC = () => {
         setLoading(false);
         setFilterLoading(false);
       }
-    }, [selectedRole, currentPage, debouncedSearchTerm, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate]);
+    }, [selectedRole, debouncedSearchTerm, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate]);
 
   useEffect(() => {
     loadDocuments();
@@ -471,10 +484,28 @@ const MyDocuments: React.FC = () => {
     }
   }, [filteredDocs, user, loadDocuments]);
 
+  // Calculate pagination based on filtered documents
+  const totalFilteredItems = filteredDocs.length;
+  const totalFilteredPages = Math.ceil(totalFilteredItems / ITEMS_PER_PAGE);
+  
+  // Reset to page 1 if current page is beyond available pages
+  useEffect(() => {
+    if (totalFilteredPages > 0 && currentPage > totalFilteredPages) {
+      setCurrentPage(1);
+    }
+  }, [totalFilteredPages, currentPage]);
+  
+  // Get paginated documents for current page
+  const paginatedDocs = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredDocs.slice(startIndex, endIndex);
+  }, [filteredDocs, currentPage]);
+
   // Memoize the document cards to prevent unnecessary re-renders
   // Use allocation permissions instead of module permissions
   const documentCards = useMemo(() => 
-    filteredDocs.map((document) => {
+    paginatedDocs.map((document) => {
       const doc = document.newdoc;
       // Preserve current filter state in URL when navigating to document
       const currentParams = new URLSearchParams();
@@ -503,7 +534,7 @@ const MyDocuments: React.FC = () => {
           onDelete={handleDelete}
         />
       );
-    }), [filteredDocs, allocationPermissions, navigate, handleDelete, debouncedSearchTerm, department, subDepartment, startDate, endDate, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate, currentPage]
+    }), [paginatedDocs, allocationPermissions, navigate, handleDelete, debouncedSearchTerm, department, subDepartment, startDate, endDate, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate, currentPage]
   );
   // Department/subDept options
   // const departments = Array.from(new Set(documents.map((d) => d.DepartmentId)));
@@ -733,7 +764,8 @@ const MyDocuments: React.FC = () => {
       <div className="mb-4 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <p className="text-sm text-gray-600">
-            Showing {filteredDocs.length} of {appliedStartDate || appliedEndDate ? documents.length : paginationData?.totalItems || 0} documents
+            Showing {paginatedDocs.length} of {totalFilteredItems} documents
+            {totalFilteredPages > 1 && ` (Page ${currentPage} of ${totalFilteredPages})`}
           </p>
           {(appliedDepartment || appliedSubDepartment || debouncedSearchTerm || appliedStartDate || appliedEndDate) && (
             <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
@@ -837,12 +869,12 @@ const MyDocuments: React.FC = () => {
           </p>
         </div>
       )}
-      {/* Show pagination controls - hide when date filtering is active */}
-      {!appliedStartDate && !appliedEndDate && (
+      {/* Show pagination controls - only show if there are multiple pages */}
+      {totalFilteredPages > 1 && (
         <PaginationControls
           currentPage={currentPage}
-          totalItems={paginationData?.totalItems}
-          itemsPerPage={10}
+          totalItems={totalFilteredItems}
+          itemsPerPage={ITEMS_PER_PAGE}
           onPageChange={setCurrentPage}
           // onItemsPerPageChange={setItemsPerPage}
         />
