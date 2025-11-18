@@ -68,6 +68,7 @@ export default function DocumentUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [preselectedFieldForOcr, setPreselectedFieldForOcr] = useState<number | null>(null);
+  const [ocrAppliedFields, setOcrAppliedFields] = useState<{ fieldId: number; text: string }[]>([]);
   const [newDoc, setNewDoc] = useState<Partial<DocumentUploadProp>>({
     FileName: '',
     FileDescription: '',
@@ -503,9 +504,17 @@ export default function DocumentUpload() {
 
   const handleOcrApplyToField = (fieldId: number, text: string) => {
     handleDynamicFieldChange(fieldId, text);
+    setOcrAppliedFields((prev) => {
+      const filtered = prev.filter((entry) => entry.fieldId !== fieldId);
+      return [...filtered, { fieldId, text }];
+    });
+    toast.success(`Text applied to field successfully`);
+  };
+
+  const handleCloseOcrModal = () => {
     setIsOcrModalOpen(false);
     setPreselectedFieldForOcr(null);
-    toast.success(`Text applied to field successfully`);
+    setOcrAppliedFields([]);
   };
 
   // Check if file is OCR-compatible
@@ -950,11 +959,12 @@ export default function DocumentUpload() {
       {selectedFile && (
         <OCRModal
           isOpen={isOcrModalOpen}
-          onClose={() => setIsOcrModalOpen(false)}
+          onClose={handleCloseOcrModal}
           file={selectedFile}
           fields={getActiveFields().filter(f => f.Type !== 'date' && f.Type !== 'Date')}
           onApplyToField={handleOcrApplyToField}
           preselectedFieldId={preselectedFieldForOcr}
+          usedSelections={ocrAppliedFields}
         />
       )}
 

@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Copy,
+  ShieldCheck,
 } from 'lucide-react';
 import { runOCR } from '../utils/ocrService';
 import { FieldAllocation } from '../utils/fieldAllocationService';
@@ -23,6 +24,7 @@ interface OCRModalProps {
   fields: FieldAllocation[]; // Text fields only
   onApplyToField: (fieldId: number, text: string) => void;
   preselectedFieldId?: number | null; // Optional: pre-select a field when opening
+  usedSelections?: { fieldId: number; text: string }[];
 }
 
 export const OCRModal: React.FC<OCRModalProps> = ({
@@ -32,6 +34,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
   fields,
   onApplyToField,
   preselectedFieldId = null,
+  usedSelections = [],
 }) => {
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
   const [ocrText, setOcrText] = useState('');
@@ -39,6 +42,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [hasRunOCR, setHasRunOCR] = useState(false);
+  const usedFieldIds = usedSelections.map((entry) => entry.fieldId);
 
   // Reset state when modal closes or set preselected field when opens
   useEffect(() => {
@@ -48,11 +52,19 @@ export const OCRModal: React.FC<OCRModalProps> = ({
       setSelectedFieldId(null);
       setHasRunOCR(false);
       setProgress(0);
-    } else if (preselectedFieldId) {
+    } else if (preselectedFieldId && !usedFieldIds.includes(preselectedFieldId)) {
       // Pre-select field when modal opens with preselected field
       setSelectedFieldId(preselectedFieldId);
+    } else if (preselectedFieldId && usedFieldIds.includes(preselectedFieldId)) {
+      toast.error('This field already has OCR text applied');
     }
-  }, [isOpen, preselectedFieldId]);
+  }, [isOpen, preselectedFieldId, usedFieldIds]);
+
+  useEffect(() => {
+    if (selectedFieldId && usedFieldIds.includes(selectedFieldId)) {
+      setSelectedFieldId(null);
+    }
+  }, [usedFieldIds, selectedFieldId]);
 
   // Get selected text from user selection
   useEffect(() => {
@@ -130,10 +142,11 @@ export const OCRModal: React.FC<OCRModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Filter to text fields only (exclude date fields)
+  // Filter to text fields only (exclude date fields) and remove already used fields
   const textFields = fields.filter((f) => f.Type !== 'date' && f.Type !== 'Date');
+  const availableFields = textFields.filter((field) => !usedFieldIds.includes(field.ID));
 
-  const fieldOptions = textFields.map((field) => ({
+  const fieldOptions = availableFields.map((field) => ({
     value: field.ID.toString(),
     label: field.Field || field.Description || `Field ${field.ID}`,
   }));
@@ -194,6 +207,12 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                 <p className="text-sm text-amber-600 flex items-center gap-2 mt-2">
                   <AlertCircle className="w-4 h-4" />
                   No text fields available for this document type
+                </p>
+              )}
+              {usedSelections.length > 0 && (
+                <p className="text-xs text-blue-600 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  Fields already applied via OCR can no longer be selected.
                 </p>
               )}
             </div>
@@ -292,6 +311,31 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                       Selected Text:
                     </p>
                     <p className="text-sm text-gray-800">{selectedText}</p>
+                  </div>
+                )}
+
+                {usedSelections.length > 0 && (
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                    <p className="text-xs font-semibold text-gray-600 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4" />
+                      Already Applied
+                    </p>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {usedSelections.map((entry) => {
+                        const field = fields.find((f) => f.ID === entry.fieldId);
+                        return (
+                          <div
+                            key={entry.fieldId}
+                            className="p-2 bg-white rounded-lg border border-gray-200 text-xs text-gray-700"
+                          >
+                            <span className="font-semibold text-gray-900">
+                              {field?.Field || `Field ${entry.fieldId}`}:
+                            </span>{' '}
+                            <span className="line-clamp-2">{entry.text}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
