@@ -1,11 +1,14 @@
 import React from "react";
-import { Outlet } from "react-router-dom";
+import { useLocation, useOutlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { Toaster } from "react-hot-toast";
 import PageTransition from "./PageTransition";
 
 const Layout: React.FC = () => {
+  const location = useLocation();
+  const outlet = useOutlet();
+
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
@@ -13,8 +16,8 @@ const Layout: React.FC = () => {
         <Header />
         <main className="flex-1 overflow-y-auto p-2 md:p-6">
           <div className="mx-auto max-w-7xl">
-            <PageTransition>
-              <Outlet />
+            <PageTransition locationKey={location.pathname}>
+              {outlet}
             </PageTransition>
           </div>
         </main>

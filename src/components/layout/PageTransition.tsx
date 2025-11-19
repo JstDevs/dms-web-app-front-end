@@ -1,32 +1,52 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from "react";
 
 interface PageTransitionProps {
   children: React.ReactNode;
+  locationKey: string;
 }
 
-const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
-  const location = useLocation();
-  const [displayLocation, setDisplayLocation] = useState(location.pathname);
-  const [transitionStage, setTransitionStage] = useState<'fadeIn' | 'fadeOut'>('fadeIn');
-  const prevLocationRef = useRef(location.pathname);
+type TransitionStage = "fadeIn" | "fadeOut";
+
+const PageTransition: React.FC<PageTransitionProps> = ({
+  children,
+  locationKey,
+}) => {
+  const [transitionStage, setTransitionStage] =
+    useState<TransitionStage>("fadeIn");
+  const [displayState, setDisplayState] = useState<{
+    pathname: string;
+    node: React.ReactNode;
+  }>({
+    pathname: locationKey,
+    node: children,
+  });
+
+  const pendingStateRef = useRef<{
+    pathname: string;
+    node: React.ReactNode;
+  } | null>(null);
 
   useEffect(() => {
-    if (location.pathname !== prevLocationRef.current) {
-      // Start fade out
-      setTransitionStage('fadeOut');
-      prevLocationRef.current = location.pathname;
+    if (locationKey !== displayState.pathname) {
+      pendingStateRef.current = {
+        pathname: locationKey,
+        node: children,
+      };
+      setTransitionStage("fadeOut");
+    } else {
+      // Same route but content updated (e.g., filters) – render immediately.
+      setDisplayState({ pathname: locationKey, node: children });
     }
-  }, [location.pathname]);
+  }, [children, locationKey, displayState.pathname]);
 
   const handleTransitionEnd = () => {
-    if (transitionStage === 'fadeOut') {
-      // Fade out complete, update location and fade in
-      setDisplayLocation(location.pathname);
-      // Use setTimeout to ensure DOM update happens before fade in
-      setTimeout(() => {
-        setTransitionStage('fadeIn');
-      }, 10);
+    if (transitionStage === "fadeOut") {
+      const nextState = pendingStateRef.current;
+      setDisplayState(
+        nextState ?? { pathname: locationKey, node: children }
+      );
+      pendingStateRef.current = null;
+      requestAnimationFrame(() => setTransitionStage("fadeIn"));
     }
   };
 
@@ -35,8 +55,8 @@ const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
       className={`page-transition-wrapper page-transition-${transitionStage}`}
       onAnimationEnd={handleTransitionEnd}
     >
-      <div key={displayLocation} className="page-transition-content">
-        {children}
+      <div key={displayState.pathname} className="page-transition-content">
+        {displayState.node}
       </div>
     </div>
   );
