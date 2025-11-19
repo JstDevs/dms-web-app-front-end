@@ -78,7 +78,7 @@ const Login: React.FC = () => {
                 User Name
               </label>
               <input
-                id="userName"
+                id="userNameLogin"
                 name="email"
                 type="text"
                 autoComplete="text"
@@ -94,7 +94,7 @@ const Login: React.FC = () => {
                 Password
               </label>
               <input
-                id="password"
+                id="passwordLogin"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"

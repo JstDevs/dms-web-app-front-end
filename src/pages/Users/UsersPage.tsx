@@ -305,6 +305,7 @@ export const UsersPage: React.FC = () => {
                 <Input
                   label={'Username (No Spaces Allowed)'}
                   value={formData.username}
+                  autoComplete='new-password'
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -360,6 +361,7 @@ export const UsersPage: React.FC = () => {
                     <Input
                       label={isEditing ? 'New Password (optional)' : 'Password'}
                       type="password"
+                      autoComplete='new-password'
                       value={formData.password}
                       onChange={(e) =>
                         setFormData({ ...formData, password: e.target.value })
@@ -372,6 +374,7 @@ export const UsersPage: React.FC = () => {
                       <Input
                         label="Confirm Password"
                         type="password"
+                        autoComplete='new-password'
                         value={formData.confirmPassword}
                         onChange={(e) =>
                           setFormData({
