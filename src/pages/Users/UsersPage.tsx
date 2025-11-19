@@ -13,6 +13,10 @@ import { deleteUserSoft, registerUser, updateUser } from '@/api/auth';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { logSystemActivity } from '@/utils/activityLogger';
+import {
+  getPasswordValidationErrors,
+  PASSWORD_REQUIREMENTS_TEXT,
+} from '@/utils/passwordValidation';
 import axios from '@/api/axios';
 
 export const UsersPage: React.FC = () => {
@@ -30,6 +34,8 @@ export const UsersPage: React.FC = () => {
     password: '',
     confirmPassword: '',
   });
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const formRef = useRef<HTMLDivElement>(null);
@@ -37,6 +43,26 @@ export const UsersPage: React.FC = () => {
   useEffect(() => {
     if (users) setLocalUsers(users);
   }, [users]);
+
+  useEffect(() => {
+    if (formData.password) {
+      setPasswordErrors(getPasswordValidationErrors(formData.password));
+    } else {
+      setPasswordErrors([]);
+    }
+  }, [formData.password]);
+
+  useEffect(() => {
+    if (!formData.confirmPassword) {
+      setConfirmPasswordError('');
+      return;
+    }
+    setConfirmPasswordError(
+      formData.password === formData.confirmPassword
+        ? ''
+        : 'Passwords do not match.'
+    );
+  }, [formData.password, formData.confirmPassword]);
 
   const filteredUsers = localUsers?.filter((user) =>
     user.UserName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -51,14 +77,6 @@ export const UsersPage: React.FC = () => {
   // ---------- Create USERS-------------
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-    if (formData.password.length < 3) {
-      toast.error('Password must be at least 3 characters long');
-      return;
-    }
     if (
       !formData.password ||
       !formData.confirmPassword ||
@@ -66,6 +84,17 @@ export const UsersPage: React.FC = () => {
       accessLevelValue.length === 0
     ) {
       toast.error('Please fill out all fields');
+      return;
+    }
+    const passwordValidationErrors = getPasswordValidationErrors(
+      formData.password
+    );
+    if (passwordValidationErrors.length) {
+      toast.error(passwordValidationErrors[0]);
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
       return;
     }
 
@@ -119,13 +148,18 @@ export const UsersPage: React.FC = () => {
 
     // Only validate password if user has permission to update it
     if (canUpdatePassword(currentUser)) {
-      if (formData.password && formData.password !== formData.confirmPassword) {
-        toast.error('Passwords do not match');
-        return;
-      }
-      if (formData.password && formData.password.length < 3) {
-        toast.error('Password must be at least 3 characters long');
-        return;
+      if (formData.password) {
+        const passwordValidationErrors = getPasswordValidationErrors(
+          formData.password
+        );
+        if (passwordValidationErrors.length) {
+          toast.error(passwordValidationErrors[0]);
+          return;
+        }
+        if (formData.password !== formData.confirmPassword) {
+          toast.error('Passwords do not match');
+          return;
+        }
       }
     }
 
@@ -191,6 +225,8 @@ export const UsersPage: React.FC = () => {
         password: '',
         confirmPassword: '',
       });
+      setPasswordErrors([]);
+      setConfirmPasswordError('');
       setAccessLevelValue([]);
       setIsEditing(false);
       setCurrentUser(null);
@@ -368,8 +404,12 @@ export const UsersPage: React.FC = () => {
                       }
                       required={!isEditing}
                       placeholder="Password"
-                      min={6}
+                  minLength={6}
+                  error={passwordErrors[0]}
                     />
+                <p className="text-xs text-gray-500">
+                  {PASSWORD_REQUIREMENTS_TEXT}
+                </p>
                     {(formData.password || !isEditing) && (
                       <Input
                         label="Confirm Password"
@@ -382,8 +422,9 @@ export const UsersPage: React.FC = () => {
                             confirmPassword: e.target.value,
                           })
                         }
-                        min={6}
+                    minLength={6}
                         required={!isEditing}
+                    error={confirmPasswordError || undefined}
                       />
                     )}
                   </>
@@ -442,6 +483,8 @@ export const UsersPage: React.FC = () => {
                         password: '',
                         confirmPassword: '',
                       });
+                    setPasswordErrors([]);
+                    setConfirmPasswordError('');
                     }}
                     className="bg-gray-100 hover:bg-gray-200 px-2"
                   >

@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeftCircle, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { changePassword } from '@/api/auth';
+import {
+  getPasswordValidationErrors,
+  PASSWORD_REQUIREMENTS_TEXT,
+} from '@/utils/passwordValidation';
 
 const ChangePassword: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +15,8 @@ const ChangePassword: React.FC = () => {
     newPassword: '',
     confirmPassword: '',
   });
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
   const [showPassword, setShowPassword] = useState({
     current: false,
@@ -19,10 +25,34 @@ const ChangePassword: React.FC = () => {
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+    const { name, value } = e.target;
+    setForm((prev) => {
+      const updated = {
+        ...prev,
+        [name]: value,
+      };
+
+      if (name === 'newPassword') {
+        setPasswordErrors(
+          value ? getPasswordValidationErrors(value) : []
+        );
+        setConfirmPasswordError(
+          updated.confirmPassword && value !== updated.confirmPassword
+            ? 'New passwords do not match.'
+            : ''
+        );
+      }
+
+      if (name === 'confirmPassword') {
+        setConfirmPasswordError(
+          value && updated.newPassword !== value
+            ? 'New passwords do not match.'
+            : ''
+        );
+      }
+
+      return updated;
+    });
   };
 
   const togglePassword = (field: 'current' | 'new' | 'confirm') => {
@@ -40,7 +70,15 @@ const ChangePassword: React.FC = () => {
       return;
     }
 
+    const validationErrors = getPasswordValidationErrors(form.newPassword);
+    if (validationErrors.length) {
+      setPasswordErrors(validationErrors);
+      toast.error(validationErrors[0]);
+      return;
+    }
+
     if (form.newPassword !== form.confirmPassword) {
+      setConfirmPasswordError('New passwords do not match.');
       toast.error('New passwords do not match');
       return;
     }
@@ -57,13 +95,16 @@ const ChangePassword: React.FC = () => {
         newPassword: '',
         confirmPassword: '',
       });
+      setPasswordErrors([]);
+      setConfirmPasswordError('');
     }
   };
 
   const renderPasswordInput = (
     label: string,
     name: 'currentPassword' | 'newPassword' | 'confirmPassword',
-    showKey: 'current' | 'new' | 'confirm'
+    showKey: 'current' | 'new' | 'confirm',
+    options?: { error?: string; helperText?: string; minLength?: number }
   ) => (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -79,6 +120,7 @@ const ChangePassword: React.FC = () => {
             label !== 'Confirm New Password' ? 'Enter' : ''
           } ${label}`}
           className="block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 pr-10"
+          minLength={options?.minLength}
         />
         <button
           type="button"
@@ -88,6 +130,12 @@ const ChangePassword: React.FC = () => {
           {showPassword[showKey] ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
       </div>
+      {options?.helperText && (
+        <p className="mt-1 text-xs text-gray-500">{options.helperText}</p>
+      )}
+      {options?.error && (
+        <p className="mt-1 text-sm text-red-600">{options.error}</p>
+      )}
     </div>
   );
 
@@ -105,11 +153,19 @@ const ChangePassword: React.FC = () => {
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         {renderPasswordInput('Current Password', 'currentPassword', 'current')}
-        {renderPasswordInput('New Password', 'newPassword', 'new')}
+        {renderPasswordInput('New Password', 'newPassword', 'new', {
+          error: passwordErrors[0],
+          helperText: PASSWORD_REQUIREMENTS_TEXT,
+          minLength: 6,
+        })}
         {renderPasswordInput(
           'Confirm New Password',
           'confirmPassword',
-          'confirm'
+          'confirm',
+          {
+            error: confirmPasswordError,
+            minLength: 6,
+          }
         )}
 
         <button
