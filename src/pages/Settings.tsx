@@ -1,8 +1,9 @@
 import React, {useState} from 'react';
-import { UserCircle, Bell, Lock, Shield, User, ChevronDown } from 'lucide-react';
+import { UserCircle, Bell, Lock, Shield, User, ChevronDown, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import toast from 'react-hot-toast';
 
 const Settings: React.FC = () => {
   const { logout, user, selectedRole, setSelectedRole } = useAuth();
@@ -18,6 +19,10 @@ const Settings: React.FC = () => {
     if (fullRole) {
       setSelectedRole(fullRole);
     }
+  };
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
   return (
@@ -66,7 +71,7 @@ const Settings: React.FC = () => {
                     <User className="h-5 w-5 text-gray-400 mr-3" />
                     <div className="text-left">
                       <p className="text-sm font-medium text-gray-900">
-                        Change role
+                        Switch Roles
                       </p>
                       <p className="text-xs text-gray-500">
                         Activate another role for your account
@@ -114,33 +119,30 @@ const Settings: React.FC = () => {
                   </div>
                 </button>
 
-                {/* <button className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100">
+                {/* Test Button */}
+                {/* <button
+                  onClick={() => {
+                    toast.success('This is a test notification!');
+                  }}
+                >
+                  Test Notification
+                </button> */}
+
+                {/* Sign Out button */}
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-between p-4 bg-red-50 rounded-lg hover:bg-gray-100"
+                >
                   <div className="flex items-center">
-                    <Bell className="h-5 w-5 text-gray-400 mr-3" />
+                    <LogOut className="h-5 w-5 text-red-400 mr-3" />
                     <div className="text-left">
-                      <p className="text-sm font-medium text-gray-900">
-                        Notification Preferences
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Manage your notification settings
+                      <p className="text-sm font-medium text-red-600">
+                        Sign Out
                       </p>
                     </div>
                   </div>
                 </button>
 
-                <button className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100">
-                  <div className="flex items-center">
-                    <Shield className="h-5 w-5 text-gray-400 mr-3" />
-                    <div className="text-left">
-                      <p className="text-sm font-medium text-gray-900">
-                        Security Settings
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Configure your security preferences
-                      </p>
-                    </div>
-                  </div>
-                </button> */}
               </div>
             </div>
           </div>
