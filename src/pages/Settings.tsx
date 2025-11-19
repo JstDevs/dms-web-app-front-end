@@ -1,13 +1,25 @@
-import React from 'react';
-import { UserCircle, Bell, Lock, Shield } from 'lucide-react';
+import React, {useState} from 'react';
+import { UserCircle, Bell, Lock, Shield, User, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 const Settings: React.FC = () => {
-  const { user } = useAuth();
+  const { logout, user, selectedRole, setSelectedRole } = useAuth();
+  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const navigate = useNavigate();
   const allocationPermissions = useModulePermissions(12); // 1 = MODULE_ID
+
+  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = parseInt(e.target.value);
+    setSelectedRoleId(selectedId);
+
+    const fullRole = user?.accessList.find((role) => role.ID === selectedId);
+    if (fullRole) {
+      setSelectedRole(fullRole);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <h1 className="text-3xl font-bold text-blue-800 mb-6">Profile</h1>
@@ -45,6 +57,42 @@ const Settings: React.FC = () => {
                 Account Settings
               </h3>
               <div className="space-y-4">
+
+                {/* Change Role Button */}
+                <button
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100"
+                >
+                  <div className="flex items-center">
+                    <User className="h-5 w-5 text-gray-400 mr-3" />
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-gray-900">
+                        Change role
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Activate another role for your account
+                      </p>
+                    </div>
+                  </div>                  
+                  <div className="flex items-center relative">
+                    <select
+                      value={selectedRole?.ID || ''}
+                      onChange={handleRoleChange}
+                      className="text-sm border border-gray-300 rounded-lg px-3 py-2 pr-8 text-gray-700 bg-white hover:border-blue-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-[0_2px_4px_rgba(0,0,0,0.1)] appearance-none cursor-pointer"
+                    >
+                      <option value="" hidden>
+                        Select Role
+                      </option>
+                      {user.accessList.map((role) => (
+                        <option key={role.ID} value={role.ID}>
+                          {role.Description}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </div>
+                </button>
+
+                {/* Change Password Button */}
                 <button
                   onClick={() => {
                     (allocationPermissions?.Add ||

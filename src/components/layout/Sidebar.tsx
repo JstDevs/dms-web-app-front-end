@@ -46,7 +46,7 @@ const navItems: NavItem[] = [
         submenu: [
           { name: 'Manual Upload', path: '/documents/manual-upload', moduleId: 2 },
           { name: 'Batch Upload', path: '/documents/batch-upload', moduleId: 3 },
-          { name: 'OCR Upload', path: '/ocr/upload', moduleId: 2 },
+          // { name: 'OCR Upload', path: '/ocr/upload', moduleId: 2 },
         ]
       },
       // {
@@ -101,7 +101,7 @@ const navItems: NavItem[] = [
         icon: FileText,
         path: '/users/profile',
         submenu: [
-          { name: 'Profile', path: '/users/profile'},
+          // { name: 'Profile', path: '/users/profile'},
           { name: 'Users', path: '/users/main', moduleId: 11 },
           { name: 'User Access', path: '/users/access', moduleId: 12 },
           { name: 'Audit Trail', path: '/users/audit-trail', moduleId: 13 },

@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, UserCircle, ChevronDown, Settings, LogOut } from 'lucide-react';
+import { Bell, UserCircle, ChevronDown, Settings, LogOut, User } from 'lucide-react';
 import { useNotification } from '@/contexts/NotificationContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'react-hot-toast';
 
 const Header: React.FC = () => {
   const { logout, user, selectedRole, setSelectedRole } = useAuth();
@@ -48,7 +49,8 @@ const Header: React.FC = () => {
     const fullRole = user?.accessList.find((role) => role.ID === selectedId);
     if (fullRole) {
       setSelectedRole(fullRole);
-      navigate(`/dashboard`);
+      toast.success(selectedRole?.ID + ' role selected');
+      // navigate(`/dashboard`);
     }
   };
 
@@ -60,8 +62,9 @@ const Header: React.FC = () => {
 
         <div className="ml-4 flex items-center gap-3 md:ml-6">
           {/* ✅ Enhanced Role Selector */}
+
           {user && user?.accessList?.length > 1 && (
-            <div className="relative">
+            <div className="relative hidden">
               <select
                 value={selectedRole?.ID || ''}
                 onChange={handleRoleChange}
@@ -214,9 +217,9 @@ const Header: React.FC = () => {
                     onClick={() => setIsProfileMenuOpen(false)}
                   >
                     <div className="p-1.5 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
-                      <Settings className="h-4 w-4 text-blue-600" />
+                      <User className="h-4 w-4 text-blue-600" />
                     </div>
-                    <span className="font-medium">Settings</span>
+                    <span className="font-medium">Profile</span>
                   </Link>
                   <div className="border-t border-gray-100 my-1"></div>
                   <button
@@ -238,5 +241,7 @@ const Header: React.FC = () => {
     </header>
   );
 };
+
+
 
 export default Header;
