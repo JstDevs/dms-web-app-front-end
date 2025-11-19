@@ -5,6 +5,45 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DMS - Document Management System</title>
+    <script>
+      // Suppress Tesseract LSTM errors as early as possible (before any modules load)
+      (function() {
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        const originalLog = console.log;
+        
+        // Override console.error
+        console.error = function(...args) {
+          const msg = String(args[0] || '');
+          // Suppress LSTM errors - they're non-fatal
+          if (msg.includes('LSTM requested, but not present') || 
+              msg.includes('LSTM') && (msg.includes('tesseract') || msg.includes('Loading'))) {
+            return; // Suppress completely
+          }
+          originalError.apply(console, args);
+        };
+        
+        // Override console.warn
+        console.warn = function(...args) {
+          const msg = String(args[0] || '');
+          // Suppress LSTM warnings
+          if (msg.includes('LSTM requested, but not present') || 
+              msg.includes('LSTM') && (msg.includes('tesseract') || msg.includes('Loading'))) {
+            return; // Suppress completely
+          }
+          originalWarn.apply(console, args);
+        };
+        
+        // Also catch in console.log (some WASM modules use this)
+        console.log = function(...args) {
+          const msg = String(args[0] || '');
+          if (msg.includes('LSTM requested, but not present')) {
+            return; // Suppress
+          }
+          originalLog.apply(console, args);
+        };
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
