@@ -38,15 +38,15 @@ const navItems: NavItem[] = [
     icon: FileText,
     path: '/documents/library',
     submenu: [
-      { name: 'Library', path: '/documents/library', moduleId: 4 },
+      { name: 'Library', path: '/documents/library', moduleId: 1 },
       {
         name: 'Upload',
         icon: FileText,
         path: '/documents/manual-upload',
         submenu: [
-          { name: 'Manual Upload', path: '/documents/manual-upload', moduleId: 3 },
-          { name: 'Batch Upload', path: '/documents/batch-upload', moduleId: 8 },
-          { name: 'OCR Upload', path: '/ocr/upload', moduleId: 9 },
+          { name: 'Manual Upload', path: '/documents/manual-upload', moduleId: 2 },
+          { name: 'Batch Upload', path: '/documents/batch-upload', moduleId: 3 },
+          { name: 'OCR Upload', path: '/ocr/upload', moduleId: 2 },
         ]
       },
       // {
@@ -65,16 +65,16 @@ const navItems: NavItem[] = [
     icon: Settings,
     path: '/departments',
     submenu: [
-      { name: 'Department', path: '/departments', moduleId: 1 },
+      { name: 'Department', path: '/departments', moduleId: 4 },
       {
         name: 'Document Settings',
         icon: FileText,
         path: '/documents/upload',
         submenu: [
-          { name: 'Document Type', path: '/settings/doc-type', moduleId: 2 },
-          { name: 'Fields', path: '/settings/fields', moduleId: 11 },
+          { name: 'Document Type', path: '/settings/doc-type', moduleId: 5 },
+          { name: 'Fields', path: '/settings/fields', moduleId: 6 },
           { name: 'Allocation', path: '/settings/allocation', moduleId: 7 },
-          { name: 'Template', path: '/settings/template', moduleId: 10 },
+          { name: 'Template', path: '/settings/template', moduleId: 8 },
         ]
       },
       // {
@@ -93,7 +93,7 @@ const navItems: NavItem[] = [
         submenu: [
           // { name: 'Collaboration Access', path: '/yyy', moduleId: 9 },
           { name: 'Approval Matrix', path: '/collaboration/approval-matrix', moduleId: 9 },
-          { name: 'Masking Setup', path: '/collaboration/masking', moduleId: 9 },
+          { name: 'Masking Setup', path: '/collaboration/masking', moduleId: 10 },
         ]
       },
       {
@@ -101,10 +101,10 @@ const navItems: NavItem[] = [
         icon: FileText,
         path: '/users/profile',
         submenu: [
-          { name: 'Profile', path: '/users/profile', moduleId: 12 },
-          { name: 'Users', path: '/users/main', moduleId: 5 },
-          { name: 'User Access', path: '/users/access', moduleId: 6 },
-          { name: 'Audit Trail', path: '/users/audit-trail', moduleId: 1 },
+          { name: 'Profile', path: '/users/profile'},
+          { name: 'Users', path: '/users/main', moduleId: 11 },
+          { name: 'User Access', path: '/users/access', moduleId: 12 },
+          { name: 'Audit Trail', path: '/users/audit-trail', moduleId: 13 },
         ]
       },
     ],
