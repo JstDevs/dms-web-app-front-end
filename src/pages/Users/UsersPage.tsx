@@ -276,325 +276,357 @@ export const UsersPage: React.FC = () => {
 
   // console.log({ paginatedDepartments });
   return (
-    <div className="flex flex-col bg-white rounded-md shadow-lg p-3 sm:p-6">
-      <header className="flex justify-between items-center gap-4 flex-wrap">
-        <div className="text-left flex-1">
-          <h1 className="text-3xl font-bold text-blue-800">Users</h1>
-          <p className="mt-2 text-gray-600">
-            Manage system users and access permissions
-
-            {/* 
-            <br/> View is   [{JSON.stringify(userPagePermissions?.View?.valueOf())}]
-            <br/> Add is    [{JSON.stringify(userPagePermissions?.Add?.valueOf())}]
-            <br/> Edit is   [{JSON.stringify(userPagePermissions?.Edit?.valueOf())}]
-            <br/> Delete is [{JSON.stringify(userPagePermissions?.Delete?.valueOf())}]
-            <br/> Print is  [{JSON.stringify(userPagePermissions?.Print?.valueOf())}] 
-            */}
-          </p>
-        </div>
-        <div className="w-full sm:w-auto">
-          {userPagePermissions?.Add && !isCreating && !isEditing && (
-            <Button
-              onClick={() => {
-                setIsCreating(true);
-                setIsEditing(false);
-                setFormData({
-                  username: '',
-                  password: '',
-                  confirmPassword: '',
-                });
-              }}
-              className="w-full sm:w-auto px-2 bg-blue-600 text-white hover:bg-blue-700"
-            >
-              <UserPlus className="h-4 w-4" />
-              Create User
-            </Button>
-          )}
+    <div className="flex flex-col bg-white rounded-xl shadow-lg min-h-full flex-1 overflow-hidden">
+      {/* Enhanced Header */}
+      <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-6 sm:px-8 sm:py-8">
+        <div className="flex justify-between items-start gap-4 flex-wrap">
+          <div className="flex-1">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="h-10 w-10 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <UserPlus className="h-6 w-6" />
+              </div>
+              <h1 className="text-3xl font-bold">Users</h1>
+            </div>
+            <p className="text-blue-100 text-sm sm:text-base mt-1">
+              Manage system users and access permissions
+            </p>
+          </div>
+          <div className="w-full sm:w-auto">
+            {userPagePermissions?.Add && !isCreating && !isEditing && (
+              <Button
+                onClick={() => {
+                  setIsCreating(true);
+                  setIsEditing(false);
+                  setFormData({
+                    username: '',
+                    password: '',
+                    confirmPassword: '',
+                  });
+                  setAccessLevelValue([]);
+                }}
+                className="w-full sm:w-auto flex items-center space-x-2 bg-white text-blue-600 hover:bg-blue-50 font-semibold px-4 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <UserPlus className="h-5 w-5" />
+                <span>Create User</span>
+              </Button>
+            )}
+          </div>
         </div>
       </header>
-      {loading ? (
-        <p className="text-center font-bold text-2xl">Loading...</p>
-      ) : (
-        <div className="mt-6">
-          <div className="flex flex-row items-center justify-between flex-wrap gap-4 py-4">
-            <h2 className="text-lg font-semibold">System Users</h2>
-            <div className="w-full sm:w-64">
-              <Input
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-                icon={<Search className="h-4 w-4 text-gray-400" />}
-              />
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="p-6 sm:p-8">
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <p className="text-gray-600 font-medium">Loading users...</p>
+              </div>
             </div>
-          </div>
-
-          {(isCreating || isEditing) && (
-            <div className="mb-6 p-4 border rounded-md" ref={formRef}>
-              <h3 className="text-lg font-medium mb-4">
-                {isEditing ? 'Edit User' : 'Create User'}
-              </h3>
-              <form
-                onSubmit={isEditing ? handleEditSubmit : handleCreateSubmit}
-                className="space-y-4"
-              >
-                <Input
-                  label={'Username (No Spaces Allowed)'}
-                  value={formData.username}
-                  autoComplete='new-password'
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      username: e.target.value.trim(),
-                    })
-                  }
-                  placeholder="Enter username"
-                  required
-                />
-                {accessOptions && (
-                  <Select.Root
-                    multiple
-                    collection={accessOptions}
-                    size="sm"
-                    className="w-full"
-                    value={accessLevelValue}
-                    onValueChange={(e) => {
-                      setAccessLevelValue(e.value);
-                    }}
-                  >
-                    <Select.HiddenSelect />
-                    <Select.Label>Access Level</Select.Label>
-                    <Select.Control className="border px-2 rounded-md border-gray-300">
-                      <Select.Trigger>
-                        <Select.ValueText placeholder="Access Level" />
-                      </Select.Trigger>
-                      <Select.IndicatorGroup>
-                        <Select.Indicator />
-                      </Select.IndicatorGroup>
-                    </Select.Control>
-                    <Portal>
-                      <Select.Positioner>
-                        <Select.Content border={'medium'}>
-                          {accessOptions?.items?.map((accessType: any) => (
-                            <Select.Item
-                              item={accessType}
-                              key={accessType.value}
-                            >
-                              {accessType.label}
-                              <Select.ItemIndicator />
-                            </Select.Item>
-                          ))}
-                        </Select.Content>
-                      </Select.Positioner>
-                    </Portal>
-                  </Select.Root>
-                )}
-                {
-
-                // Unimportant function //  
-                // canUpdatePassword(currentUser) && (
-                  <>
+          ) : (
+            <div className="space-y-6">
+              {/* Search and Filter Section */}
+              <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800 mb-1">
+                      System Users
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      {filteredUsers?.length || 0} user{filteredUsers?.length !== 1 ? 's' : ''} found
+                    </p>
+                  </div>
+                  <div className="w-full sm:w-80">
                     <Input
-                      label={isEditing ? 'New Password (optional)' : 'Password'}
-                      type="password"
-                      autoComplete='new-password'
-                      value={formData.password}
-                      onChange={(e) =>
-                        setFormData({ ...formData, password: e.target.value })
-                      }
-                      required={!isEditing}
-                      placeholder="Password"
-                  minLength={6}
-                  error={passwordErrors[0]}
+                      placeholder="Search users..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full"
+                      icon={<Search className="h-4 w-4 text-gray-400" />}
                     />
-                <p className="text-xs text-gray-500">
-                  {PASSWORD_REQUIREMENTS_TEXT}
-                </p>
-                    {(formData.password || !isEditing) && (
+                  </div>
+                </div>
+              </div>
+
+              {/* Create/Edit Form */}
+              {(isCreating || isEditing) && (
+                <div 
+                  className="bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 border-gray-200 shadow-lg p-6 sm:p-8 transition-all duration-200" 
+                  ref={formRef}
+                >
+                  <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-200">
+                    <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                      isEditing ? 'bg-blue-100' : 'bg-green-100'
+                    }`}>
+                      {isEditing ? (
+                        <Edit className={`h-5 w-5 ${isEditing ? 'text-blue-600' : 'text-green-600'}`} />
+                      ) : (
+                        <UserPlus className="h-5 w-5 text-green-600" />
+                      )}
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800">
+                      {isEditing ? 'Edit User' : 'Create New User'}
+                    </h3>
+                  </div>
+                  
+                  <form
+                    onSubmit={isEditing ? handleEditSubmit : handleCreateSubmit}
+                    className="space-y-5"
+                  >
+                    <Input
+                      label={'Username (No Spaces Allowed)'}
+                      value={formData.username}
+                      autoComplete='new-password'
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          username: e.target.value.trim(),
+                        })
+                      }
+                      placeholder="Enter username"
+                      required
+                    />
+                    
+                    {accessOptions && (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-700">
+                          Access Level <span className="text-red-500">*</span>
+                        </label>
+                        <Select.Root
+                          multiple
+                          collection={accessOptions}
+                          size="sm"
+                          className="w-full"
+                          value={accessLevelValue}
+                          onValueChange={(e) => {
+                            setAccessLevelValue(e.value);
+                          }}
+                        >
+                          <Select.HiddenSelect />
+                          <Select.Control className="border-2 border-gray-200 px-4 py-2.5 rounded-lg hover:border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                            <Select.Trigger>
+                              <Select.ValueText placeholder="Select Access Level" />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                              <Select.Indicator />
+                            </Select.IndicatorGroup>
+                          </Select.Control>
+                          <Portal>
+                            <Select.Positioner>
+                              <Select.Content border={'medium'}>
+                                {accessOptions?.items?.map((accessType: any) => (
+                                  <Select.Item
+                                    item={accessType}
+                                    key={accessType.value}
+                                  >
+                                    {accessType.label}
+                                    <Select.ItemIndicator />
+                                  </Select.Item>
+                                ))}
+                              </Select.Content>
+                            </Select.Positioner>
+                          </Portal>
+                        </Select.Root>
+                      </div>
+                    )}
+
+                    <>
                       <Input
-                        label="Confirm Password"
+                        label={isEditing ? 'New Password (optional)' : 'Password'}
                         type="password"
                         autoComplete='new-password'
-                        value={formData.confirmPassword}
+                        value={formData.password}
                         onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            confirmPassword: e.target.value,
-                          })
+                          setFormData({ ...formData, password: e.target.value })
                         }
-                    minLength={6}
                         required={!isEditing}
-                    error={confirmPasswordError || undefined}
+                        placeholder="Enter password"
+                        minLength={6}
+                        error={passwordErrors[0]}
                       />
-                    )}
-                  </>
+                      <div className="bg-blue-50 border-l-4 border-blue-500 rounded-r-lg p-3">
+                        <p className="text-xs text-blue-800 font-medium">
+                          {PASSWORD_REQUIREMENTS_TEXT}
+                        </p>
+                      </div>
+                      {(formData.password || !isEditing) && (
+                        <Input
+                          label="Confirm Password"
+                          type="password"
+                          autoComplete='new-password'
+                          value={formData.confirmPassword}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              confirmPassword: e.target.value,
+                            })
+                          }
+                          minLength={6}
+                          required={!isEditing}
+                          error={confirmPasswordError || undefined}
+                        />
+                      )}
+                    </>
 
-                //)//
-                }
-                {
-                
-                // Unimportant function //    
-                // !canUpdatePassword(currentUser) && isEditing && (
-                //   <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                //     <p className="text-sm text-yellow-800">
-                //       You don't have permission to update this user's password.
-                //     </p>
-                //   </div>
-                // )
-                
-                }
-
-                {/* <Input
-                  label={isEditing ? 'New Password (optional)' : 'Password'}
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  required={!isEditing}
-                  placeholder="Password"
-                  min={6}
-                />
-                {(formData.password || !isEditing) && (
-                  <Input
-                    label="Confirm Password"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                    min={6}
-                    required={!isEditing}
-                  />
-                )} */}
-                <div className="flex justify-end space-x-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsCreating(false);
-                      setIsEditing(false);
-                      setCurrentUser(null);
-                      setFormData({
-                        username: '',
-                        password: '',
-                        confirmPassword: '',
-                      });
-                    setPasswordErrors([]);
-                    setConfirmPasswordError('');
-                    }}
-                    className="bg-gray-100 hover:bg-gray-200 px-2"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-2"
-                  >
-                    {isEditing ? 'Update' : 'Create'}
-                  </Button>
+                    <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsCreating(false);
+                          setIsEditing(false);
+                          setCurrentUser(null);
+                          setFormData({
+                            username: '',
+                            password: '',
+                            confirmPassword: '',
+                          });
+                          setPasswordErrors([]);
+                          setConfirmPasswordError('');
+                          setAccessLevelValue([]);
+                        }}
+                        className="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 hover:border-gray-400 font-medium transition-all duration-200"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all duration-200 font-semibold"
+                      >
+                        {isEditing ? 'Update User' : 'Create User'}
+                      </Button>
+                    </div>
+                  </form>
                 </div>
-              </form>
+              )}
+
+              {/* Users Table */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Username
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Access Level
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {paginatedDepartments?.length > 0 ? (
+                        paginatedDepartments?.map((user) => (
+                          <tr 
+                            key={user.ID} 
+                            className="hover:bg-blue-50/50 transition-colors duration-150"
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center space-x-3">
+                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                                  {user.UserName.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900">
+                                  {user.UserName}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-2">
+                                {user?.accessList?.length > 0
+                                  ? user?.accessList.map((access: any) => (
+                                      <span
+                                        key={access.ID}
+                                        className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full shadow-sm
+                                        ${
+                                          access?.Description === 'Administrator'
+                                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                                            : access?.Description === 'Manager'
+                                            ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
+                                            : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
+                                        }`}
+                                      >
+                                        {access?.Description || 'User'}
+                                      </span>
+                                    ))
+                                  : (
+                                    <span className="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-gray-200 text-gray-600">
+                                      No Access
+                                    </span>
+                                  )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex items-center justify-end space-x-2">
+                                {userPagePermissions?.Edit && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-blue-600 hover:text-white hover:bg-blue-600 rounded-lg px-3 py-2 transition-all duration-200"
+                                    onClick={() => handleEditClick(user)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {userPagePermissions?.Delete && (
+                                  <DeleteDialog
+                                    key={user.ID}
+                                    onConfirm={() => handleDelete(user.ID)}
+                                  >
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-red-600 hover:text-white hover:bg-red-600 rounded-lg px-3 py-2 transition-all duration-200"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </DeleteDialog>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={3}
+                            className="px-6 py-16 text-center"
+                          >
+                            <div className="flex flex-col items-center space-y-3">
+                              <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center">
+                                <Search className="h-8 w-8 text-gray-400" />
+                              </div>
+                              <p className="text-gray-500 font-medium">
+                                {searchTerm ? 'No users found matching your search' : 'No users found'}
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Pagination */}
+              {filteredUsers && filteredUsers.length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                  <PaginationControls
+                    currentPage={currentPage}
+                    totalItems={filteredUsers?.length || 0}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                    onItemsPerPageChange={setItemsPerPage}
+                  />
+                </div>
+              )}
             </div>
           )}
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Username
-                  </th>
-                  <th className="px-6 py-3 text-left text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Access Level
-                  </th>
-                  <th className="px-6 py-3 text-right text-base font-semibold text-gray-700 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedDepartments?.length > 0 ? (
-                  paginatedDepartments?.map((user) => (
-                    <tr key={user.ID} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {user.UserName}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500  space-x-1">
-                        {user?.accessList?.length > 0
-                          ? user?.accessList.map((access: any) => (
-                              <span
-                                key={access.ID}
-                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                            ${
-                              access?.Description === 'Administrator'
-                                ? 'bg-blue-100 text-blue-800'
-                                : access?.Description === 'Manager'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}
-                              >
-                                {access?.Description || 'User'}
-                              </span>
-                            ))
-                          : ''}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
-                        {userPagePermissions?.Edit && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-900"
-                            onClick={() => handleEditClick(user)}
-                          >
-                            <Edit className="h-4 w-4" />
-                            {/* <span>Edit</span> */}
-                          </Button>
-                        )}
-                        {userPagePermissions?.Delete && (
-                          <DeleteDialog
-                            key={user.ID}
-                            onConfirm={() => handleDelete(user.ID)}
-                          >
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              {/* <span>Delete</span> */}
-                            </Button>
-                          </DeleteDialog>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-6 py-4 text-center text-sm text-gray-500"
-                    >
-                      No users found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <PaginationControls
-            currentPage={currentPage}
-            totalItems={filteredUsers?.length || 0}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-            onItemsPerPageChange={setItemsPerPage}
-          />
         </div>
-      )}
+      </div>
     </div>
   );
 };
