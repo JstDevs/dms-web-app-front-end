@@ -1115,7 +1115,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                     {/* Use rendered image for both PDF and images - this makes coordinate tracking accurate */}
                     {documentImage ? (
                       <div
-                        className="cursor-crosshair select-none overflow-auto max-h-[60vh] p-4"
+                        className="cursor-crosshair select-none overflow-auto max-h-[100vh] p-4"
                         style={{
                           userSelect: 'none',
                           WebkitUserSelect: 'none',
@@ -1210,7 +1210,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                     ) : file ? (
                       /* Fallback: Show original file if no rendered image available */
                       file.type === 'application/pdf' ? (
-                        <div className="relative w-full h-[60vh]">
+                        <div className="relative w-full h-[75vh]">
                           <iframe
                             src={fileUrlRef.current || ''}
                             className="w-full h-full border-0"
@@ -1218,7 +1218,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                           />
                         </div>
                       ) : (
-                        <div className="relative w-full h-[60vh] flex items-center justify-center">
+                        <div className="relative w-full h-[75vh] flex items-center justify-center">
                           <p className="text-gray-500">Loading preview...</p>
                         </div>
                       )
@@ -1284,43 +1284,55 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                 {viewMode === 'text' && (
                   <>
                     <div className="relative">
-                  <textarea
-                    readOnly
-                    value={ocrText}
-                    className="w-full h-72 sm:h-80 p-5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-mono text-sm bg-gray-50 shadow-inner leading-relaxed"
-                    placeholder="Extracted text will appear here..."
-                    onSelect={(e) => {
-                      const selection = e.currentTarget.value.substring(
-                        e.currentTarget.selectionStart,
-                        e.currentTarget.selectionEnd
-                      );
-                      if (selection.trim()) {
-                        setSelectedText(selection.trim());
-                      }
-                    }}
-                  />
-                  <div className="absolute top-3 right-3 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 text-xs text-gray-600 font-medium shadow-sm">
-                    {stats.wordCount} words • {stats.charCount} chars
-                  </div>
-                </div>
+                      <textarea
+                        readOnly
+                        value={ocrText}
+                        className="w-full h-72 sm:h-80 p-5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-mono text-sm bg-gray-50 shadow-inner leading-relaxed"
+                        placeholder="Extracted text will appear here..."
+                        onSelect={(e) => {
+                          const selection = e.currentTarget.value.substring(
+                            e.currentTarget.selectionStart,
+                            e.currentTarget.selectionEnd
+                          );
+                          if (selection.trim()) {
+                            setSelectedText(selection.trim());
+                          }
+                        }}
+                      />
+                      <div className="absolute top-3 right-3 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 text-xs text-gray-600 font-medium shadow-sm">
+                        {stats.wordCount} words • {stats.charCount} chars
+                      </div>
+                    </div>
 
-                {/* Selected Text Preview */}
-                {selectedText && (
-                  <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-xl shadow-sm">
-                    <p className="text-xs font-bold text-indigo-900 mb-2 flex items-center gap-2">
-                      <Target className="w-4 h-4" />
-                      Selected Text Preview:
-                    </p>
-                    <p className="text-sm text-gray-800 leading-relaxed bg-white/50 p-3 rounded-lg border border-indigo-100">
-                      {selectedText}
-                    </p>
-                    <p className="text-xs text-indigo-700 mt-2">
-                      {selectedText.split(/\s+/).filter(Boolean).length} words selected
-                    </p>
-                  </div>
+                    {/* Selected Text Preview */}
+                    {selectedText && (
+                      <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-xl shadow-sm">
+                        <p className="text-xs font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                          <Target className="w-4 h-4" />
+                          Selected Text Preview:
+                        </p>
+                        <p className="text-sm text-gray-800 leading-relaxed bg-white/50 p-3 rounded-lg border border-indigo-100">
+                          {selectedText}
+                        </p>
+                        <p className="text-xs text-indigo-700 mt-2">
+                          {selectedText.split(/\s+/).filter(Boolean).length} words selected
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
 
-                {/* Already Applied Fields */}
+                {/* Helpful Instructions - always visible */}
+                <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl">
+                  <p className="text-sm text-amber-900 flex items-start gap-3 leading-relaxed">
+                    <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <span>
+                      <strong className="font-bold">How to use:</strong> Highlight any portion of the extracted text above (Text View) or click-and-drag on the document (Preview View) to capture the content you need. Once you've selected your target field and text, click "Apply to Field" to populate it. Each field can only receive OCR text once to prevent duplicates.
+                    </span>
+                  </p>
+                </div>
+
+                {/* Already Applied Fields - always visible while modal is open */}
                 {usedSelections.length > 0 && (
                   <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
                     <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
@@ -1352,20 +1364,6 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                     </div>
                   </div>
                 )}
-
-                    {/* Helpful Instructions */}
-                    <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl">
-                      <p className="text-sm text-amber-900 flex items-start gap-3 leading-relaxed">
-                        <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                        <span>
-                          <strong className="font-bold">How to use:</strong> Highlight any portion of the extracted text above to select it, 
-                          or click "Use All Text" to apply the entire content. Once you've selected your target field and text, 
-                          click "Apply to Field" to populate the field with the selected OCR text.
-                        </span>
-                      </p>
-                    </div>
-                  </>
-                )}
               </div>
             )}
 
@@ -1387,7 +1385,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                       : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white hover:shadow-xl hover:scale-105 active:scale-95'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2"> 
                     <CheckCircle2 className="w-5 h-5" />
                     <span>Apply to Field</span>
                   </div>
