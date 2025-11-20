@@ -411,262 +411,320 @@ const ApprovalMatrix = () => {
   if (loadingDepartments || loadingUsers || loadingMatrix) {
     return (
       <div className="flex justify-center items-center h-64">
-        Loading...
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-gray-600 font-medium">Loading approval matrix...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col bg-white rounded-md shadow-lg min-h-full flex-1">
-      <header className="text-left flex-1 py-4 sm:px-6 px-3">
-        <h1 className="text-3xl font-bold text-blue-800">Approval Matrix</h1>
-        <p className="text-gray-600 mt-2">
-          Configure approval rules and approver levels per department and
-          document type.
+    <div className="flex flex-col bg-white rounded-xl shadow-lg min-h-full flex-1 overflow-hidden">
+      {/* Enhanced Header */}
+      <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-6 sm:px-8 sm:py-8">
+        <div className="flex items-center space-x-3 mb-2">
+          <div className="h-10 w-10 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+            <Save className="h-6 w-6" />
+          </div>
+          <h1 className="text-3xl font-bold">Approval Matrix</h1>
+        </div>
+        <p className="text-blue-100 text-sm sm:text-base mt-1">
+          Configure approval rules and approver levels per department and document type
         </p>
       </header>
 
-      <div className="p-6 space-y-6">
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">
-              Document Selection
-            </h3>
-            {(selectedDepartmentId || selectedDocumentTypeId) && (
-              <button
-                onClick={handleClearSelection}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-800"
-              >
-                <X className="h-4 w-4" />
-                <span>Clear</span>
-              </button>
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="p-6 sm:p-8 space-y-6">
+          {/* Document Selection Card */}
+          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 shadow-sm p-6 transition-all duration-200 hover:shadow-md">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center space-x-2">
+                <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <ChevronDown className="h-5 w-5 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Document Selection
+                </h3>
+              </div>
+              {(selectedDepartmentId || selectedDocumentTypeId) && (
+                <button
+                  onClick={handleClearSelection}
+                  className="flex items-center space-x-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                >
+                  <X className="h-4 w-4" />
+                  <span>Clear</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Department <span className="text-red-500">*</span>
+                </label>
+                <div className="relative group">
+                  <select
+                    value={selectedDepartmentId}
+                    onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 pr-10 appearance-none bg-white text-gray-900 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-300 cursor-pointer"
+                  >
+                    <option value="">Select Department</option>
+                    {departmentOptions.map((dept) => (
+                      <option key={dept.value} value={dept.value}>
+                        {dept.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none group-hover:text-gray-600 transition-colors" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Document Type (Sub-Department){' '}
+                  <span className="text-red-500">*</span>
+                </label>
+                <div className="relative group">
+                  <select
+                    value={selectedDocumentTypeId}
+                    onChange={(e) => setSelectedDocumentTypeId(e.target.value)}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 pr-10 appearance-none bg-white text-gray-900 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500"
+                    disabled={!selectedDepartmentId}
+                  >
+                    <option value="">
+                      {documentTypeOptions.length === 0
+                        ? 'No document types available'
+                        : 'Select Document Type'}
+                    </option>
+                    {documentTypeOptions.map((docType: any) => (
+                      <option key={docType.value} value={docType.value}>
+                        {docType.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none group-hover:text-gray-600 transition-colors" />
+                </div>
+              </div>
+            </div>
+
+            {existingMatrix && (
+              <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+                <div className="flex items-start space-x-3">
+                  <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="h-2 w-2 rounded-full bg-white"></div>
+                  </div>
+                  <p className="text-sm text-blue-800 font-medium">
+                    Existing approval matrix found for{' '}
+                    <strong className="font-semibold">{selectedDepartmentLabel}</strong> /{' '}
+                    <strong className="font-semibold">{selectedDocumentTypeLabel}</strong>. 
+                    Saving will update the current configuration.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Department <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedDepartmentId}
-                  onChange={(e) => setSelectedDepartmentId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select Department</option>
-                  {departmentOptions.map((dept) => (
-                    <option key={dept.value} value={dept.value}>
-                      {dept.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+          {canConfigure ? (
+            <>
+              {/* Approval Rule Card */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-4">
+                  Approval Rule <span className="text-red-500">*</span>
+                </label>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0">
+                  <label className="flex items-center space-x-3 cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="radio"
+                        value="ALL"
+                        checked={approvalRule === 'ALL'}
+                        onChange={(e) =>
+                          setApprovalRule(e.target.value as ApprovalRule)
+                        }
+                        className="h-5 w-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-gray-900 font-medium group-hover:text-blue-600 transition-colors">
+                        ALL
+                      </span>
+                      <span className="text-gray-600 text-sm ml-2">
+                        — every level must end in approval
+                      </span>
+                    </div>
+                  </label>
+                  <label className="flex items-center space-x-3 cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="radio"
+                        value="MAJORITY"
+                        checked={approvalRule === 'MAJORITY'}
+                        onChange={(e) =>
+                          setApprovalRule(e.target.value as ApprovalRule)
+                        }
+                        className="h-5 w-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-gray-900 font-medium group-hover:text-blue-600 transition-colors">
+                        MAJORITY
+                      </span>
+                      <span className="text-gray-600 text-sm ml-2">
+                        — compare approved vs rejected levels (ties reject)
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Document Type (Sub-Department){' '}
-                <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedDocumentTypeId}
-                  onChange={(e) => setSelectedDocumentTypeId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={!selectedDepartmentId}
-                >
-                  <option value="">
-                    {documentTypeOptions.length === 0
-                      ? 'No document types available'
-                      : 'Select Document Type'}
-                  </option>
-                  {documentTypeOptions.map((docType: any) => (
-                    <option key={docType.value} value={docType.value}>
-                      {docType.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+              {/* Approver Levels Section */}
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">
+                      Approver Levels
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Configure sequential approval levels with multiple approvers
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addLevel}
+                    className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span>Add Level</span>
+                  </button>
+                </div>
+
+                {levels.map((level, levelIndex) => (
+                  <div
+                    key={level.sequenceLevel}
+                    className="bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 rounded-xl p-6 space-y-5 shadow-sm hover:shadow-md transition-all duration-200"
+                  >
+                    <div className="flex items-start justify-between pb-4 border-b border-gray-200">
+                      <div className="flex items-start space-x-4">
+                        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                          <span className="text-white font-bold text-lg">
+                            {level.sequenceLevel}
+                          </span>
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-bold text-gray-800 mb-1">
+                            Level {level.sequenceLevel}
+                          </h4>
+                          <p className="text-sm text-gray-600 max-w-md">
+                            First response decides the level outcome. Remaining
+                            requests are cancelled automatically.
+                          </p>
+                        </div>
+                      </div>
+                      {levels.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeLevel(level.sequenceLevel)}
+                          className="flex items-center space-x-2 px-3 py-2 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-all duration-200 font-medium"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="hidden sm:inline">Remove</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      {level.approvers.map((approver, approverIndex) => (
+                        <div
+                          key={approver.id ?? `${level.sequenceLevel}-${approverIndex}`}
+                          className="flex flex-col sm:flex-row sm:items-end sm:space-x-3 space-y-3 sm:space-y-0 bg-white rounded-lg p-4 border border-gray-200"
+                        >
+                          <div className="flex-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Approver <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative group">
+                              <select
+                                value={approver.approverId}
+                                onChange={(e) =>
+                                  updateApproverSelection(
+                                    levelIndex,
+                                    approverIndex,
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 pr-10 appearance-none bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-300 cursor-pointer"
+                              >
+                                <option value="">Select User</option>
+                                {userOptions.map((user) => (
+                                  <option key={user.value} value={user.value}>
+                                    {user.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none group-hover:text-gray-600 transition-colors" />
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeApproverFromLevel(levelIndex, approverIndex)
+                            }
+                            className="flex items-center justify-center px-4 py-2.5 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-all duration-200 border border-red-200 hover:border-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() => addApproverToLevel(levelIndex)}
+                        className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-4 py-2.5 rounded-lg transition-all duration-200 font-medium border-2 border-dashed border-blue-200 hover:border-blue-300"
+                      >
+                        <Plus className="h-5 w-5" />
+                        <span>Add Approver</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          </div>
 
-          {existingMatrix && (
-            <div className="mt-4 p-3 bg-blue-50 rounded-md">
-              <p className="text-sm text-blue-700">
-                Existing approval matrix found for{' '}
-                <strong>{selectedDepartmentLabel}</strong> /{' '}
-                <strong>{selectedDocumentTypeLabel}</strong>. Saving will
-                update the current configuration.
-              </p>
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-4 pt-6 border-t-2 border-gray-200 bg-gray-50 -mx-6 sm:-mx-8 px-6 sm:px-8 py-6">
+                <button
+                  type="button"
+                  onClick={handleClearSelection}
+                  className="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 hover:border-gray-400 font-medium transition-all duration-200"
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="flex items-center space-x-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:opacity-60 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-200 font-semibold"
+                  disabled={saving}
+                >
+                  <Save className="h-5 w-5" />
+                  <span>{saving ? 'Saving...' : 'Save Approval Matrix'}</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-16">
+              <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-12 border-2 border-dashed border-gray-300 max-w-2xl mx-auto">
+                <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-4">
+                  <ChevronDown className="h-8 w-8 text-gray-400" />
+                </div>
+                <p className="text-gray-600 text-lg font-medium">
+                  Please select a department and document type to configure
+                  the approval matrix.
+                </p>
+              </div>
             </div>
           )}
         </div>
-
-        {canConfigure ? (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Approval Rule <span className="text-red-500">*</span>
-              </label>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-3 sm:space-y-0">
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    value="ALL"
-                    checked={approvalRule === 'ALL'}
-                    onChange={(e) =>
-                      setApprovalRule(e.target.value as ApprovalRule)
-                    }
-                    className="form-radio h-4 w-4 text-blue-600"
-                  />
-                  <span>ALL — every level must end in approval</span>
-                </label>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    value="MAJORITY"
-                    checked={approvalRule === 'MAJORITY'}
-                    onChange={(e) =>
-                      setApprovalRule(e.target.value as ApprovalRule)
-                    }
-                    className="form-radio h-4 w-4 text-blue-600"
-                  />
-                  <span>
-                    MAJORITY — compare approved vs rejected levels (ties reject)
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Approver Levels
-                </h3>
-                <button
-                  type="button"
-                  onClick={addLevel}
-                  className="flex items-center space-x-2 bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Add Level</span>
-                </button>
-              </div>
-
-              {levels.map((level, levelIndex) => (
-                <div
-                  key={level.sequenceLevel}
-                  className="border border-gray-200 rounded-lg p-4 space-y-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-md font-semibold text-gray-800">
-                        Level {level.sequenceLevel}
-                      </h4>
-                      <p className="text-sm text-gray-500">
-                        First response decides the level outcome. Remaining
-                        requests are cancelled automatically.
-                      </p>
-                    </div>
-                    {levels.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeLevel(level.sequenceLevel)}
-                        className="flex items-center space-x-1 text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span>Remove Level</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    {level.approvers.map((approver, approverIndex) => (
-                      <div
-                        key={approver.id ?? `${level.sequenceLevel}-${approverIndex}`}
-                        className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 space-y-3 sm:space-y-0"
-                      >
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Approver <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            value={approver.approverId}
-                            onChange={(e) =>
-                              updateApproverSelection(
-                                levelIndex,
-                                approverIndex,
-                                e.target.value
-                              )
-                            }
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">Select User</option>
-                            {userOptions.map((user) => (
-                              <option key={user.value} value={user.value}>
-                                {user.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            removeApproverFromLevel(levelIndex, approverIndex)
-                          }
-                          className="flex items-center justify-center text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={() => addApproverToLevel(levelIndex)}
-                      className="flex items-center space-x-2 text-blue-600 hover:text-blue-800"
-                    >
-                      <Plus className="h-4 w-4" />
-                      <span>Add Approver</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={handleClearSelection}
-                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                disabled={saving}
-              >
-                <Save className="h-4 w-4" />
-                <span>{saving ? 'Saving...' : 'Save Approval Matrix'}</span>
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-12">
-            <div className="bg-gray-50 rounded-lg p-8">
-              <p className="text-gray-500 text-lg">
-                Please select a department and document type to configure
-                the approval matrix.
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
