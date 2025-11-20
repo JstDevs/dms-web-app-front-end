@@ -312,6 +312,12 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     fetchVersion();
   }, [ID]);
 
+  React.useEffect(() => {
+    if (actualApprovalStatus === 'rejected' && requestSent) {
+      setRequestSent(false);
+    }
+  }, [actualApprovalStatus, requestSent]);
+
   const handleRequestApproval = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsRequesting(true);
@@ -694,7 +700,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
               )}
 
               {/* Show Request Approval button when pending or null and not sent */}
-              {(actualApprovalStatus === 'pending' || actualApprovalStatus === null) &&
+              {(actualApprovalStatus === 'pending' || actualApprovalStatus === null || actualApprovalStatus === 'rejected') &&
                 !requestSent &&
                 permissions.Add &&
                 permissions.Edit &&
@@ -711,10 +717,10 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
                   </Button>
                 )}
 
-              {/* Hide button if already approved or rejected */}
-              {(actualApprovalStatus === 'approved' || actualApprovalStatus === 'rejected') && (
+              {/* Status helper text */}
+              {actualApprovalStatus === 'approved' && (
                 <div className="text-xs text-gray-500 italic">
-                  {actualApprovalStatus === 'approved' ? 'Approval completed' : 'Approval rejected'}
+                  Approval completed
                 </div>
               )}
 

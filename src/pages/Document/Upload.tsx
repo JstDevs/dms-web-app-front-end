@@ -358,6 +358,7 @@ export default function DocumentUpload() {
     handleRemoveFile();
     setEditId(null);
     setUploadProgress(0);
+    setOcrAppliedFields([]);
   };
 
   const handleEdit = (id: number) => {
@@ -514,7 +515,6 @@ export default function DocumentUpload() {
   const handleCloseOcrModal = () => {
     setIsOcrModalOpen(false);
     setPreselectedFieldForOcr(null);
-    setOcrAppliedFields([]);
   };
 
   // Check if file is OCR-compatible
@@ -843,7 +843,7 @@ export default function DocumentUpload() {
                           <iframe
                             src={URL.createObjectURL(selectedFile)}
                             title="PDF Preview"
-                            className="w-full h-96"
+                            className="w-full h-[90vh]"
                           />
                         </div>
                       )}
@@ -989,6 +989,19 @@ export default function DocumentUpload() {
               onChange={handleDynamicFieldChange}
               requiredFields={getActiveFields().filter(field => field.Add).map(field => field.ID)}
               onScanField={(fieldId) => {
+                const alreadyOcrApplied = ocrAppliedFields.some(entry => entry.fieldId === fieldId);
+                const existingValue = dynamicFieldValues[`field_${fieldId}`];
+
+                if (alreadyOcrApplied) {
+                  toast.error('This field already has OCR text applied and cannot be scanned again.');
+                  return;
+                }
+
+                if (existingValue && existingValue.trim() !== '') {
+                  toast.error('This field already has a value and cannot be scanned again.');
+                  return;
+                }
+
                 if (selectedFile && isOcrCompatible(selectedFile)) {
                   setPreselectedFieldForOcr(fieldId);
                   setIsOcrModalOpen(true);
