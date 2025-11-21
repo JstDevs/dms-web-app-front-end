@@ -1,5 +1,6 @@
 import { FiChevronDown } from 'react-icons/fi';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { Users, Plus, Shield, Check } from 'lucide-react';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 
 type RoleDropdownProps = {
@@ -16,7 +17,9 @@ const RoleDropdown = ({
   onAddNew,
 }: RoleDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const userAccessPermissions = useModulePermissions(6); // 1 = MODULE_ID
+  
   const handleSelect = (role: string) => {
     if (role === 'Select Role') return; // Do nothing
     onSelect(role);
@@ -25,48 +28,99 @@ const RoleDropdown = ({
 
   const dropdownOptions = [...roles];
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
   return (
-    <div className="relative w-full md:w-auto">
+    <div className="relative w-full md:w-auto" ref={dropdownRef}>
       <button
-        className="flex items-center justify-between w-full md:w-48 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-left focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="flex items-center justify-between w-full md:w-64 px-4 py-3 bg-white border-2 border-gray-200 rounded-lg shadow-sm text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-300 hover:shadow-md group"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span>{selectedRole || 'Select Role'}</span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="p-1.5 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+            <Shield className="w-4 h-4 text-blue-600" />
+          </div>
+          <span className={`font-medium truncate ${selectedRole ? 'text-gray-900' : 'text-gray-500'}`}>
+            {selectedRole || 'Select Role'}
+          </span>
+        </div>
         <FiChevronDown
-          className={`ml-2 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`ml-2 transition-transform duration-200 text-gray-400 group-hover:text-gray-600 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
         />
       </button>
       {isOpen && (
-        <div className="absolute z-10 mt-1 w-full md:w-48 bg-white shadow-lg rounded-md py-1 border border-gray-200 max-h-60 overflow-y-auto">
-          {dropdownOptions.map((role) => (
-            <button
-              key={role.role}
-              disabled={role.role === 'Select Role'}
-              className={`block w-full text-left px-4 py-2 hover:bg-blue-50 ${
-                selectedRole === role.role
-                  ? 'bg-blue-100 text-blue-800'
-                  : 'text-gray-700'
-              } ${
-                role.role === 'Select Role'
-                  ? 'text-gray-400 cursor-default'
-                  : ''
-              }`}
-              onClick={() => handleSelect(role.role)}
-            >
-              {role.role}
-            </button>
-          ))}
-          {userAccessPermissions?.Add && (
-            <button
-              onClick={() => {
-                onAddNew();
-                setIsOpen(false);
-              }}
-              className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-100"
-            >
-              + Add New Role
-            </button>
-          )}
+        <div className="absolute z-50 mt-2 w-full md:w-64 bg-white shadow-xl rounded-lg border border-gray-200 overflow-hidden">
+          <div className="max-h-60 overflow-y-auto custom-scrollbar">
+            {dropdownOptions.length === 0 ? (
+              <div className="px-4 py-8 text-center text-gray-400">
+                <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No roles available</p>
+              </div>
+            ) : (
+              dropdownOptions.map((role) => {
+                const isSelected = selectedRole === role.role;
+                return (
+                  <button
+                    key={role.role}
+                    disabled={role.role === 'Select Role'}
+                    className={`w-full text-left px-4 py-3 transition-all duration-150 flex items-center gap-3 ${
+                      isSelected
+                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 font-semibold border-l-4 border-blue-500'
+                        : 'text-gray-700 hover:bg-blue-50'
+                    } ${
+                      role.role === 'Select Role'
+                        ? 'text-gray-400 cursor-default opacity-50'
+                        : 'cursor-pointer'
+                    }`}
+                    onClick={() => handleSelect(role.role)}
+                  >
+                    {isSelected && (
+                      <div className="p-1 bg-blue-600 rounded text-white">
+                        <Check className="w-3 h-3" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <div className="font-medium">{role.role}</div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+            {userAccessPermissions?.Add && (
+              <>
+                <div className="border-t border-gray-200 my-1"></div>
+                <button
+                  onClick={() => {
+                    onAddNew();
+                    setIsOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-all flex items-center gap-2 border-t border-gray-100"
+                >
+                  <div className="p-1 bg-blue-100 rounded-lg">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <span>Add New Role</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
