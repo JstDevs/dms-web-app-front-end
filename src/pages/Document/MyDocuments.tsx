@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import DocumentCard from '@/components/documents/DocumentCard';
 // import { Input, Select } from "@/components/ui"; // Assuming you have these UI components
 import { FiSearch, FiFilter, FiX } from 'react-icons/fi';
+import { FileText, Search, Filter, X, Calendar, Building2, FolderOpen, AlertTriangle, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -619,32 +620,59 @@ const MyDocuments: React.FC = () => {
   // }
   return (
     <div className="animate-fade-in">
-      <header className="text-left mb-6">
-        <h1 className="text-3xl font-bold text-blue-800">Document Library</h1>
-        <p className="mt-1 text-base text-gray-600">
-          View and manage your documents
-        </p>
+      {/* Enhanced Header */}
+      <header className="relative bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white px-6 py-8 sm:px-8 sm:py-10 rounded-xl shadow-xl mb-8 overflow-hidden">
+        <div className="absolute inset-0 bg-black/5"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
+        <div className="relative flex items-center gap-4">
+          <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg">
+            <FileText className="w-8 h-8 sm:w-10 sm:h-10" />
+          </div>
+          <div className="flex-1">
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-3">
+              Document Library
+              {totalFilteredItems > 0 && (
+                <span className="text-sm font-normal bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {totalFilteredItems} {totalFilteredItems === 1 ? 'Document' : 'Documents'}
+                </span>
+              )}
+            </h1>
+            <p className="text-blue-100 text-sm sm:text-base flex items-center gap-2">
+              <FolderOpen className="w-4 h-4" />
+              View and manage your documents with advanced filtering
+            </p>
+          </div>
+        </div>
       </header>
 
-      {/* Search and Filter Bar */}
+      {/* Enhanced Search and Filter Bar */}
       <div className="mb-6">
-        <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
+          <div className="relative flex-1 max-w-md group">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg opacity-0 group-hover:opacity-10 transition-opacity blur-sm"></div>
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors z-10" size={20} />
             <Input
               type="text"
-              placeholder="Search documents..."
+              placeholder="Search documents by name, type, or content..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="py-2 w-full"
+              className="relative pl-12 pr-12 py-3 border-2 border-gray-200 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-gray-400"
               disabled={filterLoading}
             />
             {filterLoading ? (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10">
+                <Loader2 className="animate-spin h-5 w-5 text-blue-500" />
               </div>
-            ) : (
-              <FiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            )}
+            ) : searchTerm ? (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+              </button>
+            ) : null}
           </div>
 
           {/* <button
@@ -656,12 +684,26 @@ const MyDocuments: React.FC = () => {
           </button> */}
         </div>
 
-        {/* Filter Panel */}
-        {/* {showFilters && ( */}
-          <div className="bg-gray-50 p-4 rounded-md mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Enhanced Filter Panel */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 mb-6">
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Filter className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Filter Documents</h2>
+              <p className="text-sm text-gray-500">Refine your search with advanced filters</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                Department
+              </label>
               <Select
-                label="Department"
+                label=""
                 value={department}
                 onChange={(e) => {
                   setDepartment(e.target.value);
@@ -671,9 +713,15 @@ const MyDocuments: React.FC = () => {
                 options={departmentOptions}
                 disabled={filterLoading || loadingDepartments}
               />
+            </div>
 
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <FolderOpen className="w-4 h-4 text-blue-600" />
+                Document Type
+              </label>
               <Select
-                label="Document Type"
+                label=""
                 value={subDepartment}
                 onChange={(e) => {
                   setSubDepartment(e.target.value);
@@ -683,190 +731,173 @@ const MyDocuments: React.FC = () => {
                 placeholder={!department ? "Select Department first" : documentTypeOptions.length === 0 ? "No document types available" : "Select Document Type"}
                 disabled={!department || filterLoading || loadingDepartments || documentTypeOptions.length === 0}
               />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Start Date
-                </label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
-                  }}
-                  className="w-full"
-                  disabled={filterLoading}
-                  max={endDate || undefined} // Prevent start date from being after end date
-                />
-                <p className="text-xs text-gray-500 mt-1">Filter by document creation date</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  End Date
-                </label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
-                  }}
-                  className="w-full"
-                  disabled={filterLoading}
-                  min={startDate || undefined} // Prevent end date from being before start date
-                />
-                <p className="text-xs text-gray-500 mt-1">Filter by document creation date</p>
-                {!isDateRangeValid() && (
-                  <p className="text-xs text-red-500 mt-1">End date must be after start date</p>
-                )}
-              </div>
             </div>
 
-            {/* Apply Filters Button */}
-            <div className="mt-4">
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Calendar className="w-4 h-4 text-blue-600" />
+                Start Date
+              </label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                }}
+                className="w-full border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={filterLoading}
+                max={endDate || undefined}
+              />
+              <p className="text-xs text-gray-500">Filter by creation date</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Calendar className="w-4 h-4 text-blue-600" />
+                End Date
+              </label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                }}
+                className="w-full border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={filterLoading}
+                min={startDate || undefined}
+              />
+              <p className="text-xs text-gray-500">Filter by creation date</p>
+              {!isDateRangeValid() && (
+                <div className="flex items-center gap-1 text-xs text-red-600 mt-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  End date must be after start date
+                </div>
+              )}
+            </div>
+          </div>
+
+            {/* Enhanced Apply Filters Section */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
               {error && (
-                <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-red-700 font-medium">{error}</p>
                 </div>
               )}
               {filterLoading && (
-                <div className="mb-3 flex items-center justify-center text-blue-600 bg-blue-50 p-3 rounded-md">
-                  <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></div>
-                  <span className="text-sm font-medium">Applying filters...</span>
+                <div className="mb-4 flex items-center justify-center gap-3 text-blue-600 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                  <Loader2 className="animate-spin h-5 w-5" />
+                  <span className="text-sm font-semibold">Applying filters...</span>
                 </div>
               )}
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <button
                   onClick={applyFilters}
                   disabled={filterLoading || !isDateRangeValid() || loadingDepartments || !department || !subDepartment}
-                  className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                 >
-                  <FiFilter className="mr-2" size={16} />
+                  <Filter className="w-4 h-4" />
                   Apply Filters
                 </button>
 
                 {(appliedDepartment || appliedSubDepartment || searchTerm || appliedStartDate || appliedEndDate) && (
                   <button
                     onClick={clearFilters}
-                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors font-medium"
                   >
-                    <FiX size={14} />
+                    <X className="w-4 h-4" />
                     Clear all filters
                   </button>
                 )}
               </div>
             </div>
           </div>
-        {/* )} */}
       </div>
 
-      {/* Results Count */}
-      <div className="mb-4 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <p className="text-sm text-gray-600">
-            Showing {paginatedDocs.length} of {totalFilteredItems} documents
-            {totalFilteredPages > 1 && ` (Page ${currentPage} of ${totalFilteredPages})`}
-          </p>
+      {/* Enhanced Results Count */}
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-100 rounded-lg">
+              <FileText className="w-4 h-4 text-blue-600" />
+            </div>
+            <p className="text-sm font-semibold text-gray-700">
+              Showing <span className="text-blue-600">{paginatedDocs.length}</span> of{' '}
+              <span className="text-blue-600">{totalFilteredItems}</span> documents
+              {totalFilteredPages > 1 && (
+                <span className="text-gray-500 font-normal ml-1">
+                  (Page {currentPage} of {totalFilteredPages})
+                </span>
+              )}
+            </p>
+          </div>
           {(appliedDepartment || appliedSubDepartment || debouncedSearchTerm || appliedStartDate || appliedEndDate) && (
-            <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+            <div className="flex items-center gap-2 text-sm text-blue-700 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-lg border border-blue-200">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="font-medium">Filters active</span>
+              <span className="font-semibold">Filters Active</span>
               {(appliedStartDate || appliedEndDate) && (
-                <span className="text-xs text-gray-500">
-                  (Date: {appliedStartDate || 'any'} to {appliedEndDate || 'any'})
+                <span className="text-xs text-gray-600 ml-1">
+                  • {appliedStartDate || 'any'} to {appliedEndDate || 'any'}
                 </span>
               )}
             </div>
           )}
         </div>
         {filterLoading && (
-          <div className="flex items-center text-blue-600">
-            <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></div>
-            <span className="text-sm">Loading...</span>
+          <div className="flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg">
+            <Loader2 className="animate-spin h-4 w-4" />
+            <span className="text-sm font-medium">Loading...</span>
           </div>
         )}
       </div>
 
-      {/* Documents Grid */}
+      {/* Enhanced Documents Grid */}
       {appliedDepartment && appliedSubDepartment && !loadingPermissions && !filterLoading && !loading && !allocationPermissions.View ? (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-8 text-center">
+        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-xl p-12 text-center shadow-lg">
           <div className="flex flex-col items-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-12 w-12 mb-3 text-yellow-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-            <p className="text-lg font-semibold text-yellow-800">No View Permission</p>
-            <p className="text-sm text-yellow-700 mt-2">
+            <div className="p-4 bg-yellow-100 rounded-full mb-4">
+              <AlertTriangle className="h-12 w-12 text-yellow-600" />
+            </div>
+            <p className="text-xl font-bold text-yellow-800 mb-2">No View Permission</p>
+            <p className="text-sm text-yellow-700 max-w-md">
               You do not have permission to view documents in this department and document type.
             </p>
           </div>
         </div>
       ) : filteredDocs.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6">
           {documentCards}
         </div>
       ) : error ? (
-        <div className="flex flex-col items-center justify-center bg-gray-50 text-red-700 rounded-md p-8 shadow-md animate-pulse">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-12 w-12 mb-3 text-red-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 9v2m0 4h.01m-.01-10a9 9 0 100 18 9 9 0 000-18z"
-            />
-          </svg>
-          <p className="text-lg font-semibold">Oops! Something Went Wrong</p>
-          <p className="text-sm text-red-600 mt-2">
+        <div className="flex flex-col items-center justify-center bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-12 shadow-lg">
+          <div className="p-4 bg-red-100 rounded-full mb-4">
+            <AlertTriangle className="h-12 w-12 text-red-600" />
+          </div>
+          <p className="text-xl font-bold text-red-800 mb-2">Oops! Something Went Wrong</p>
+          <p className="text-sm text-red-700 max-w-md text-center">
             Please try refreshing the page or check your network connection.
           </p>
         </div>
       ) : loading ? (
-        <div className="flex flex-col items-center justify-center bg-gray-50 text-blue-700 rounded-md p-8 shadow-md">
-          <svg
-            className="animate-spin h-10 w-10 text-blue-500 mb-3"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v8H4z"
-            ></path>
-          </svg>
-          <p className="text-lg text-blue-600 font-medium">Please Wait...</p>
-          <p className="text-sm text-blue-600 mt-2">Almost there! Thanks for your patience...</p>
+        <div className="flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-12 shadow-lg">
+          <div className="relative mb-6">
+            <div className="animate-spin w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+            <FileText className="w-8 h-8 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+          </div>
+          <p className="text-lg text-blue-700 font-semibold mb-2">Please Wait...</p>
+          <p className="text-sm text-blue-600">Almost there! Thanks for your patience...</p>
         </div>
-      ) :
-      (
-        <div className="bg-gray-50 rounded-md p-8 text-center">
-          <p className="text-gray-500">
-            No documents found matching your criteria
-          </p>
+      ) : (
+        <div className="bg-gradient-to-br from-gray-50 to-slate-50 border-2 border-dashed border-gray-300 rounded-xl p-12 text-center">
+          <div className="flex flex-col items-center">
+            <div className="p-4 bg-gray-100 rounded-full mb-4">
+              <FileText className="h-12 w-12 text-gray-400" />
+            </div>
+            <p className="text-lg font-semibold text-gray-700 mb-2">No Documents Found</p>
+            <p className="text-sm text-gray-500 max-w-md">
+              No documents found matching your criteria. Try adjusting your filters or search terms.
+            </p>
+          </div>
         </div>
       )}
       {/* Show pagination controls - only show if there are multiple pages */}
