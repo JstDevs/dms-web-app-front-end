@@ -218,6 +218,7 @@ const Sidebar: React.FC = () => {
           </button>
         )}
 
+        {/* LGU Name */}
         <div className="flex items-center justify-center h-[58px] px-4 border-b border-blue-800">
           <h1 className="text-xl font-semibold text-white text-center">DMS</h1>
         </div>

@@ -64,7 +64,7 @@ const Header: React.FC = () => {
           {/* ✅ Enhanced Role Selector */}
 
           {user && user?.accessList?.length > 1 && (
-            <div className="relative hidden">
+            <div className="relative">
               <select
                 value={selectedRole?.ID || ''}
                 onChange={handleRoleChange}

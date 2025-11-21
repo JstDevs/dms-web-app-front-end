@@ -440,12 +440,12 @@ const ApprovalMatrix = () => {
           <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 shadow-sm p-6 transition-all duration-200 hover:shadow-md">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center space-x-2">
-                <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                {/* <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
                   <ChevronDown className="h-5 w-5 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800">
+                </div> */}
+                <h1 className="text-lg font-bold text-gray-800">
                   Document Selection
-                </h3>
+                </h1>
               </div>
               {(selectedDepartmentId || selectedDocumentTypeId) && (
                 <button
