@@ -124,13 +124,13 @@ const PermissionsTable = ({
                           />
                           <div className={`w-9 h-9 rounded-lg border-2 transition-all flex items-center justify-center ${
                             perm[field] 
-                              ? 'border-blue-500 bg-blue-50 shadow-sm' 
-                              : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50'
+                              ? 'border-green-500 bg-green-50 shadow-sm' 
+                              : 'border-gray-200 bg-white hover:border-green-300 hover:bg-green-50/50'
                           } group-hover:scale-105`}>
                             {perm[field] ? (
-                              <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                              <CheckCircle2 className="w-5 h-5 text-green-600" />
                             ) : (
-                              <Icon className="w-4 h-4 text-gray-400 group-hover:text-blue-400" />
+                              <Icon className="w-4 h-4 text-gray-400 group-hover:text-green-400" />
                             )}
                           </div>
                         </label>
