@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronUp,
   Grid3x3,
+  User,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '../../utils/cn';
@@ -109,6 +110,7 @@ const navItems: NavItem[] = [
       },
     ],
   },  
+  { name: 'Profile', icon: User, path: '/users/profile' },
 ];
 
 const Sidebar: React.FC = () => {

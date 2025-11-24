@@ -61,9 +61,10 @@ const Header: React.FC = () => {
         <div className="flex-1" />
 
         <div className="ml-4 flex items-center gap-3 md:ml-6">
-          {/* ✅ Enhanced Role Selector */}
 
-          {user && user?.accessList?.length > 1 && (
+
+          {/* ✅ Enhanced Role Selector */}
+          {/* {user && user?.accessList?.length > 1 && (
             <div className="relative">
               <select
                 value={selectedRole?.ID || ''}
@@ -81,7 +82,7 @@ const Header: React.FC = () => {
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
-          )}
+          )} */}
 
           {/* Notification Dropdown */}
           {/* <div className="relative" ref={notificationRef}>

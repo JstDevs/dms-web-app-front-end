@@ -70,7 +70,7 @@ const Settings: React.FC = () => {
                   <div className="flex items-center">
                     <User className="h-5 w-5 text-gray-400 mr-3" />
                     <div className="text-left">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-gray-900 w-80">
                         Switch Roles
                       </p>
                       <p className="text-xs text-gray-500">
@@ -109,7 +109,7 @@ const Settings: React.FC = () => {
                   <div className="flex items-center">
                     <Lock className="h-5 w-5 text-gray-400 mr-3" />
                     <div className="text-left">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-gray-900 w-80">
                         Change Password
                       </p>
                       <p className="text-xs text-gray-500">
