@@ -343,6 +343,7 @@ const UserAccessPage = () => {
                     placeholder="e.g., Administrator, Manager, Viewer..."
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-gray-400"
                     value={newRoleName}
+                    maxLength={30}
                     onChange={(e) => setNewRoleName(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && newRoleName) {
