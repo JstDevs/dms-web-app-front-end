@@ -67,6 +67,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   const [isDeleting, setIsDeleting] = useState(false);
   const [actualApprovalStatus, setActualApprovalStatus] = useState<'approved' | 'rejected' | 'pending' | 'in_progress' | null>(null);
   const [versionNumber, setVersionNumber] = useState<string | null>(null);
+  const [isVersionLoading, setIsVersionLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [pendingRequest, setPendingRequest] = useState<any>(null);
   const [allPendingRequests, setAllPendingRequests] = useState<any[]>([]);
@@ -303,6 +304,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     
     if (!hasCollaboratePermission) {
       setVersionNumber(null);
+      setIsVersionLoading(false);
       return;
     }
     
@@ -313,6 +315,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     // Browser console will show these 403 errors - this is normal and expected
 
     const fetchVersion = async () => {
+      setIsVersionLoading(true);
       try {
         const response = await axios.get(`/documents/documents/${ID}/analytics`, {
           signal: abortController.signal
@@ -325,14 +328,20 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
             // Use first version like DocumentCurrentView does: document?.versions?.[0]?.VersionNumber
             const version = documentData.versions[0];
             setVersionNumber(version?.VersionNumber || null);
+            setIsVersionLoading(false);
+          } else {
+            setVersionNumber(null);
+            setIsVersionLoading(false);
           }
         } else {
-          // If success is false (handled by interceptor for 403), just set version to null
+          // If success is false (handled by interceptor for 403), version info unavailable
           setVersionNumber(null);
+          setIsVersionLoading(false);
         }
       } catch (error: any) {
         // Ignore abort errors (component unmounted or effect re-run)
         if (error.name === 'AbortError' || error.name === 'CanceledError') {
+          setIsVersionLoading(false);
           return;
         }
         
@@ -341,10 +350,12 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
         if (error?.response?.status === 403) {
           // Silently fail - don't log 403 errors as they're expected for new users/departments
           setVersionNumber(null);
+          setIsVersionLoading(false);
           return;
         }
         // Only log non-403 errors
         console.error('Failed to fetch document version:', error);
+        setIsVersionLoading(false);
         // Don't set default, leave as null if fetch fails
       }
     };
@@ -623,10 +634,15 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
                   })()}
                 </span>
               </div>
-            ) : (
+            ) : isVersionLoading ? (
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200">
                 <Layers className="w-3.5 h-3.5" />
                 <span>Loading...</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-50 text-slate-500 border border-slate-200 shadow-sm">
+                <Layers className="w-3.5 h-3.5" />
+                <span>Not available</span>
               </div>
             )}
           </div>
