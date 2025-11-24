@@ -72,6 +72,32 @@ const normalizeDateInput = (value?: string | null) => {
   return date.toISOString().slice(0, 10);
 };
 
+// Normalize filepath URL to use correct base URL (fixes localhost issue when accessing from different machines)
+const normalizeFilepathUrl = (filepath: string | null | undefined): string => {
+  if (!filepath) return '';
+  
+  // If already a full URL, check if it's localhost and replace with API base URL
+  if (filepath.startsWith('http://') || filepath.startsWith('https://')) {
+    // Check if it contains localhost
+    if (filepath.includes('localhost') || filepath.includes('127.0.0.1')) {
+      // Extract the path from the URL
+      const url = new URL(filepath);
+      const path = url.pathname + url.search + url.hash;
+      // Use API base URL instead
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+      return `${apiBaseUrl}${path}`;
+    }
+    // Already a valid full URL, return as is
+    return filepath;
+  }
+  
+  // If it's a relative path, prepend API base URL
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  // Ensure path starts with /
+  const normalizedPath = filepath.startsWith('/') ? filepath : `/${filepath}`;
+  return `${apiBaseUrl}${normalizedPath}`;
+};
+
 const DocumentCurrentView = ({
   document,
   permissions,
@@ -439,7 +465,9 @@ const DocumentCurrentView = ({
   const handleDownload = async () => {
     if (currentDocumentInfo?.filepath) {
       try {
-        const response = await fetch(currentDocumentInfo.filepath);
+        // Normalize filepath to use correct base URL (fixes localhost issue)
+        const normalizedFilepath = normalizeFilepathUrl(currentDocumentInfo.filepath);
+        const response = await fetch(normalizedFilepath);
         const blob = await response.blob();
         
         // Determine the correct MIME type based on detected file type
@@ -787,7 +815,7 @@ const DocumentCurrentView = ({
           {isPDF ? (
             <div className="w-full h-full flex items-center justify-center">
               <iframe
-                src={`${currentDocumentInfo.filepath}#toolbar=1`}
+                src={`${normalizeFilepathUrl(currentDocumentInfo.filepath)}#toolbar=1`}
                 title="PDF Viewer"
                 className="w-full border-0 rounded-lg"
                 style={{ 
@@ -824,7 +852,7 @@ const DocumentCurrentView = ({
                   <div className="text-center">
                     <p className="text-xs text-gray-500 mb-2">Or try viewing online:</p>
                     <a
-                      href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(currentDocumentInfo.filepath)}`}
+                      href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(normalizeFilepathUrl(currentDocumentInfo.filepath))}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-700 text-sm font-medium underline"
@@ -859,7 +887,7 @@ const DocumentCurrentView = ({
                   <div className="text-center">
                     <p className="text-xs text-gray-500 mb-2">Or try viewing online:</p>
                     <a
-                      href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(currentDocumentInfo.filepath)}`}
+                      href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(normalizeFilepathUrl(currentDocumentInfo.filepath))}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-4 py-2 text-green-600 hover:text-green-700 text-sm font-medium underline"
@@ -874,7 +902,7 @@ const DocumentCurrentView = ({
           ) : isImage ? (
             <div className="w-full h-full flex items-center justify-center p-4">
               <img 
-                src={currentDocumentInfo.filepath} 
+                src={normalizeFilepathUrl(currentDocumentInfo.filepath)} 
                 alt={currentDocumentInfo?.FileName || 'Document'} 
                 className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-lg"
                 onError={(e) => {
