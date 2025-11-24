@@ -34,12 +34,26 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({
       setLoading(true);
       setError(null);
       const document = await fetchDocumentAnalytics(id);
-      if (!document) throw new Error('Document not found');
+      if (!document) {
+        // If document is null, it might be a 403 permission error
+        // Set a permission error message instead of generic error
+        setError('You do not have permission to view this document');
+        setLoading(false);
+        return null;
+      }
       if (document.success) {
         setCurrentDocument(document.data);
         return document.data;
       }
-    } catch (err) {
+    } catch (err: any) {
+      // Handle 403 errors gracefully - set permission error message
+      if (err?.response?.status === 403) {
+        setError('You do not have permission to view this document');
+        // Don't log 403 errors to console - they're expected for users without Collaborate permission
+        setLoading(false);
+        return null;
+      }
+      // Only set error and log for non-403 errors
       setError('Failed to fetch document');
       console.error('Error fetching document:', err);
     } finally {

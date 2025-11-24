@@ -30,7 +30,7 @@ type TabType =
 
 const DocumentView: React.FC = () => {
   const { documentId } = useParams<{ documentId: string }>();
-  const { currentDocument, loading, fetchDocument } = useDocument();
+  const { currentDocument, loading, error, fetchDocument } = useDocument();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -186,7 +186,7 @@ const DocumentView: React.FC = () => {
   if (!currentDocument)
     return (
       <div className="flex items-center justify-center min-h-[50vh] text-gray-500">
-        Document not found
+        {error || 'Document not found'}
       </div>
     );
 

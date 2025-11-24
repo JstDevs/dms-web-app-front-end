@@ -173,8 +173,20 @@ const fetchDocumentAnalytics = async (documentId: string) => {
     const response = await axios.get(
       `/documents/documents/${documentId}/analytics`
     );
+    // Interceptor handles 403 by returning success: false, so check for that
+    if (response.data?.success === false) {
+      // 403 error was handled by interceptor, return null
+      return null;
+    }
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
+    // This catch block should rarely execute for 403 errors since interceptor handles them
+    // But keep it as a fallback for other errors
+    if (error?.response?.status === 403) {
+      // Return null for 403 - expected for new users/departments without Collaborate permission
+      return null;
+    }
+    // Only log and throw non-403 errors
     console.error("Error fetching document analytics:", error);
     throw error;
   }

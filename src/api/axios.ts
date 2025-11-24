@@ -26,6 +26,30 @@ instance.interceptors.response.use(
       // Return a fake response with success: false to prevent console error
       return Promise.resolve({ data: { success: false } });
     }
+    
+    // Silently handle 403 errors for document analytics endpoint
+    // This happens when user doesn't have Collaborate permission for the document's department
+    // Common for new users, new departments, or documents from different departments
+    const url = error.config?.url || error.request?.responseURL || error.config?.baseURL + error.config?.url || '';
+    const isAnalyticsEndpoint = url.includes('/analytics') || url.endsWith('/analytics');
+    const isDocumentsEndpoint = url.includes('/documents/documents/');
+    
+    if (isDocumentsEndpoint && isAnalyticsEndpoint && error.response?.status === 403) {
+      // Return a fake response with success: false to prevent console error
+      // The component will handle this gracefully
+      // This prevents the error from propagating to catch blocks
+      return Promise.resolve({ 
+        data: { 
+          success: false, 
+          data: null 
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: error.config
+      });
+    }
+    
     return Promise.reject(error);
   }
 );

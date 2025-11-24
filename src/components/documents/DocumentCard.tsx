@@ -38,6 +38,7 @@ interface DocumentCardProps {
     Edit?: boolean;
     Delete?: boolean;
     Print?: boolean;
+    Collaborate?: boolean;
   };
   onDelete?: (id: string) => void;
 }
@@ -290,11 +291,34 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   }, [ID, refreshTrigger, user?.ID]);
 
   // Fetch document version - using same endpoint as DocumentCurrentView
+  // Only fetch if user has Collaborate permission (required for analytics endpoint)
+  // Note: Even with Collaborate permission, backend may return 403 if document belongs to different department
+  // Browser console will show 403 errors - this is expected and cannot be disabled (browser security feature)
   React.useEffect(() => {
+    const abortController = new AbortController();
+    
+    // Don't fetch if user doesn't have Collaborate permission
+    // Check explicitly: if permissions exists and Collaborate is explicitly false or undefined, skip
+    const hasCollaboratePermission = permissions?.Collaborate === true;
+    
+    if (!hasCollaboratePermission) {
+      setVersionNumber(null);
+      return;
+    }
+    
+    // Note: Even with permission check, request may still return 403 if:
+    // - Document belongs to different department than permissions checked
+    // - User is new and permissions haven't been configured yet
+    // - Backend has stricter permission checks
+    // Browser console will show these 403 errors - this is normal and expected
+
     const fetchVersion = async () => {
       try {
-        const response = await axios.get(`/documents/documents/${ID}/analytics`);
-        if (response.data.success && response.data.data) {
+        const response = await axios.get(`/documents/documents/${ID}/analytics`, {
+          signal: abortController.signal
+        });
+        // Interceptor handles 403 by returning success: false, so check for that
+        if (response.data?.success && response.data?.data) {
           const documentData = response.data.data;
           // Check if versions array exists and get current version (same as DocumentCurrentView)
           if (documentData.versions && Array.isArray(documentData.versions) && documentData.versions.length > 0) {
@@ -302,15 +326,36 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
             const version = documentData.versions[0];
             setVersionNumber(version?.VersionNumber || null);
           }
+        } else {
+          // If success is false (handled by interceptor for 403), just set version to null
+          setVersionNumber(null);
         }
-      } catch (error) {
+      } catch (error: any) {
+        // Ignore abort errors (component unmounted or effect re-run)
+        if (error.name === 'AbortError' || error.name === 'CanceledError') {
+          return;
+        }
+        
+        // This catch block should rarely execute for 403 errors since interceptor handles them
+        // But keep it as a fallback for other errors
+        if (error?.response?.status === 403) {
+          // Silently fail - don't log 403 errors as they're expected for new users/departments
+          setVersionNumber(null);
+          return;
+        }
+        // Only log non-403 errors
         console.error('Failed to fetch document version:', error);
         // Don't set default, leave as null if fetch fails
       }
     };
 
     fetchVersion();
-  }, [ID]);
+    
+    // Cleanup: abort request if component unmounts or effect re-runs
+    return () => {
+      abortController.abort();
+    };
+  }, [ID, permissions?.Collaborate]);
 
   React.useEffect(() => {
     if (actualApprovalStatus === 'rejected' && requestSent) {
