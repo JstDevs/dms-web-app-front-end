@@ -11,14 +11,10 @@ export interface OCRField {
 export const performBatchUpload = async (
   formData: FormData
 ): Promise<OCRField[]> => {
+  // Don't set Content-Type manually - axios will automatically set it with boundary for FormData
   const response = await axios.post(
     '/batchupload/processexcelsheet',
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }
+    formData
   );
   return response.data.data;
 };
@@ -27,14 +23,10 @@ export const performBatchUpload = async (
 export const performDocumentUpload = async (
   formData: FormData
 ): Promise<any> => {
+  // Don't set Content-Type manually - axios will automatically set it with boundary for FormData
   const response = await axios.post(
     '/documents/create',
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }
+    formData
   );
   return response.data;
 };

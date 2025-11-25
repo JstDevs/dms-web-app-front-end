@@ -14,6 +14,20 @@ instance.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Don't override Content-Type for FormData - let browser set it with boundary
+  // Axios will automatically set the correct Content-Type with boundary for FormData
+  if (config.data instanceof FormData) {
+    // Remove the default Content-Type header to let axios/browser set it automatically
+    if (config.headers['Content-Type']) {
+      delete config.headers['Content-Type'];
+    }
+    // Also check commonContentType property
+    if ((config.headers as any).common && (config.headers as any).common['Content-Type']) {
+      delete (config.headers as any).common['Content-Type'];
+    }
+  }
+  
   return config;
 });
 

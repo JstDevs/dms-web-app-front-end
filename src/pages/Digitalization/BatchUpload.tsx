@@ -1,12 +1,13 @@
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useAllocationPermissions } from '../Document/utils/useAllocationPermissions';
-import { UploadCloud, Trash2, ChevronDown, FileText, Download, CheckCircle2, AlertCircle, X, FileCheck, Building2, FolderOpen } from 'lucide-react';
+import { UploadCloud, Trash2, ChevronDown, FileText, Download, CheckCircle2, AlertCircle, X, FileCheck, Building2, FolderOpen, ExternalLink } from 'lucide-react';
 import { useState, useRef, useEffect, ChangeEvent, DragEvent } from 'react';
 import toast from 'react-hot-toast';
 import { performBatchUpload, performDocumentUpload } from './utils/batchServices';
 import { logOCRActivity } from '@/utils/activityLogger';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { useNavigate } from 'react-router-dom';
 
 type UploadedFile = {
   id: number;
@@ -21,6 +22,7 @@ type UploadedFile = {
 };
 
 export const BatchUploadPanel = () => {
+  const navigate = useNavigate();
   // State for selections
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [selectedSubDepartment, setSelectedSubDepartment] =
@@ -35,6 +37,7 @@ export const BatchUploadPanel = () => {
   const [lastBatchCount, setLastBatchCount] = useState<{ total: number; success: number } | null>(
     null
   );
+  const [createdDocumentIds, setCreatedDocumentIds] = useState<number[]>([]);
   const {
     departmentOptions,
     getSubDepartmentOptions,
@@ -158,8 +161,20 @@ export const BatchUploadPanel = () => {
           base.validationErrors = ['ZIP file is empty'];
           toast.error(`ZIP file ${file.name} appears to be empty`);
         } else {
-          // ZIP looks valid - will be processed by backend
-          toast.success(`ZIP file detected: ${file.name}. Backend will extract and process Excel + documents.`);
+          // Validate ZIP file structure using JSZip
+          try {
+            const { isValid, error: zipError } = await validateZipFile(file);
+            if (!isValid) {
+              base.validationErrors = [zipError || 'Invalid or corrupted ZIP file'];
+              toast.error(`ZIP file ${file.name} is invalid: ${zipError || 'File may be corrupted'}`);
+            } else {
+              // ZIP looks valid - will be processed by backend
+              toast.success(`ZIP file detected: ${file.name}. Backend will extract and process Excel + documents.`);
+            }
+          } catch (err: any) {
+            base.validationErrors = [err?.message || 'Failed to validate ZIP file'];
+            toast.error(`Failed to validate ZIP file ${file.name}: ${err?.message || 'Unknown error'}`);
+          }
         }
       }
 
@@ -274,6 +289,101 @@ export const BatchUploadPanel = () => {
     }
 
     return { errors, rowCount: Math.max(0, lines.length - 1) };
+  }
+
+  async function validateZipFile(file: File): Promise<{ isValid: boolean; error?: string }> {
+    try {
+      console.log(`Validating ZIP file: ${file.name} (${file.size} bytes)`);
+      
+      // Lazy-load JSZip from CDN as ESM
+      // @ts-ignore - dynamic ESM import via CDN
+      const JSZipModule: any = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+      const JSZip = JSZipModule.default || JSZipModule;
+      
+      if (!JSZip) {
+        console.error('Failed to load JSZip library');
+        return { isValid: false, error: 'Failed to load ZIP validation library' };
+      }
+      
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Check file size - very small files are likely corrupted
+      if (arrayBuffer.byteLength < 22) {
+        // Minimum ZIP file size is 22 bytes (end of central directory record)
+        return { 
+          isValid: false, 
+          error: 'ZIP file is too small or corrupted. Minimum valid ZIP size is 22 bytes.' 
+        };
+      }
+      
+      // Try to load the ZIP file with strict validation
+      const zip = new JSZip();
+      try {
+        // Try loading without options first (default behavior)
+        await zip.loadAsync(arrayBuffer);
+      } catch (loadError: any) {
+        // If loadAsync fails, the file is definitely corrupted
+        const loadErrorMessage = loadError?.message || 'Failed to load ZIP file';
+        console.error('ZIP loadAsync failed:', loadErrorMessage);
+        
+        // Check for specific corruption errors
+        if (loadErrorMessage.includes('end of central directory') || 
+            loadErrorMessage.includes('Can\'t find') ||
+            loadErrorMessage.includes('central directory')) {
+          return {
+            isValid: false,
+            error: 'ZIP file is corrupted: Cannot find end of central directory. The file structure is incomplete or damaged.'
+          };
+        }
+        
+        throw loadError; // Re-throw to be caught by outer catch
+      }
+      
+      // Check if ZIP has any files
+      const fileNames = Object.keys(zip.files);
+      console.log(`ZIP file contains ${fileNames.length} files`);
+      
+      if (fileNames.length === 0) {
+        return { isValid: false, error: 'ZIP file is empty (no files inside)' };
+      }
+      
+      // Additional validation: Try to read at least one file to ensure ZIP is fully readable
+      try {
+        const firstFileName = fileNames[0];
+        if (firstFileName && !zip.files[firstFileName].dir) {
+          // Try to read a small portion of the first file to ensure ZIP is readable
+          await zip.files[firstFileName].async('uint8array');
+        }
+      } catch (readError: any) {
+        console.warn('Warning: Could not read file from ZIP:', readError);
+        // Don't fail validation for this, but log it
+      }
+      
+      // ZIP is valid
+      console.log(`ZIP file validation passed: ${file.name} (${fileNames.length} files)`);
+      return { isValid: true };
+    } catch (error: any) {
+      // JSZip throws specific errors for corrupted files
+      const errorMessage = error?.message || 'Unknown error';
+      console.error(`ZIP validation failed for ${file.name}:`, errorMessage);
+      
+      if (errorMessage.includes('end of central directory') || 
+          errorMessage.includes('corrupted') ||
+          errorMessage.includes('not a zip file') ||
+          errorMessage.includes('Can\'t find end of central directory') ||
+          errorMessage.includes('Can\'t find') ||
+          errorMessage.includes('central directory')) {
+        return { 
+          isValid: false, 
+          error: 'Invalid or corrupted ZIP file. The file may be damaged or not a valid ZIP archive. Please check the file and try again.' 
+        };
+      }
+      
+      return { 
+        isValid: false, 
+        error: `ZIP validation failed: ${errorMessage}` 
+      };
+    }
   }
 
   async function validateXlsxTemplate(file: File): Promise<{ errors: string[]; rowCount: number }>{
@@ -411,14 +521,27 @@ export const BatchUploadPanel = () => {
       return isZip && f.validationErrors && f.validationErrors.length > 0;
     });
     if (hasZipErrors) {
-      toast.error('Resolve ZIP file errors before uploading.');
+      const zipFileWithError = files.find(f => {
+        const lower = f.name.toLowerCase();
+        const isZip = lower.endsWith('.zip') || f.type === 'application/zip' || f.type === 'application/x-zip-compressed';
+        return isZip && f.validationErrors && f.validationErrors.length > 0;
+      });
+      const errorMsg = zipFileWithError?.validationErrors?.[0] || 'ZIP file validation failed';
+      toast.error(`Cannot upload: ${errorMsg}`);
       return;
     }
 
     // Process all files, not just the first one
     let successCount = 0;
     for (const uploadedFile of files) {
+      // Skip files with validation errors
+      if (uploadedFile.validationErrors && uploadedFile.validationErrors.length > 0) {
+        console.warn(`Skipping ${uploadedFile.name} due to validation errors:`, uploadedFile.validationErrors);
+        continue;
+      }
+      
       if (uploadedFile.status === 'Pending') {
+        console.log(`Uploading file: ${uploadedFile.name} (${uploadedFile.type})`);
         const formData = new FormData();
         
         // Determine file type and use appropriate endpoint
@@ -434,7 +557,68 @@ export const BatchUploadPanel = () => {
                            lowerFileName.endsWith('.csv');
 
         if (isZip) {
+          // Re-validate ZIP file right before upload to catch any issues
+          console.log(`Re-validating ZIP file before upload: ${uploadedFile.name}`);
+          try {
+            const { isValid, error: zipError } = await validateZipFile(uploadedFile.file);
+            if (!isValid) {
+              console.error(`ZIP validation failed before upload: ${zipError}`);
+              toast.error(`Cannot upload ${uploadedFile.name}: ${zipError || 'ZIP file is corrupted'}`);
+              // Update file status to show error
+              setFiles(prevFiles => 
+                prevFiles.map(file => 
+                  file.id === uploadedFile.id 
+                    ? { ...file, status: 'Pending' as const, validationErrors: [zipError || 'ZIP file is corrupted'] }
+                    : file
+                )
+              );
+              continue; // Skip this file
+            }
+            console.log(`ZIP file passed re-validation: ${uploadedFile.name}`);
+          } catch (validationError: any) {
+            console.error(`ZIP re-validation error:`, validationError);
+            toast.error(`Cannot upload ${uploadedFile.name}: Failed to validate ZIP file`);
+            setFiles(prevFiles => 
+              prevFiles.map(file => 
+                file.id === uploadedFile.id 
+                  ? { ...file, status: 'Pending' as const, validationErrors: ['ZIP validation failed'] }
+                  : file
+              )
+            );
+            continue; // Skip this file
+          }
+          
           // Use batch upload endpoint for ZIP files (backend will extract and process)
+          console.log(`Preparing ZIP upload: ${uploadedFile.name}`);
+          
+          // Verify file integrity one more time by reading it as a blob
+          try {
+            const fileBlob = uploadedFile.file.slice(0, uploadedFile.file.size, uploadedFile.file.type);
+            const fileSize = fileBlob.size;
+            console.log(`File blob size: ${fileSize} bytes, Original size: ${uploadedFile.file.size} bytes`);
+            
+            if (fileSize !== uploadedFile.file.size) {
+              console.error('File size mismatch detected!');
+              toast.error(`File size mismatch detected for ${uploadedFile.name}. Please try selecting the file again.`);
+              continue;
+            }
+            
+            // Verify the file is still readable
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            if (arrayBuffer.byteLength < 22) {
+              console.error('File appears to be corrupted - too small');
+              toast.error(`File ${uploadedFile.name} appears to be corrupted. Please try again.`);
+              continue;
+            }
+            
+            console.log(`File integrity verified: ${arrayBuffer.byteLength} bytes`);
+          } catch (verifyError: any) {
+            console.error('File verification failed:', verifyError);
+            toast.error(`Failed to verify file ${uploadedFile.name}. Please try again.`);
+            continue;
+          }
+          
+          // Make sure we're using the original file object, not a copy
           formData.append('batchupload', uploadedFile.file, uploadedFile.name);
           formData.append('isZip', 'true'); // Flag to indicate ZIP file
           // Append selected Department/SubDepartment IDs from dropdowns
@@ -446,6 +630,23 @@ export const BatchUploadPanel = () => {
           }
           formData.append('dep', String(depId));
           formData.append('subdep', String(subId));
+          
+          // Log FormData contents for debugging
+          console.log(`ZIP FormData prepared:`);
+          console.log(`  - File: ${uploadedFile.name} (${uploadedFile.file.size} bytes, type: ${uploadedFile.file.type})`);
+          console.log(`  - dep: ${depId}`);
+          console.log(`  - subdep: ${subId}`);
+          console.log(`  - isZip: true`);
+          
+          // Verify FormData entry
+          const formDataFile = formData.get('batchupload') as File;
+          if (formDataFile) {
+            console.log(`FormData file verified: ${formDataFile.name} (${formDataFile.size} bytes)`);
+          } else {
+            console.error('ERROR: File not found in FormData!');
+            toast.error(`Failed to prepare file ${uploadedFile.name} for upload. Please try again.`);
+            continue;
+          }
         } else if (isExcelOrCsv) {
           // Use batch upload endpoint for Excel files
           formData.append('batchupload', uploadedFile.file, uploadedFile.name);
@@ -506,18 +707,157 @@ export const BatchUploadPanel = () => {
           successCount += 1;
           
           console.log(`Uploaded ${uploadedFile.name}:`, data);
+          console.log(`Full response structure:`, JSON.stringify(data, null, 2));
+          
           // Capture last response for spreadsheets/ZIP to show details
           if (isZip || isExcelOrCsv) {
             setLastBatchResponse(data);
+            
+            // Extract created document IDs from response
+            const responseData = data as any;
+            const documentIds: number[] = [];
+            
+            // Try to extract document IDs from various possible response formats
+            if (responseData?.processedDocuments && Array.isArray(responseData.processedDocuments)) {
+              responseData.processedDocuments.forEach((doc: any) => {
+                if (doc.documentId) documentIds.push(doc.documentId);
+                if (doc.id) documentIds.push(doc.id);
+                if (doc.ID) documentIds.push(doc.ID);
+              });
+            }
+            
+            if (responseData?.createdDocuments && Array.isArray(responseData.createdDocuments)) {
+              responseData.createdDocuments.forEach((doc: any) => {
+                if (doc.id) documentIds.push(doc.id);
+                if (doc.ID) documentIds.push(doc.ID);
+              });
+            }
+            
+            // Also check if response has document IDs directly
+            if (responseData?.documentIds && Array.isArray(responseData.documentIds)) {
+              documentIds.push(...responseData.documentIds);
+            }
+            
+            // Check for success count in response
+            const successCount = responseData?.successfulUpdates || responseData?.successCount || responseData?.totalDocuments || 0;
+            
+            if (documentIds.length > 0) {
+              setCreatedDocumentIds(prev => [...prev, ...documentIds]);
+              console.log(`✅ Created document IDs:`, documentIds);
+            } else if (successCount > 0) {
+              console.log(`✅ Upload successful: ${successCount} document(s) created (IDs not in response)`);
+            }
+            
             // Prefer backend-provided counts when available
             if (typeof (data as any)?.successfulUpdates === 'number' && typeof (data as any)?.failedUpdates === 'number') {
               const total = (data as any)?.totalDocuments ?? ((data as any)?.successfulUpdates + (data as any)?.failedUpdates);
               setLastBatchCount({ total, success: (data as any).successfulUpdates });
+            } else if (successCount > 0) {
+              setLastBatchCount({ total: successCount, success: successCount });
+            } else if (documentIds.length > 0) {
+              // Use document IDs count as fallback
+              setLastBatchCount({ total: documentIds.length, success: documentIds.length });
             }
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Failed to upload ${uploadedFile.name}:`, error);
-          toast.error(`Failed to upload ${uploadedFile.name}`);
+          console.error('Error response:', error?.response?.data);
+          console.error('Error status:', error?.response?.status);
+          
+          // Extract error message from various possible response formats
+          let errorMessage = 'Unknown error occurred';
+          let errorDetails = '';
+          
+          if (error?.response?.data) {
+            const data = error.response.data;
+            // Try different possible error message fields
+            errorMessage = data.message 
+              || data.error 
+              || data.errorMessage
+              || data.msg
+              || (typeof data === 'string' ? data : 'Internal server error');
+            
+            // Try to get additional details
+            errorDetails = data.details 
+              || data.detail
+              || data.stack
+              || '';
+            
+            // Special handling for ZIP file corruption errors
+            const isZipCorruptionError = errorDetails?.includes('end of central directory') 
+              || errorDetails?.includes('not a zip file')
+              || errorDetails?.includes('Can\'t find')
+              || errorDetails?.includes('central directory')
+              || errorMessage?.includes('end of central directory')
+              || errorMessage?.includes('not a zip file');
+            
+            if (isZipCorruptionError) {
+              // Check if client-side validation passed but server failed
+              const clientValidationPassed = !uploadedFile.validationErrors || uploadedFile.validationErrors.length === 0;
+              
+              if (clientValidationPassed) {
+                // This is a SERVER-SIDE issue - file is valid but server can't read it
+                errorMessage = '⚠️ Server-side ZIP processing error';
+                const cleanDetails = errorDetails?.split(':')[0]?.trim() || 
+                                   'The server cannot read the ZIP file structure.';
+                errorDetails = `❌ SERVER ERROR: ${cleanDetails}\n\n✅ Client validation: PASSED\n✅ File integrity: VERIFIED\n✅ File size: ${uploadedFile.file.size} bytes\n\n🔍 This indicates a BACKEND/SERVER issue:\n• Server ZIP library may be outdated or incompatible\n• Server-side file parsing error\n• Multipart form data parsing issue\n• Server file size/encoding configuration\n\n💡 Recommended actions:\n1. Contact system administrator\n2. Check server logs for detailed error\n3. Verify server ZIP library version\n4. Try a smaller ZIP file to test\n5. Check server file upload configuration`;
+              } else {
+                // Client-side validation also failed
+                errorMessage = 'Invalid or corrupted ZIP file';
+                const cleanDetails = errorDetails?.split(':')[0]?.trim() || 
+                                   'The ZIP file structure is damaged or incomplete.';
+                errorDetails = `${cleanDetails}\n\nPossible solutions:\n• Recreate the ZIP file\n• Use a different ZIP tool (7-Zip, WinRAR, etc.)\n• Check if the file was downloaded correctly\n• Ensure the file is not corrupted or incomplete`;
+              }
+            } else if (errorDetails && !errorMessage.includes(errorDetails)) {
+              // Only append details if they're not already in the message
+              // This prevents duplication
+            }
+          } else if (error?.message) {
+            errorMessage = error.message;
+          }
+          
+          // Format the final error message
+          // For toast, use a simpler format (toast doesn't handle newlines well)
+          let toastMessage = errorMessage;
+          if (errorDetails) {
+            // Extract first line of details for toast
+            const firstLine = errorDetails.split('\n')[0];
+            if (firstLine && !errorMessage.includes(firstLine)) {
+              toastMessage = `${errorMessage}: ${firstLine}`;
+            }
+          }
+          
+          // Show error toast with simplified message
+          toast.error(`Failed to upload ${uploadedFile.name}: ${toastMessage}`, {
+            duration: 10000, // Show for 10 seconds to allow reading
+          });
+          
+          // For file status, store the full detailed message
+          const fullErrorMessage = errorDetails && !errorMessage.includes(errorDetails)
+            ? `${errorMessage}\n\n${errorDetails}` 
+            : errorMessage;
+          
+          // Update file status to show error with full details
+          setFiles(prevFiles => 
+            prevFiles.map(file => 
+              file.id === uploadedFile.id 
+                ? { 
+                    ...file, 
+                    status: 'Pending' as const, 
+                    validationErrors: [fullErrorMessage.replace(/\n/g, ' | ')] // Replace newlines for display
+                  }
+                : file
+            )
+          );
+          
+          // Also log the full error for debugging
+          console.error(`Full error details for ${uploadedFile.name}:`, {
+            errorMessage,
+            errorDetails,
+            clientValidationPassed: !uploadedFile.validationErrors || uploadedFile.validationErrors.length === 0,
+            fileSize: uploadedFile.file.size,
+            fileType: uploadedFile.file.type
+          });
         }
       }
     }
@@ -541,7 +881,49 @@ export const BatchUploadPanel = () => {
     if (!lastBatchCount) {
       setLastBatchCount({ total: files.length, success: successCount });
     }
-    toast.success(`Batch upload completed! Processed ${files.length} files.`);
+    
+    // Show success message with option to view documents
+    const depId = departmentOptions.find(d => d.label === selectedDepartment)?.value || '';
+    const subId = subDepartmentOptions.find(s => s.label === selectedSubDepartment)?.value || '';
+    
+    if (successCount > 0 && depId && subId) {
+      const viewDocuments = () => {
+        // Navigate to MyDocuments with pre-applied filters
+        const params = new URLSearchParams();
+        params.set('department', depId);
+        params.set('subDepartment', subId);
+        params.set('appliedDepartment', depId);
+        params.set('appliedSubDepartment', subId);
+        navigate(`/documents?${params.toString()}`);
+      };
+      
+      toast.success(
+        (t) => (
+          <div className="flex flex-col gap-2">
+            <div className="font-semibold">✅ Batch upload completed!</div>
+            <div className="text-sm">
+              Successfully uploaded {successCount} file{successCount > 1 ? 's' : ''}
+              {createdDocumentIds.length > 0 && ` (${createdDocumentIds.length} document${createdDocumentIds.length > 1 ? 's' : ''} created)`}
+            </div>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                viewDocuments();
+              }}
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-2 justify-center"
+            >
+              <ExternalLink className="w-4 h-4" />
+              View Documents
+            </button>
+          </div>
+        ),
+        {
+          duration: 8000,
+        }
+      );
+    } else {
+      toast.success(`Batch upload completed! Processed ${files.length} files.`);
+    }
   };
 
   if (loadingDepartments) {

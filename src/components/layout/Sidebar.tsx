@@ -291,7 +291,7 @@ const Sidebar: React.FC = () => {
         <div className="p-4 border-t border-blue-800">
           <div className="text-xs text-blue-300">
             <p>DMS v1.0.0</p>
-            <p>© 2025 BLS</p>
+            <p>© 2025 BLSi</p>
           </div>
         </div>
       </div>
