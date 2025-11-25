@@ -8,7 +8,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import axios from '@/api/axios';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-// import { fetchDocuments } from '@/pages/Document/utils/uploadAPIs'; // Unused import
+import { fetchDocuments } from '@/pages/Document/utils/uploadAPIs';
 //
 
 //
@@ -51,6 +51,7 @@ const Dashboard: React.FC = () => {
   const [downloadsCount, setDownloadsCount] = useState<number>(0);
   const [activeUsersCount, setActiveUsersCount] = useState<number>(0);
   const [confidentialDocsCount, setConfidentialDocsCount] = useState<number>(0);
+  const [totalPagesCount, setTotalPagesCount] = useState<number>(0);
 
   // Loading states
   const [isDocumentsLoading, setIsDocumentsLoading] = useState<boolean>(false);
@@ -71,6 +72,59 @@ const Dashboard: React.FC = () => {
     []
   );
 
+  // Function to fetch all pages for total page count calculation
+  const fetchAllPagesForCount = useCallback(async (
+    userId: number,
+    department?: string,
+    subDepartment?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> => {
+    try {
+      let totalPages = 0;
+      let currentPage = 1;
+      let hasMorePages = true;
+
+      while (hasMorePages) {
+        const response = await fetchDocuments(
+          userId,
+          currentPage,
+          undefined,
+          department,
+          subDepartment,
+          startDate,
+          endDate
+        );
+        
+        const raw = response?.data as any;
+        const data = (raw && (raw.data ?? raw)) as any;
+        const docs = Array.isArray(data?.documents) ? data.documents : [];
+        const pagination = data?.pagination ?? { totalPages: 1 };
+
+        // Sum page counts from current page's documents
+        const pageCount = docs.reduce((sum: number, doc: any) => {
+          const docPageCount = typeof doc?.PageCount === 'number' ? doc.PageCount : 
+                               typeof doc?.newdoc?.PageCount === 'number' ? doc.newdoc.PageCount : 0;
+          return sum + (docPageCount || 0);
+        }, 0);
+        
+        totalPages += pageCount;
+
+        // Check if there are more pages
+        if (currentPage >= (pagination.totalPages || 1) || docs.length === 0) {
+          hasMorePages = false;
+        } else {
+          currentPage++;
+        }
+      }
+
+      return totalPages;
+    } catch (error) {
+      console.error('Error fetching all pages for count:', error);
+      return 0;
+    }
+  }, []);
+
   // Combined function to fetch both documents and analytics
   const fetchAllData = useCallback(async () => {
     if (!selectedRole?.ID) return;
@@ -80,9 +134,9 @@ const Dashboard: React.FC = () => {
     setIsFilterLoading(true);
     
     try {
-      // Fetch documents and analytics in parallel
-      const [documentsResult, analyticsResult] = await Promise.allSettled([
-        // Documents API call
+      // Fetch documents, analytics, and total page count in parallel
+      const [documentsResult, analyticsResult, totalPagesResult] = await Promise.allSettled([
+        // Documents API call (first page only for display)
         fetchDocumentList(
           Number(selectedRole.ID), 
           1, 
@@ -284,7 +338,15 @@ const Dashboard: React.FC = () => {
               .map(a => a.documentNew?.ID)
           );
           setConfidentialDocsCount(confidentialSet.size);
-        })()
+        })(),
+        // Fetch all pages to calculate total page count
+        fetchAllPagesForCount(
+          Number(selectedRole.ID),
+          selectedDepartment || undefined,
+          selectedSubDepartment || undefined,
+          startDate || undefined,
+          endDate || undefined
+        )
       ]);
 
       // Handle results
@@ -294,6 +356,11 @@ const Dashboard: React.FC = () => {
       if (analyticsResult.status === 'rejected') {
         console.error('Failed to fetch analytics:', analyticsResult.reason);
       }
+      if (totalPagesResult.status === 'fulfilled') {
+        setTotalPagesCount(totalPagesResult.value);
+      } else if (totalPagesResult.status === 'rejected') {
+        console.error('Failed to fetch total page count:', totalPagesResult.reason);
+      }
       
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -302,7 +369,7 @@ const Dashboard: React.FC = () => {
       setIsAnalyticsLoading(false);
       setIsFilterLoading(false);
     }
-  }, [selectedRole, fetchDocumentList, startDate, endDate, selectedDepartment, selectedSubDepartment, selectedYear]);
+  }, [selectedRole, fetchDocumentList, fetchAllPagesForCount, startDate, endDate, selectedDepartment, selectedSubDepartment, selectedYear]);
 
   // Effect to fetch all data on role change and filter changes
   useEffect(() => {
@@ -357,23 +424,9 @@ const Dashboard: React.FC = () => {
     setSelectedSubDepartment('');
   };
 
-  // Compute total pages from loaded documents (server-side filtered)
-  const totalPagesFromDocuments = useMemo(() => {
-    const docs = documentList?.documents || [];
-    
-    const totalPages = docs.reduce((sum: number, doc: any) => {
-      // Check both direct PageCount and nested newdoc.PageCount
-      const pageCount = typeof doc?.PageCount === 'number' ? doc.PageCount : 
-                       typeof doc?.newdoc?.PageCount === 'number' ? doc.newdoc.PageCount : 0;
-      
-      // If PageCount is null, assume 1 page per document
-      const actualPageCount = pageCount || (doc?.newdoc ? 1 : 0);
-      
-      return sum + actualPageCount;
-    }, 0);
-    
-    return totalPages;
-  }, [documentList?.documents]);
+  // Use the total pages count from all fetched documents
+  // This is calculated by fetching all pages, not just the first page
+  const totalPagesFromDocuments = totalPagesCount;
 
   const statCards = [
     {
