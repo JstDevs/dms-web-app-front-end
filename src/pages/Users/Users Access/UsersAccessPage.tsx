@@ -131,11 +131,16 @@ const UserAccessPage = () => {
   const handleDelete = async (id: number) => {
     try {
       const res = await deleteUserAccessRole(id);
+      if (res.inUse) {
+        toast.error('Access [' + selectedRole + '] cannot be deleted because it is being used!');
+        return;
+      }
 
       if (!res.success) {
         toast.error('Failed to delete role');
         return;
       }
+
       console.log(res.data, 'deleteUserAccessRole', selectedRole);
       removeRole(selectedRole);
       setSelectedRole('');
