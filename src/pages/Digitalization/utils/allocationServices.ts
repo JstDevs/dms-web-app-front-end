@@ -9,6 +9,7 @@ export interface OCRField {
 
 export interface Field {
   LinkID: number;
+  FieldID?: number; // Link to OCRavailableFields.ID (master field)
   FieldNumber: number;
   Active: number;
   Description: string;
@@ -52,6 +53,7 @@ export const fetchFieldsByLink = async (
 };
 
 export type UpsertFieldItem = {
+  FieldID?: number; // Link to OCRavailableFields.ID (master field)
   FieldNumber: number;
   Active: boolean | number | string;
   Description?: string | null;

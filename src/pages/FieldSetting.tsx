@@ -1,13 +1,14 @@
 import { Button } from '@chakra-ui/react';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { OCRField } from './OCR/Fields/ocrFieldService';
+import { OCRField, fetchOCRFields } from './OCR/Fields/ocrFieldService';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
  
 
 type FieldSettingsPanelProps = {
   // showFieldsPanel: boolean;
   // setShowFieldsPanel: (value: boolean) => void;
-  fieldsInfo: (OCRField & { Type?: string })[];
+  fieldsInfo: (OCRField & { Type?: string; FieldID?: number })[];
+  masterFields?: OCRField[]; // All available master fields from OCRFieldsManagement
   onSave: (
     updatedFields: {
       ID: number;
@@ -15,6 +16,7 @@ type FieldSettingsPanelProps = {
       Type: string;
       Description: string;
       active: boolean;
+      FieldID?: number; // Link to master field
     }[]
   ) => void;
   onCancel: (
@@ -24,6 +26,7 @@ type FieldSettingsPanelProps = {
       Type: string;
       Description: string;
       active: boolean;
+      FieldID?: number;
     }[]
   ) => void;
 };
@@ -34,12 +37,13 @@ export const FieldSettingsPanel = forwardRef(
       // showFieldsPanel,
       // setShowFieldsPanel,
       fieldsInfo,
+      masterFields = [],
       onSave,
       onCancel,
     }: FieldSettingsPanelProps,
     ref: React.Ref<any>
   ) => {
-    // Removed search bar
+    const [masterFieldsList, setMasterFieldsList] = useState<OCRField[]>([]);
     const [fields, setFields] = useState<
       {
         ID: number;
@@ -47,21 +51,75 @@ export const FieldSettingsPanel = forwardRef(
         Type: string;
         Description: string;
         active: boolean;
+        FieldID?: number; // Link to master field
+        FieldNumber?: number; // For tracking which slot (1-10)
       }[]
     >([]);
     const [saving, setSaving] = useState(false);
 
+    // Fetch master fields if not provided
     useEffect(() => {
-      if (fieldsInfo?.length > 0) {
-        setFields(
-          fieldsInfo.map((f) => ({
-            ...f,
-            Type: f.Type || 'text', // Use Type from fieldsInfo or default to text
-            Description: f.Field, // Set default description to field name
-            active: (f as any).IsActive !== false, // Check based on IsActive flag from DB
-          }))
-        );
+      const loadMasterFields = async () => {
+        if (masterFields && masterFields.length > 0) {
+          setMasterFieldsList(masterFields);
+        } else {
+          try {
+            const fetched = await fetchOCRFields();
+            setMasterFieldsList(fetched || []);
+          } catch (error) {
+            console.error('Failed to fetch master fields:', error);
+            setMasterFieldsList([]);
+          }
+        }
+      };
+      loadMasterFields();
+    }, [masterFields]);
+
+    // Initialize with 10 slots, populate with existing fieldsInfo
+    useEffect(() => {
+      // Create 10 slots (FieldNumber 1-10)
+      const slots: {
+        ID: number;
+        Field: string;
+        Type: string;
+        Description: string;
+        active: boolean;
+        FieldID?: number;
+        FieldNumber: number;
+      }[] = [];
+      
+      for (let i = 1; i <= 10; i++) {
+        // Find if there's an existing field for this slot
+        const existingField = fieldsInfo.find((f: any) => {
+          const fieldNumber = f.FieldNumber || (f.ID <= 10 ? f.ID : 0);
+          return fieldNumber === i && (f as any).IsActive !== false;
+        });
+        
+        if (existingField) {
+          slots.push({
+            ID: existingField.ID || i,
+            Field: existingField.Field || '',
+            Type: existingField.Type || 'text',
+            Description: existingField.Field || '',
+            active: (existingField as any).IsActive !== false,
+            FieldID: existingField.FieldID || existingField.ID,
+            FieldNumber: i,
+          });
+        } else {
+          // Empty slot
+          slots.push({
+            ID: i + 10000, // Temporary ID for empty slots
+            Field: '',
+            Type: 'text',
+            Description: '',
+            active: false,
+            FieldID: undefined,
+            FieldNumber: i,
+          });
+        }
       }
+      
+      setFields(slots);
     }, [fieldsInfo]);
 
     const toggleFieldActive = (index: number) => {
@@ -72,12 +130,39 @@ export const FieldSettingsPanel = forwardRef(
       );
     };
 
-    const handleDescriptionChange = (index: number, value: string) => {
-      setFields((prev) =>
-        prev.map((field, i) =>
-          i === index ? { ...field, Description: value } : field
-        )
-      );
+    const handleFieldSelection = (index: number, masterFieldId: string) => {
+      const selectedMasterField = masterFieldsList.find(mf => mf.ID === Number(masterFieldId));
+      
+      if (selectedMasterField) {
+        setFields((prev) =>
+          prev.map((field, i) =>
+            i === index
+              ? {
+                  ...field,
+                  Field: selectedMasterField.Field,
+                  Description: selectedMasterField.Field,
+                  FieldID: selectedMasterField.ID,
+                  active: true, // Auto-activate when field is selected
+                }
+              : field
+          )
+        );
+      } else if (masterFieldId === '') {
+        // Clear selection
+        setFields((prev) =>
+          prev.map((field, i) =>
+            i === index
+              ? {
+                  ...field,
+                  Field: '',
+                  Description: '',
+                  FieldID: undefined,
+                  active: false,
+                }
+              : field
+          )
+        );
+      }
     };
 
     const handleTypeChange = (index: number, type: string) => {
@@ -90,14 +175,19 @@ export const FieldSettingsPanel = forwardRef(
       if (saving) return;
       setSaving(true);
       try {
-        // Return all fields with their current active state to allow both activation and deactivation
-        const fullPayload = fields.map(({ ID, Field, Type, Description, active }) => ({
-          ID,
-          Field,
-          Type,
-          Description,
-          active,
-        }));
+        // Return ALL fields that have a FieldID selected (both active and inactive)
+        // This allows deactivating fields that were previously active
+        const fullPayload = fields
+          .filter(f => f.FieldID) // Only fields with selected master field (can be active or inactive)
+          .map(({ ID, Field, Type, Description, active, FieldID, FieldNumber }) => ({
+            ID: FieldNumber || ID, // Use FieldNumber if available
+            Field,
+            Type,
+            Description,
+            active,
+            FieldID, // Include FieldID to link to master
+            FieldNumber, // Include FieldNumber for proper slot mapping
+          }));
         await Promise.resolve(onSave(fullPayload));
       } finally {
         setSaving(false);
@@ -110,7 +200,7 @@ export const FieldSettingsPanel = forwardRef(
       onCancel(fields);
     };
 
-    const filteredFields = fields;
+    // Removed filteredFields - using fields directly
     // 🔁 Expose `handleCancel` to parent
     useImperativeHandle(ref, () => ({
       cancelFields: handleCancel,
@@ -120,33 +210,58 @@ export const FieldSettingsPanel = forwardRef(
       <div className="bg-white border rounded-xl p-3 sm:p-6 space-y-4 mt-6 shadow-md">
         {/* Search Bar removed */}
 
-        {/* Dynamic Fields */}
+        {/* Dynamic Fields - 10 slots with dropdowns */}
         <div className="space-y-3">
-          {filteredFields.map((field) => {
-            // Find the original index in the fields array for proper state management
-            const originalIndex = fields.findIndex(f => f.ID === field.ID);
+          <div className="text-sm text-gray-600 mb-2">
+            Select up to 10 fields from master data (OCRFieldsManagement)
+          </div>
+          {fields.map((field, index) => {
+            const uniqueKey = `field-slot-${field.FieldNumber || index}`;
+            // Get already selected FieldIDs to disable them in other dropdowns
+            // Only disable if field is active (to allow changing inactive fields)
+            const selectedFieldIDs = fields
+              .filter((f, i) => i !== index && f.FieldID && f.active)
+              .map(f => f.FieldID)
+              .filter((id): id is number => id !== undefined);
+            
             return (
             <div
-              key={field.ID}
+              key={uniqueKey}
               className="flex items-center gap-3 px-3 py-3 rounded-lg bg-gray-50"
             >
-              {/* Checkbox + Description Input */}
+              {/* Slot Number + Checkbox + Field Dropdown */}
               <div className="flex items-center gap-3 flex-1">
+                <span className="text-sm font-medium text-gray-500 w-8">
+                  {field.FieldNumber || index + 1}:
+                </span>
                 <input
                   type="checkbox"
                   checked={field.active}
-                  onChange={() => toggleFieldActive(originalIndex)}
-                  className="h-4 w-4 cursor-pointer flex-shrink-0"
+                  onChange={() => toggleFieldActive(index)}
+                  className="h-4 w-4 cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!field.FieldID} // Disable checkbox if no field selected (need to select field first)
                 />
-                <input
-                  type="text"
-                  className="flex-1 px-3 py-2 border rounded text-sm"
-                  placeholder="Field name"
-                  value={field.Description}
-                  onChange={(e) =>
-                    handleDescriptionChange(originalIndex, e.target.value)
-                  }
-                />
+                <select
+                  className="flex-1 px-3 py-2 border rounded text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  value={field.FieldID || ''}
+                  onChange={(e) => handleFieldSelection(index, e.target.value)}
+                  disabled={false} // Always enabled - user can select any time
+                >
+                  <option value="">-- Select Field --</option>
+                  {masterFieldsList.length > 0 ? (
+                    masterFieldsList.map((mf) => (
+                      <option
+                        key={mf.ID}
+                        value={mf.ID}
+                        disabled={selectedFieldIDs.includes(mf.ID)} // Disable if already selected
+                      >
+                        {mf.Field} {selectedFieldIDs.includes(mf.ID) ? '(Already selected)' : ''}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>Loading fields...</option>
+                  )}
+                </select>
               </div>
 
               {/* Radio Buttons */}
@@ -154,22 +269,24 @@ export const FieldSettingsPanel = forwardRef(
                 <label className="text-sm flex items-center gap-1 cursor-pointer">
                   <input
                     type="radio"
-                    name={`type-${originalIndex}`}
+                    name={`type-${index}`}
                     value="text"
                     checked={field.Type === 'text'}
-                    onChange={() => handleTypeChange(originalIndex, 'text')}
+                    onChange={() => handleTypeChange(index, 'text')}
                     className="cursor-pointer"
+                    disabled={!field.FieldID}
                   />
                   Text
                 </label>
                 <label className="text-sm flex items-center gap-1 cursor-pointer">
                   <input
                     type="radio"
-                    name={`type-${originalIndex}`}
+                    name={`type-${index}`}
                     value="date"
                     checked={field.Type === 'date'}
-                    onChange={() => handleTypeChange(originalIndex, 'date')}
+                    onChange={() => handleTypeChange(index, 'date')}
                     className="cursor-pointer"
+                    disabled={!field.FieldID}
                   />
                   Date
                 </label>

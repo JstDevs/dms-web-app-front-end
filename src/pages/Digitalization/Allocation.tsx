@@ -6,6 +6,7 @@ import { Button } from '@chakra-ui/react';
 import toast from 'react-hot-toast';
 import { allocateFieldsToUsers, updateAllocation, fetchFieldsByLink, Field, updateFieldsByLink, fetchAllocationsByLink, fetchAllocationsByDept, fetchAllAllocations, fetchAllocationByUserAndDept, DocumentAccess } from './utils/allocationServices';
 import { fetchAvailableFields } from '../Document/utils/fieldAllocationService';
+import { fetchOCRFields } from '../OCR/Fields/ocrFieldService';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { useUsers } from '../Users/useUser';
@@ -35,6 +36,8 @@ type updatedFields = {
 
 type FieldInfo = {
   ID: number;
+  FieldID?: number; // Link to OCRavailableFields.ID (master field)
+  FieldNumber?: number; // FieldNumber for saving (1-10)
   Field: string;
   Type?: string;
   updatedAt: string;
@@ -62,6 +65,7 @@ export const AllocationPanel = () => {
   const [fieldsInfo, setFieldsInfo] = useState<FieldInfo[]>([]);
   const [fieldsError, setFieldsError] = useState<string | null>(null);
   const [hasFetchedFields, setHasFetchedFields] = useState(false);
+  const [masterFieldsList, setMasterFieldsList] = useState<any[]>([]);
 
   const [subDepartmentOptions, setSubDepartmentOptions] = useState<
     { value: string; label: string }[]
@@ -119,26 +123,118 @@ export const AllocationPanel = () => {
       setFieldsLoading(true);
       setFieldsError(null);
       try {
-        // Load both: available universe + current configuration
-        const [available, current] = await Promise.all([
+        // Load both: available universe + current configuration + ALL master fields
+        const [availableFromBackend, current, masterFields] = await Promise.all([
           fetchAvailableFields(Number(selectedDept), Number(selectedSubDept)),
           fetchFieldsByLink(Number(selectedSubDept)),
+          fetchOCRFields().catch(() => []), // Fetch all master fields, fallback to empty if fails
         ]);
+        
+        // Store master fields for dropdown
+        setMasterFieldsList(masterFields || []);
+        
+        // Map all master fields to available fields format
+        const allMasterFields = (masterFields || []).map((mf: any) => ({
+          ID: mf.ID,
+          FieldID: mf.ID, // FieldID is the same as ID for master fields
+          Field: mf.Field,
+          MasterField: mf.Field,
+          Description: mf.Field,
+          Type: 'text', // Default type
+          DepartmentId: Number(selectedDept),
+          SubDepartmentId: Number(selectedSubDept),
+          UserId: 0,
+          View: true,
+          Add: false,
+          Edit: true,
+          Delete: false,
+          Print: false,
+          Confidential: false,
+          IsActive: false,
+          FieldNumber: 0, // Will be assigned when linked
+        })) as any;
+        
+        // Merge: Use backend available fields if they exist (may have additional metadata),
+        // otherwise use master fields. Create a map to avoid duplicates.
+        const availableMap = new Map<number, any>();
+        
+        // First, add all master fields (complete list)
+        allMasterFields.forEach((mf: any) => {
+          availableMap.set(mf.ID, mf);
+        });
+        
+        // Then, override with backend available fields if they have additional info
+        (availableFromBackend || []).forEach((af: any) => {
+          const fieldID = af.FieldID ?? af.ID;
+          if (availableMap.has(fieldID)) {
+            // Merge backend data with master field data
+            availableMap.set(fieldID, {
+              ...availableMap.get(fieldID),
+              ...af,
+              FieldID: fieldID, // Ensure FieldID is set
+            });
+          } else {
+            // Backend field not in master - add it anyway
+            availableMap.set(fieldID, {
+              ...af,
+              FieldID: fieldID,
+            });
+          }
+        });
+        
+        // Convert map back to array
+        const available = Array.from(availableMap.values());
 
-        // Build map from current by-link
-        const currentMap = new Map<number, Field>(
+        // Build map from current by-link - key by FieldID to match master fields
+        const currentMapByFieldID = new Map<number, Field>(
+          (current || []).map((c: Field) => [Number(c.FieldID || 0), c])
+        );
+        // Also build map by FieldNumber for fallback
+        const currentMapByFieldNumber = new Map<number, Field>(
           (current || []).map((c: Field) => [Number(c.FieldNumber), c])
         );
 
-        // Start with available list
+        // Start with available list (all master fields)
         const baseList: FieldInfo[] = (available || []).map((f: any) => {
-          const fid = Number(f.ID ?? f.FieldNumber ?? 0);
-          const currentMatch = currentMap.get(fid);
+          const fieldID = f.FieldID ?? f.ID; // Get FieldID from available fields (link to master)
+          // Match by FieldID first (preferred), then by FieldNumber as fallback
+          // Also try matching by FieldNumber from available field if FieldID match fails
+          const currentMatch = currentMapByFieldID.get(fieldID) || 
+                             currentMapByFieldNumber.get(Number((f.FieldNumber || f.ID) ?? 0)) ||
+                             (f.FieldNumber ? currentMapByFieldNumber.get(Number(f.FieldNumber)) : null);
           const activeVal = currentMatch ? (currentMatch as any).Active : (f as any)?.Active;
+          const masterFieldName = f.Field ?? f.MasterField ?? ''; // Master field name
+          const currentDescription = currentMatch?.Description ?? '';
+          
+          // Display logic: If FieldID exists and Description matches master, use master (for cascade updates)
+          // Otherwise, use Description (for custom names)
+          const displayField = fieldID && currentDescription === masterFieldName
+            ? masterFieldName // Use master (will update when master changes)
+            : (currentDescription || masterFieldName || f.Description || '');
+          
+          // Use FieldNumber from current match if exists, otherwise use a placeholder
+          const fieldNumber = currentMatch ? Number(currentMatch.FieldNumber) : (f.FieldNumber || 0);
+          
+          // Create unique ID: Use FieldNumber if linked, otherwise use FieldID + a large offset to avoid conflicts
+          // This ensures each field has a unique ID even if FieldNumber is 0
+          const uniqueID = fieldNumber > 0 ? fieldNumber : (fieldID + 10000); // Offset to avoid conflicts with FieldNumbers 1-10
+          
+          // Prioritize DataType from currentMatch (DB), then from available field, then default to 'text'
+          // Convert DataType to lowercase for consistency ('Date' -> 'date', 'Text' -> 'text')
+          const dataType = currentMatch?.DataType 
+            ? String(currentMatch.DataType).toLowerCase()
+            : (f.DataType 
+              ? String(f.DataType).toLowerCase()
+              : (f.Type 
+                ? String(f.Type).toLowerCase()
+                : 'text'));
+          
           return {
-            ID: fid,
-            Field: String(currentMatch?.Description ?? f.Field ?? f.Description ?? ''),
-            Type: String((currentMatch?.DataType ?? f.Type ?? f.DataType ?? 'text')).toLowerCase(),
+            ID: uniqueID, // Unique ID for React key
+            FieldID: fieldID, // Track FieldID to link to master
+            FieldNumber: fieldNumber, // Store FieldNumber separately for saving
+            Field: displayField,
+            Type: dataType, // Use properly prioritized DataType
             updatedAt: '',
             createdAt: '',
             IsActive:
@@ -146,27 +242,49 @@ export const AllocationPanel = () => {
           } as FieldInfo;
         });
 
-        // Include any current rows that aren't in available (union)
-        const baseIds = new Set(baseList.map(b => b.ID));
+        // Include any current rows that aren't in available (union) - fields without FieldID
+        // Create a set of all FieldIDs and FieldNumbers from baseList to prevent duplicates
+        const baseFieldIDs = new Set(baseList.map(b => b.FieldID).filter(id => id && id > 0));
+        const baseFieldNumbers = new Set(baseList.map(b => b.FieldNumber).filter(num => num && num > 0));
+        const baseIDs = new Set(baseList.map(b => b.ID));
+        
         const union: FieldInfo[] = [
           ...baseList,
           ...(current || [])
-            .filter((c: Field) => !baseIds.has(Number(c.FieldNumber)))
-            .map((c: Field) => ({
-              ID: Number(c.FieldNumber),
-              Field: c.Description,
-              Type: String(c.DataType || 'text').toLowerCase(),
-              updatedAt: '',
-              createdAt: '',
-              IsActive:
-                (c as any).Active === 1 ||
-                (c as any).Active === '1' ||
-                (c as any).Active === true ||
-                (c as any).Active === 'true',
-            } as FieldInfo)),
+            .filter((c: Field) => {
+              const fieldID = c.FieldID || 0;
+              const fieldNumber = Number(c.FieldNumber);
+              // Only include if:
+              // 1. FieldID is 0 (unlinked) AND FieldNumber not in baseList, OR
+              // 2. FieldID exists but not in baseList (shouldn't happen, but safety check)
+              return (fieldID === 0 && !baseFieldNumbers.has(fieldNumber) && !baseIDs.has(fieldNumber)) ||
+                     (fieldID > 0 && !baseFieldIDs.has(fieldID));
+            })
+            .map((c: Field) => {
+              const fieldNumber = Number(c.FieldNumber);
+              return {
+                ID: fieldNumber, // Use FieldNumber as ID for linked fields
+                FieldID: c.FieldID || 0, // Preserve FieldID from current fields
+                FieldNumber: fieldNumber, // Store FieldNumber
+                Field: c.Description,
+                Type: String(c.DataType || 'text').toLowerCase(),
+                updatedAt: '',
+                createdAt: '',
+                IsActive:
+                  (c as any).Active === 1 ||
+                  (c as any).Active === '1' ||
+                  (c as any).Active === true ||
+                  (c as any).Active === 'true',
+              } as FieldInfo;
+            }),
         ];
+        
+        // Final deduplication by ID to ensure no duplicates
+        const uniqueUnion = Array.from(
+          new Map(union.map(f => [f.ID, f])).values()
+        );
 
-        setFieldsInfo(union);
+        setFieldsInfo(uniqueUnion);
         setHasFetchedFields(true);
       } catch (error) {
         console.error('Failed to fetch fields:', error);
@@ -1071,64 +1189,278 @@ export const AllocationPanel = () => {
               <FieldSettingsPanel
                 ref={fieldPanelRef}
                 fieldsInfo={fieldsInfo}
+                masterFields={masterFieldsList} // Pass master fields for dropdown
                 onSave={async (updatedFields) => {
                   try {
-                    // Map ALL fields (active and inactive) so unchecking also persists
-                    const payloadFields = updatedFields.map((f: any) => ({
-                      FieldNumber: Number(f.ID),
-                      Active: Boolean(f.active),
-                      Description: f.Description ?? f.Field ?? '',
-                      DataType: (String(f.Type || '').toLowerCase() === 'date' ? 'Date' : 'Text'),
-                    }));
+                    // Get current fields to check existing FieldNumbers
+                    const currentFields = await fetchFieldsByLink(Number(selectedSubDept));
+                    const existingFieldNumbers = new Set(
+                      currentFields.map((f: Field) => Number(f.FieldNumber)).filter(n => n > 0 && n <= 10)
+                    );
+                    
+                    // Track which FieldNumbers we're assigning in this save operation
+                    const assignedFieldNumbers = new Set(existingFieldNumbers);
+                    
+                    // Find next available FieldNumber (1-10)
+                    const getNextAvailableFieldNumber = (): number => {
+                      for (let i = 1; i <= 10; i++) {
+                        if (!assignedFieldNumbers.has(i)) {
+                          return i;
+                        }
+                      }
+                      return 0; // No available slot
+                    };
+                    
+                    // Separate active and inactive fields
+                    const activeFields = updatedFields.filter((f: any) => f.active);
+                    const inactiveFields = updatedFields.filter((f: any) => !f.active);
+                    
+                    // Process active fields first - use FieldNumber from slot (1-10)
+                    const activePayload = activeFields.map((f: any) => {
+                      const fieldInfo = fieldsInfo.find(fi => fi.ID === f.ID);
+                      // FieldNumber comes from the slot (1-10) - use it directly
+                      // If not provided, try to get from fieldInfo or assign next available
+                      let fieldNumber = f.FieldNumber || fieldInfo?.FieldNumber || 0;
+                      const fieldID = f.FieldID || fieldInfo?.FieldID;
+                      
+                      // If field has invalid or no FieldNumber, assign next available
+                      if (fieldNumber === 0 || fieldNumber > 10) {
+                        fieldNumber = getNextAvailableFieldNumber();
+                        if (fieldNumber === 0) {
+                          toast.error(`No available field slots (max 10 fields). Please deactivate a field first.`);
+                          throw new Error('No available field slots');
+                        }
+                        assignedFieldNumbers.add(fieldNumber);
+                      } else {
+                        // FieldNumber is valid (1-10), mark it as assigned
+                        assignedFieldNumbers.add(fieldNumber);
+                      }
+                      
+                      // Ensure FieldNumber is valid (1-10)
+                      if (fieldNumber < 1 || fieldNumber > 10) {
+                        console.warn(`Invalid FieldNumber ${fieldNumber} for field ${f.Field || f.Description}, skipping`);
+                        return null;
+                      }
+                      
+                      return {
+                        FieldID: fieldID,
+                        FieldNumber: fieldNumber,
+                        Active: true,
+                        Description: f.Description ?? f.Field ?? '',
+                        DataType: (String(f.Type || '').toLowerCase() === 'date' ? 'Date' : 'Text'),
+                      };
+                    }).filter((f): f is NonNullable<typeof f> => f !== null);
+                    
+                    // Process inactive fields - include fields that have FieldID but are inactive
+                    // For new fields (not in DB yet), skip them if inactive (don't create inactive entries)
+                    // For existing fields (in DB), include them to deactivate
+                    const inactivePayload = inactiveFields.map((f: any) => {
+                      const fieldInfo = fieldsInfo.find(fi => fi.ID === f.ID);
+                      // Use FieldNumber from the field itself (from slot) or from fieldInfo
+                      let fieldNumber = f.FieldNumber || fieldInfo?.FieldNumber || 0;
+                      const fieldID = f.FieldID || fieldInfo?.FieldID;
+                      
+                      // Skip if no FieldID (field not selected)
+                      if (!fieldID) {
+                        return null;
+                      }
+                      
+                      // If field has FieldID but no FieldNumber, it's a new field - skip if inactive
+                      // (Don't create inactive entries for new fields - only activate new fields)
+                      if (!fieldNumber || fieldNumber === 0) {
+                        // New field that's inactive - don't send it (user can select but not activate)
+                        return null;
+                      }
+                      
+                      // Existing field that's being deactivated - include it
+                      // OR new field with FieldNumber from slot that's inactive - skip it (don't create inactive)
+                      // Only send if it exists in DB (has valid FieldNumber from DB, not just from slot)
+                      const existsInDB = fieldInfo && fieldInfo.FieldNumber && fieldInfo.FieldNumber >= 1 && fieldInfo.FieldNumber <= 10;
+                      
+                      if (existsInDB && fieldNumber >= 1 && fieldNumber <= 10) {
+                        return {
+                          FieldID: fieldID,
+                          FieldNumber: fieldNumber,
+                          Active: false,
+                          Description: f.Description ?? f.Field ?? '',
+                          DataType: (String(f.Type || '').toLowerCase() === 'date' ? 'Date' : 'Text'),
+                        };
+                      }
+                      
+                      // Skip new inactive fields (don't create them in DB)
+                      return null;
+                    }).filter((f): f is NonNullable<typeof f> => f !== null);
+                    
+                    // Combine active and inactive fields
+                    const payloadFields = [...activePayload, ...inactivePayload];
+                    
+                    // Validate payload - ensure all fields have required properties
+                    const validPayload = payloadFields.filter(f => {
+                      // Must have FieldNumber (1-10) and FieldID
+                      return f.FieldNumber >= 1 && f.FieldNumber <= 10 && f.FieldID;
+                    });
+                    
+                    // If no valid fields to save, show message
+                    if (validPayload.length === 0 && payloadFields.length > 0) {
+                      toast.error('No valid fields to save. Please ensure fields are properly configured.');
+                      return;
+                    }
 
                     // Persist exact states; no need to use deactivateMissing when sending all
-                    await updateFieldsByLink(Number(selectedSubDept), payloadFields, { deactivateMissing: false });
+                    await updateFieldsByLink(Number(selectedSubDept), validPayload, { deactivateMissing: false });
 
                     setSavedFieldsData(updatedFields);
                     toast.success('Fields updated');
 
-                    // Refresh by merging available + current so the list always shows all fields
+                    // Refresh by merging available + current + ALL master fields so the list always shows all fields
                     setFieldsLoading(true);
-                    const [available, current] = await Promise.all([
+                    const [availableFromBackend, current, masterFields] = await Promise.all([
                       fetchAvailableFields(Number(selectedDept), Number(selectedSubDept)),
                       fetchFieldsByLink(Number(selectedSubDept)),
+                      fetchOCRFields().catch(() => []), // Fetch all master fields, fallback to empty if fails
                     ]);
-                    const currentMap = new Map<number, Field>(
+                    
+                    // Store master fields for dropdown
+                    setMasterFieldsList(masterFields || []);
+                    
+                    // Map all master fields to available fields format
+                    const allMasterFields = (masterFields || []).map((mf: any) => ({
+                      ID: mf.ID,
+                      FieldID: mf.ID,
+                      Field: mf.Field,
+                      MasterField: mf.Field,
+                      Description: mf.Field,
+                      Type: 'text',
+                      DepartmentId: Number(selectedDept),
+                      SubDepartmentId: Number(selectedSubDept),
+                      UserId: 0,
+                      View: true,
+                      Add: false,
+                      Edit: true,
+                      Delete: false,
+                      Print: false,
+                      Confidential: false,
+                      IsActive: false,
+                      FieldNumber: 0,
+                    })) as any;
+                    
+                    // Merge: Use backend available fields if they exist, otherwise use master fields
+                    const availableMap = new Map<number, any>();
+                    allMasterFields.forEach((mf: any) => {
+                      availableMap.set(mf.ID, mf);
+                    });
+                    (availableFromBackend || []).forEach((af: any) => {
+                      const fieldID = af.FieldID ?? af.ID;
+                      if (availableMap.has(fieldID)) {
+                        availableMap.set(fieldID, {
+                          ...availableMap.get(fieldID),
+                          ...af,
+                          FieldID: fieldID,
+                        });
+                      } else {
+                        availableMap.set(fieldID, {
+                          ...af,
+                          FieldID: fieldID,
+                        });
+                      }
+                    });
+                    const available = Array.from(availableMap.values());
+                    
+                    // Build map from current by-link - key by FieldID to match master fields
+                    const currentMapByFieldID = new Map<number, Field>(
+                      (current || []).map((c: Field) => [Number(c.FieldID || 0), c])
+                    );
+                    // Also build map by FieldNumber for fallback
+                    const currentMapByFieldNumber = new Map<number, Field>(
                       (current || []).map((c: Field) => [Number(c.FieldNumber), c])
                     );
+                    
                     const baseList: FieldInfo[] = (available || []).map((f: any) => {
-                      const fid = Number(f.ID ?? f.FieldNumber ?? 0);
-                      const currentMatch = currentMap.get(fid);
+                      const fieldID = f.FieldID ?? f.ID; // Get FieldID from available fields (link to master)
+                      // Match by FieldID first (preferred), then by FieldNumber as fallback
+                      // Also try matching by FieldNumber from available field if FieldID match fails
+                      const currentMatch = currentMapByFieldID.get(fieldID) || 
+                                         currentMapByFieldNumber.get(Number((f.FieldNumber || f.ID) ?? 0)) ||
+                                         (f.FieldNumber ? currentMapByFieldNumber.get(Number(f.FieldNumber)) : null);
                       const activeVal = currentMatch ? (currentMatch as any).Active : (f as any)?.Active;
+                      const masterFieldName = f.Field ?? f.MasterField ?? ''; // Master field name
+                      const currentDescription = currentMatch?.Description ?? '';
+                      
+                      // Display logic: If FieldID exists and Description matches master, use master (for cascade updates)
+                      // Otherwise, use Description (for custom names)
+                      const displayField = fieldID && currentDescription === masterFieldName
+                        ? masterFieldName // Use master (will update when master changes)
+                        : (currentDescription || masterFieldName || f.Description || '');
+                      
+                      // Use FieldNumber from current match if exists, otherwise use a placeholder
+                      const fieldNumber = currentMatch ? Number(currentMatch.FieldNumber) : (f.FieldNumber || 0);
+                      
+                      // Create unique ID: Use FieldNumber if linked, otherwise use FieldID + offset
+                      const uniqueID = fieldNumber > 0 ? fieldNumber : (fieldID + 10000);
+                      
+                      // Prioritize DataType from currentMatch (DB), then from available field, then default to 'text'
+                      // Convert DataType to lowercase for consistency ('Date' -> 'date', 'Text' -> 'text')
+                      const dataType = currentMatch?.DataType 
+                        ? String(currentMatch.DataType).toLowerCase()
+                        : (f.DataType 
+                          ? String(f.DataType).toLowerCase()
+                          : (f.Type 
+                            ? String(f.Type).toLowerCase()
+                            : 'text'));
+                      
                       return {
-                        ID: fid,
-                        Field: String(currentMatch?.Description ?? f.Field ?? f.Description ?? ''),
-                        Type: String((currentMatch?.DataType ?? f.Type ?? f.DataType ?? 'text')).toLowerCase(),
+                        ID: uniqueID, // Unique ID for React key
+                        FieldID: fieldID, // Track FieldID to link to master
+                        FieldNumber: fieldNumber, // Store FieldNumber separately for saving
+                        Field: displayField,
+                        Type: dataType, // Use properly prioritized DataType
                         updatedAt: '',
                         createdAt: '',
                         IsActive:
                           activeVal === 1 || activeVal === '1' || activeVal === true || activeVal === 'true',
                       } as FieldInfo;
                     });
-                    const baseIds = new Set(baseList.map(b => b.ID));
+                    // Create a set of all FieldIDs and FieldNumbers from baseList to prevent duplicates
+                    const baseFieldIDs = new Set(baseList.map(b => b.FieldID).filter(id => id && id > 0));
+                    const baseFieldNumbers = new Set(baseList.map(b => b.FieldNumber).filter(num => num && num > 0));
+                    const baseIDs = new Set(baseList.map(b => b.ID));
+                    
                     const union: FieldInfo[] = [
                       ...baseList,
                       ...(current || [])
-                        .filter((c: Field) => !baseIds.has(Number(c.FieldNumber)))
-                        .map((c: Field) => ({
-                          ID: Number(c.FieldNumber),
-                          Field: c.Description,
-                          Type: String(c.DataType || 'text').toLowerCase(),
-                          updatedAt: '',
-                          createdAt: '',
-                          IsActive:
-                            (c as any).Active === 1 ||
-                            (c as any).Active === '1' ||
-                            (c as any).Active === true ||
-                            (c as any).Active === 'true',
-                        } as FieldInfo)),
+                        .filter((c: Field) => {
+                          const fieldID = c.FieldID || 0;
+                          const fieldNumber = Number(c.FieldNumber);
+                          // Only include if:
+                          // 1. FieldID is 0 (unlinked) AND FieldNumber not in baseList, OR
+                          // 2. FieldID exists but not in baseList (shouldn't happen, but safety check)
+                          return (fieldID === 0 && !baseFieldNumbers.has(fieldNumber) && !baseIDs.has(fieldNumber)) ||
+                                 (fieldID > 0 && !baseFieldIDs.has(fieldID));
+                        })
+                        .map((c: Field) => {
+                          const fieldNumber = Number(c.FieldNumber);
+                          return {
+                            ID: fieldNumber, // Use FieldNumber as ID for linked fields
+                            FieldID: c.FieldID || 0, // Preserve FieldID from current fields
+                            FieldNumber: fieldNumber, // Store FieldNumber
+                            Field: c.Description,
+                            Type: String(c.DataType || 'text').toLowerCase(),
+                            updatedAt: '',
+                            createdAt: '',
+                            IsActive:
+                              (c as any).Active === 1 ||
+                              (c as any).Active === '1' ||
+                              (c as any).Active === true ||
+                              (c as any).Active === 'true',
+                          } as FieldInfo;
+                        }),
                     ];
-                    setFieldsInfo(union);
+                    
+                    // Final deduplication by ID to ensure no duplicates
+                    const uniqueUnion = Array.from(
+                      new Map(union.map(f => [f.ID, f])).values()
+                    );
+                    setFieldsInfo(uniqueUnion);
                     setHasFetchedFields(true);
                   } catch (err: any) {
                     console.error('Failed to save fields:', err);
