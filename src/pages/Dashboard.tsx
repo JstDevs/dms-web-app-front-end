@@ -13,6 +13,131 @@ import { fetchDocuments } from '@/pages/Document/utils/uploadAPIs';
 
 //
 
+const normalizeFileType = (dataType: string, fileName?: string): string => {
+  if (!dataType) {
+    if (fileName) {
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      return ext || 'others';
+    }
+    return 'others';
+  }
+
+  const lowerType = dataType.toLowerCase().trim();
+  const upperType = dataType.toUpperCase().trim();
+  const originalType = dataType.trim();
+
+  if (
+    !lowerType.includes('/') &&
+    !lowerType.includes('vnd') &&
+    !lowerType.includes('openxml') &&
+    !upperType.includes('VND') &&
+    !upperType.includes('OPENXML')
+  ) {
+    return lowerType;
+  }
+
+  if (
+    lowerType === 'application/pdf' ||
+    lowerType === 'pdf' ||
+    (upperType.includes('PDF') && !upperType.includes('VND'))
+  ) {
+    return 'pdf';
+  }
+
+  const hasWordProcessing = /wordprocessing/i.test(originalType);
+  const hasVndOpenXml = /vnd\.openxmlformats/i.test(originalType);
+  const hasOfficeDocument = /officedocument/i.test(originalType);
+
+  if (
+    hasWordProcessing ||
+    (hasVndOpenXml && hasOfficeDocument && /wordprocessing|document/i.test(originalType)) ||
+    (hasVndOpenXml && hasWordProcessing) ||
+    (hasVndOpenXml && hasOfficeDocument && !/spreadsheet/i.test(originalType)) ||
+    lowerType === 'application/msword' ||
+    lowerType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    lowerType.includes('vnd.openxmlformats-officedocument.wordprocessingml.document')
+  ) {
+    return 'docx';
+  }
+
+  if (
+    lowerType.includes('spreadsheetml') ||
+    lowerType.includes('spreadsheet') ||
+    upperType.includes('SPREADSHEETML') ||
+    upperType.includes('SPREADSHEET') ||
+    lowerType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    lowerType === 'application/vnd.ms-excel' ||
+    lowerType.includes('vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  ) {
+    return 'xlsx';
+  }
+
+  if (lowerType.startsWith('image/') || upperType.startsWith('IMAGE/')) {
+    if (lowerType === 'image/png' || upperType === 'IMAGE/PNG') return 'png';
+    if (
+      lowerType === 'image/jpeg' ||
+      lowerType === 'image/jpg' ||
+      upperType === 'IMAGE/JPEG' ||
+      upperType === 'IMAGE/JPG'
+    )
+      return 'jpg';
+    return 'image';
+  }
+
+  if (
+    lowerType === 'text/plain' ||
+    upperType === 'TEXT/PLAIN' ||
+    lowerType === 'txt'
+  ) {
+    return 'txt';
+  }
+
+  if (
+    lowerType === 'text/csv' ||
+    lowerType === 'application/vnd.ms-excel' ||
+    upperType === 'TEXT/CSV' ||
+    lowerType === 'csv'
+  ) {
+    return 'csv';
+  }
+
+  if (
+    lowerType === 'application/zip' ||
+    lowerType === 'application/x-zip-compressed' ||
+    upperType.includes('ZIP') ||
+    lowerType === 'zip'
+  ) {
+    return 'zip';
+  }
+
+  if (fileName) {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (ext) return ext;
+  }
+
+  return 'others';
+};
+
+const formatFileTypeLabel = (typeKey: string): string => {
+  return typeKey === 'pdf'
+    ? 'PDF'
+    : typeKey === 'doc' || typeKey === 'docx'
+    ? 'Docx'
+    : typeKey === 'xls' || typeKey === 'xlsx'
+    ? 'Excel'
+    : typeKey === 'png' || typeKey === 'jpg' || typeKey === 'jpeg'
+    ? 'Image'
+    : typeKey === 'txt'
+    ? 'Text'
+    : typeKey === 'csv'
+    ? 'CSV'
+    : typeKey === 'zip'
+    ? 'ZIP'
+    : typeKey === 'others'
+    ? 'Others'
+    : typeKey.toUpperCase();
+};
+
 const Dashboard: React.FC = () => {
   const { fetchDocumentList } = useDocument();
   const { selectedRole, user } = useAuth();
@@ -80,7 +205,7 @@ const Dashboard: React.FC = () => {
     subDepartment?: string,
     startDate?: string,
     endDate?: string
-  ): Promise<{ totalDocuments: number; totalPages: number }> => {
+  ): Promise<{ totalDocuments: number; totalPages: number; fileTypes: Record<string, number> }> => {
     try {
       let totalFilteredDocuments = 0;
       let totalFilteredPages = 0;
@@ -88,6 +213,7 @@ const Dashboard: React.FC = () => {
       let hasMorePages = true;
       const startBound = startDate ? new Date(`${startDate}T00:00:00`) : null;
       const endBound = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
+      const typeCounter: Record<string, number> = {};
 
       while (hasMorePages) {
         const response = await fetchDocuments(
@@ -126,6 +252,14 @@ const Dashboard: React.FC = () => {
 
         totalFilteredDocuments += filteredDocs.length;
 
+        filteredDocs.forEach((doc: any) => {
+          const rawType = doc?.newdoc?.DataType || doc?.DataType || '';
+          const fileName = doc?.newdoc?.FileName || doc?.FileName;
+          const typeKey = normalizeFileType(rawType, fileName);
+          const pretty = formatFileTypeLabel(typeKey);
+          typeCounter[pretty] = (typeCounter[pretty] || 0) + 1;
+        });
+
         const pageCount = filteredDocs.reduce((sum: number, doc: any) => {
           const docPageCount = typeof doc?.PageCount === 'number' ? doc.PageCount :
                                typeof doc?.newdoc?.PageCount === 'number' ? doc.newdoc.PageCount : 0;
@@ -147,16 +281,18 @@ const Dashboard: React.FC = () => {
         return {
           totalDocuments: totalFilteredDocuments,
           totalPages: totalFilteredPages,
+          fileTypes: typeCounter,
         };
       }
 
       return {
         totalDocuments: totalFilteredDocuments,
         totalPages: totalFilteredPages,
+        fileTypes: typeCounter,
       };
     } catch (error) {
       console.error('Error fetching all pages for count:', error);
-      return { totalDocuments: 0, totalPages: 0 };
+      return { totalDocuments: 0, totalPages: 0, fileTypes: {} };
     }
   }, []);
 
@@ -292,136 +428,22 @@ const Dashboard: React.FC = () => {
 
           const allActivities = filteredActivities as any[];
 
-          // Helper function to normalize MIME types to file extensions
-          const normalizeFileType = (dataType: string, fileName?: string): string => {
-            if (!dataType) {
-              // Fallback to filename extension
-              if (fileName) {
-                const ext = fileName.split('.').pop()?.toLowerCase();
-                return ext || 'others';
-              }
-              return 'others';
-            }
-
-            const lowerType = dataType.toLowerCase().trim();
-            const upperType = dataType.toUpperCase().trim();
-            const originalType = dataType.trim();
-
-            // Check if it's already a simple extension (no slashes, no dots in the middle)
-            // Simple extensions like "pdf", "docx", "xlsx" etc.
-            if (!lowerType.includes('/') && !lowerType.includes('vnd') && !lowerType.includes('openxml') && 
-                !upperType.includes('VND') && !upperType.includes('OPENXML')) {
-              return lowerType;
-            }
-
-            // Handle MIME types - check both lowercase and uppercase variations
-            // Also handle cases where "application/" prefix might be missing
-            
-            // PDF
-            if (lowerType === 'application/pdf' || lowerType === 'pdf' || 
-                upperType.includes('PDF') && !upperType.includes('VND')) {
-              return 'pdf';
-            }
-            
-            // Word documents - handle multiple formats
-            // Full MIME type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
-            // Without prefix: vnd.openxmlformats-officedocument.wordprocessingml.document
-            // Uppercase with dots: VND.OPENXMLFORMATS-OFFICEDOCUMENT.WORDPROCESSINGML.DOCUMENT
-            // Uppercase with slashes: APPLICATION/VND.OPENXMLFORMATS-OFFICEDOCUMENT.WORDPROCESSINGML.DOCUMENT
-            
-            // Simple check: if it contains wordprocessing (any case), it's a Word doc
-            const hasWordProcessing = /wordprocessing/i.test(originalType);
-            
-            // Check for VND.OPENXMLFORMATS pattern (uppercase with dots) - this is the key pattern
-            const hasVndOpenXml = /vnd\.openxmlformats/i.test(originalType);
-            
-            // Check for OFFICEDOCUMENT (indicates Office document)
-            const hasOfficeDocument = /officedocument/i.test(originalType);
-            
-            // If it has VND.OPENXMLFORMATS-OFFICEDOCUMENT pattern, it's likely a Word doc
-            // The pattern "VND.OPENXMLFORMATS-OFFICEDOCUMENT.WORDPROCESSINGML.DOCUMENT" is Word
-            // Also handle the case where it might be truncated like "VND.OPENXMLFORMATS-O..."
-            if (hasWordProcessing || 
-                (hasVndOpenXml && hasOfficeDocument && /wordprocessing|document/i.test(originalType)) ||
-                (hasVndOpenXml && hasWordProcessing) ||
-                // Direct check for the pattern user is seeing: VND.OPENXMLFORMATS-OFFICEDOCUMENT
-                (hasVndOpenXml && hasOfficeDocument && !/spreadsheet/i.test(originalType)) ||
-                lowerType === 'application/msword' ||
-                lowerType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-                lowerType.includes('vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-              return 'docx';
-            }
-            
-            // Excel documents
-            if (lowerType.includes('spreadsheetml') || 
-                lowerType.includes('spreadsheet') ||
-                upperType.includes('SPREADSHEETML') ||
-                upperType.includes('SPREADSHEET') ||
-                lowerType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-                lowerType === 'application/vnd.ms-excel' ||
-                lowerType.includes('vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
-              return 'xlsx';
-            }
-            
-            // Images
-            if (lowerType.startsWith('image/') || upperType.startsWith('IMAGE/')) {
-              if (lowerType === 'image/png' || upperType === 'IMAGE/PNG') return 'png';
-              if (lowerType === 'image/jpeg' || lowerType === 'image/jpg' || 
-                  upperType === 'IMAGE/JPEG' || upperType === 'IMAGE/JPG') return 'jpg';
-              return 'image';
-            }
-            
-            // Text files
-            if (lowerType === 'text/plain' || upperType === 'TEXT/PLAIN' || 
-                lowerType === 'text/plain' || lowerType === 'txt') {
-              return 'txt';
-            }
-            
-            // CSV
-            if (lowerType === 'text/csv' || lowerType === 'application/vnd.ms-excel' ||
-                upperType === 'TEXT/CSV' || lowerType === 'csv') {
-              return 'csv';
-            }
-            
-            // ZIP
-            if (lowerType === 'application/zip' || lowerType === 'application/x-zip-compressed' ||
-                upperType.includes('ZIP') || lowerType === 'zip') {
-              return 'zip';
-            }
-
-            // If MIME type doesn't match known types, try to extract from filename
-            if (fileName) {
-              const ext = fileName.split('.').pop()?.toLowerCase();
-              if (ext) return ext;
-            }
-
-            return 'others';
-          };
-
-          // File types
           const typeCounter: Record<string, number> = {};
           for (const act of allActivities) {
             const rawType = act.documentNew?.DataType || '';
             const fileName = act.documentNew?.FileName;
             const typeKey = normalizeFileType(rawType, fileName);
-            
-            const pretty =
-              typeKey === 'pdf' ? 'PDF' :
-              typeKey === 'doc' || typeKey === 'docx' ? 'Docx' :
-              typeKey === 'xls' || typeKey === 'xlsx' ? 'Excel' :
-              typeKey === 'png' || typeKey === 'jpg' || typeKey === 'jpeg' ? 'Image' :
-              typeKey === 'txt' ? 'Text' :
-              typeKey === 'csv' ? 'CSV' :
-              typeKey === 'zip' ? 'ZIP' :
-              typeKey === 'others' ? 'Others' :
-              typeKey.toUpperCase();
+            const pretty = formatFileTypeLabel(typeKey);
             typeCounter[pretty] = (typeCounter[pretty] || 0) + 1;
           }
           const typeData = Object.entries(typeCounter)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value)
             .slice(0, 8);
-          setDocumentTypeData(typeData);
+
+          if (!hasFilters) {
+            setDocumentTypeData(typeData);
+          }
 
           // Stats
           const uploads = allActivities.filter(a => a.Action === 'CREATED').length;
@@ -463,9 +485,16 @@ const Dashboard: React.FC = () => {
         console.error('Failed to fetch analytics:', analyticsResult.reason);
       }
       if (countsResult.status === 'fulfilled') {
-        const { totalDocuments, totalPages } = countsResult.value;
+        const { totalDocuments, totalPages, fileTypes } = countsResult.value;
         setTotalDocumentsCount(totalDocuments);
         setTotalPagesCount(totalPages);
+        if (fileTypes) {
+          const typeData = Object.entries(fileTypes)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 8);
+          setDocumentTypeData(typeData);
+        }
         console.log('✅ Filtered totals updated:', { totalDocuments, totalPages });
       } else if (countsResult.status === 'rejected') {
         console.error('Failed to fetch filtered totals:', countsResult.reason);
