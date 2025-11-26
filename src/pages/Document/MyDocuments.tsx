@@ -45,6 +45,8 @@ const MyDocuments: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
+  // Smart search is handled client-side in the filtering effect
+  
   // State for applied filters (what's actually used for filtering)
   const [appliedDepartment, setAppliedDepartment] = useState('');
   const [appliedSubDepartment, setAppliedSubDepartment] = useState('');
@@ -175,12 +177,19 @@ const MyDocuments: React.FC = () => {
     return new Date(startDate) <= new Date(endDate);
   };
 
-  // Reset to page 1 when filters are applied
+  // Reset to page 1 when filters are applied (search is handled client-side)
   useEffect(() => {
-    if (appliedDepartment || appliedSubDepartment || appliedStartDate || appliedEndDate || debouncedSearchTerm) {
+    if (appliedDepartment || appliedSubDepartment || appliedStartDate || appliedEndDate) {
       setCurrentPage(1);
     }
-  }, [appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate, debouncedSearchTerm]);
+  }, [appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate]);
+  
+  // Separate effect for search term - reset to page 1 when searching
+  useEffect(() => {
+    if (debouncedSearchTerm) {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearchTerm]);
   
   // Update URL when applied filters or page changes (skip during initial URL restoration)
   useEffect(() => {
@@ -229,15 +238,15 @@ const MyDocuments: React.FC = () => {
         
         if (needsAllPages) {
           // For date filtering, we need to fetch all pages to filter client-side
-          const firstPageResponse = await fetchDocuments(
-            Number(selectedRole?.ID),
-            1,
-            debouncedSearchTerm,
-            appliedDepartment,
-            appliedSubDepartment,
-            '', // Don't send date filters to backend
-            ''
-          );
+          const firstPageResponse = await                 fetchDocuments(
+                  Number(selectedRole?.ID),
+                  1,
+                  '', // Don't send search term to backend
+                  appliedDepartment,
+                  appliedSubDepartment,
+                  '', // Don't send date filters to backend
+                  ''
+                );
           const firstPageRaw = firstPageResponse.data;
           const firstPage = (firstPageRaw && (firstPageRaw.data ?? firstPageRaw)) as any;
           
@@ -251,7 +260,7 @@ const MyDocuments: React.FC = () => {
                 fetchDocuments(
                   Number(selectedRole?.ID),
                   p,
-                  debouncedSearchTerm,
+                  '', // Don't send search term to backend
                   appliedDepartment,
                   appliedSubDepartment,
                   '', // Don't send date filters to backend
@@ -276,6 +285,10 @@ const MyDocuments: React.FC = () => {
             totalPages: 1,
           };
           
+          console.log('📄 Loaded documents for client-side search:', {
+            count: combinedDocuments.length,
+            sampleDoc: combinedDocuments[0]
+          });
           setDocuments(combinedDocuments);
           setPaginationData(effectivePagination);
           // Don't set filteredDocs here - let the filtering effect handle it
@@ -284,17 +297,17 @@ const MyDocuments: React.FC = () => {
           console.log('📡 Fetching documents with filters:', {
             userId: Number(selectedRole?.ID),
             page: currentPage,
-            searchTerm: debouncedSearchTerm,
             department: appliedDepartment,
             subDepartment: appliedSubDepartment,
             startDate: appliedStartDate,
-            endDate: appliedEndDate
+            endDate: appliedEndDate,
+            note: 'Search will be applied client-side'
           });
           
           const response = await fetchDocuments(
             Number(selectedRole?.ID),
             currentPage,
-            debouncedSearchTerm,
+            '', // Don't send search term to backend - do client-side search instead
             appliedDepartment,
             appliedSubDepartment,
             appliedStartDate,
@@ -344,15 +357,15 @@ const MyDocuments: React.FC = () => {
             try {
               const pageResults = await Promise.all(
                 remainingPages.map((p) =>
-                  fetchDocuments(
-                    Number(selectedRole?.ID),
-                    p,
-                    debouncedSearchTerm,
-                    appliedDepartment,
-                    appliedSubDepartment,
-                    appliedStartDate,
-                    appliedEndDate
-                  )
+                fetchDocuments(
+                  Number(selectedRole?.ID),
+                  p,
+                  '', // Don't send search term to backend
+                  appliedDepartment,
+                  appliedSubDepartment,
+                  appliedStartDate,
+                  appliedEndDate
+                )
                 )
               );
 
@@ -373,6 +386,10 @@ const MyDocuments: React.FC = () => {
             }
           }
 
+          console.log('📄 Loaded documents for client-side search:', {
+            count: allFilteredDocs.length,
+            sampleDoc: allFilteredDocs[0]
+          });
           // Store ALL matching documents (not just 10)
           // Client-side pagination will handle slicing per page
           setDocuments(allFilteredDocs);
@@ -388,13 +405,162 @@ const MyDocuments: React.FC = () => {
         setLoading(false);
         setFilterLoading(false);
       }
-    }, [selectedRole, debouncedSearchTerm, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate]);
+    }, [selectedRole, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate]);
 
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
 
-  // Client-side filtering: department/type + optional date range + View permission check + Confidential permission check
+  // Smart search function - searches in all document fields
+  const smartSearchMatch = (doc: any, searchTerm: string): boolean => {
+    if (!searchTerm) return true;
+    
+    const search = searchTerm.toLowerCase();
+    const docData = doc.newdoc || doc;
+    
+    // Debug: Log document structure for first few documents
+    if (documents.length > 0 && documents.indexOf(doc) < 2) {
+      console.log('🔍 Document structure for search debugging:', {
+        docId: docData.ID,
+        fileName: docData.FileName,
+        fileDescription: docData.FileDescription,
+        description: docData.Description,
+        remarks: docData.Remarks,
+        allFields: Object.keys(docData),
+        textFields: {
+          Text1: docData.Text1,
+          Text2: docData.Text2,
+          Text3: docData.Text3,
+          Text4: docData.Text4,
+          Text5: docData.Text5,
+          Text6: docData.Text6,
+          Text7: docData.Text7,
+          Text8: docData.Text8,
+          Text9: docData.Text9,
+          Text10: docData.Text10
+        },
+        dateFields: {
+          CreatedDate: docData.CreatedDate,
+          FileDate: docData.FileDate,
+          ExpirationDate: docData.ExpirationDate,
+          Date1: docData.Date1,
+          Date2: docData.Date2,
+          Date3: docData.Date3,
+          Date4: docData.Date4,
+          Date5: docData.Date5
+        },
+        ocrFields: doc.OCRDocumentReadFields,
+        fullDocumentSample: docData
+      });
+    }
+    
+    // Search in basic fields
+    const basicFields = [
+      docData.FileName,
+      docData.FileDescription,
+      docData.Description,
+      docData.Remarks,
+      docData.DataName // Add this field too
+    ];
+    
+    // Search in custom text fields (Text1-Text10)
+    const textFields = [
+      docData.Text1, docData.Text2, docData.Text3, docData.Text4, docData.Text5,
+      docData.Text6, docData.Text7, docData.Text8, docData.Text9, docData.Text10
+    ];
+    
+    // Search in all text fields
+    const allTextFields = [...basicFields, ...textFields];
+    for (const field of allTextFields) {
+      if (field) {
+        const fieldStr = field.toString().toLowerCase();
+        if (fieldStr.includes(search)) {
+          console.log('✅ Found match in text field:', field);
+          return true;
+        }
+      }
+    }
+    
+    // Search in date fields with better date matching
+    const dateFields = [
+      docData.CreatedDate,
+      docData.FileDate,
+      docData.ExpirationDate,
+      docData.Date1, docData.Date2, docData.Date3, docData.Date4, docData.Date5,
+      docData.Date6, docData.Date7, docData.Date8, docData.Date9, docData.Date10
+    ];
+    
+    for (const dateField of dateFields) {
+      if (dateField) {
+        try {
+          const date = new Date(dateField);
+          if (!isNaN(date.getTime())) {
+            // Multiple date format checks
+            const dateFormats = [
+              date.toLocaleDateString(), // MM/DD/YYYY
+              date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), // September 2024
+              date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), // Sep 2024
+              date.toLocaleDateString('en-US', { month: 'long' }), // September
+              date.toLocaleDateString('en-US', { month: 'short' }), // Sep
+              date.getFullYear().toString(), // 2024
+              `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`, // 2024-09
+              dateField.toString() // Original string
+            ];
+            
+            for (const format of dateFormats) {
+              if (format.toLowerCase().includes(search)) {
+                console.log('✅ Found match in date field:', dateField, 'format:', format);
+                return true;
+              }
+            }
+          }
+        } catch (e) {
+          // If date parsing fails, try string search
+          if (dateField.toString().toLowerCase().includes(search)) {
+            console.log('✅ Found match in date field (string):', dateField);
+            return true;
+          }
+        }
+      }
+    }
+    
+    // Search in OCR fields if available
+    if (doc.OCRDocumentReadFields && Array.isArray(doc.OCRDocumentReadFields)) {
+      for (const ocrField of doc.OCRDocumentReadFields) {
+        if (ocrField.Field && ocrField.Field.toLowerCase().includes(search)) {
+          console.log('✅ Found match in OCR field name:', ocrField.Field);
+          return true;
+        }
+        if (ocrField.Value && ocrField.Value.toLowerCase().includes(search)) {
+          console.log('✅ Found match in OCR field value:', ocrField.Value);
+          return true;
+        }
+      }
+    }
+    
+    // Also search in any other fields that might exist
+    for (const [key, value] of Object.entries(docData)) {
+      if (value && typeof value === 'string' && value.toLowerCase().includes(search)) {
+        console.log('✅ Found match in other field:', key, value);
+        return true;
+      }
+    }
+    
+    // Fallback: Search through the entire document object as JSON string
+    try {
+      const docJson = JSON.stringify(doc).toLowerCase();
+      if (docJson.includes(search)) {
+        console.log('✅ Found match in document JSON (fallback search)');
+        return true;
+      }
+    } catch (e) {
+      console.warn('Failed to stringify document for fallback search:', e);
+    }
+    
+    return false;
+  };
+
+  // Client-side filtering: department/type + smart search + optional date range + permissions
   useEffect(() => {
     // Require applied department/type to show anything
     if (!appliedDepartment || !appliedSubDepartment) {
@@ -425,6 +591,19 @@ const MyDocuments: React.FC = () => {
       });
     }
 
+    // Smart search filter
+    if (debouncedSearchTerm) {
+      console.log('🔍 Applying smart search filter:', {
+        searchTerm: debouncedSearchTerm,
+        documentsBeforeSearch: filtered.length
+      });
+      filtered = filtered.filter((doc: any) => smartSearchMatch(doc, debouncedSearchTerm));
+      console.log('🔍 Documents after smart search:', {
+        searchTerm: debouncedSearchTerm,
+        documentsAfterSearch: filtered.length
+      });
+    }
+
     // Optional date filtering
     if (appliedStartDate || appliedEndDate) {
       const startBoundary = appliedStartDate
@@ -446,7 +625,7 @@ const MyDocuments: React.FC = () => {
     }
 
     setFilteredDocs(filtered);
-  }, [documents, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate, allocationPermissions.View, allocationPermissions.Confidential]);
+  }, [documents, appliedDepartment, appliedSubDepartment, appliedStartDate, appliedEndDate, debouncedSearchTerm, allocationPermissions.View, allocationPermissions.Confidential]);
 
   // Delete handler - must be defined before documentCards useMemo
   const handleDelete = useCallback(async (documentId: string) => {
@@ -562,6 +741,9 @@ const MyDocuments: React.FC = () => {
     setAppliedSubDepartment(subDepartment);
     setAppliedStartDate(startDate);
     setAppliedEndDate(endDate);
+    
+    // Smart search is handled client-side
+    
     setCurrentPage(1);
     setError(""); // Clear any previous errors
     
@@ -599,6 +781,8 @@ const MyDocuments: React.FC = () => {
     setEndDate('');
     setAppliedStartDate('');
     setAppliedEndDate('');
+    
+    // Smart search is handled client-side
     
     // Clear search
     setSearchTerm('');
@@ -650,15 +834,14 @@ const MyDocuments: React.FC = () => {
       {/* Enhanced Search and Filter Bar */}
       <div className="mb-6">
         <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
-          <div className="relative flex-1 max-w-md group">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg opacity-0 group-hover:opacity-10 transition-opacity blur-sm"></div>
+          <div className="relative flex-1 max-w-2xl">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors z-10" size={20} />
             <Input
               type="text"
-              placeholder="Search documents by name, type, or content..."
+              placeholder="Search documents, dates (e.g. 'September 2024'), or field values (e.g. 'Vendor')..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="relative pl-12 pr-12 py-3 border-2 border-gray-200 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-gray-400"
+              className="w-full pl-12 pr-12 py-4 text-base border-2 border-gray-300 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-gray-500"
               disabled={filterLoading}
             />
             {filterLoading ? (
@@ -668,11 +851,23 @@ const MyDocuments: React.FC = () => {
             ) : searchTerm ? (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                <X className="h-4 w-4 text-gray-500 hover:text-gray-700" />
               </button>
             ) : null}
+            
+            {/* Search Tips */}
+            {searchTerm && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-700">
+                    <span className="font-medium">Smart Search Active:</span> Searching in document names, descriptions, custom fields (Text1-10), dates, and OCR data.
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* <button
@@ -814,6 +1009,7 @@ const MyDocuments: React.FC = () => {
           </div>
       </div>
 
+
       {/* Enhanced Results Count */}
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-4">
@@ -831,14 +1027,21 @@ const MyDocuments: React.FC = () => {
               )}
             </p>
           </div>
-          {(appliedDepartment || appliedSubDepartment || debouncedSearchTerm || appliedStartDate || appliedEndDate) && (
-            <div className="flex items-center gap-2 text-sm text-blue-700 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-lg border border-blue-200">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="font-semibold">Filters Active</span>
+          {(debouncedSearchTerm || appliedStartDate || appliedEndDate) && (
+            <div className="flex flex-wrap items-center gap-3">
+              {debouncedSearchTerm && (
+                <div className="flex items-center gap-2 text-sm bg-blue-100 text-blue-800 px-3 py-2 rounded-full border border-blue-200">
+                  <Search className="w-4 h-4" />
+                  <span className="font-medium">Searching: "{debouncedSearchTerm}"</span>
+                </div>
+              )}
               {(appliedStartDate || appliedEndDate) && (
-                <span className="text-xs text-gray-600 ml-1">
-                  • {appliedStartDate || 'any'} to {appliedEndDate || 'any'}
-                </span>
+                <div className="flex items-center gap-2 text-sm bg-green-100 text-green-800 px-3 py-2 rounded-full border border-green-200">
+                  <Calendar className="w-4 h-4" />
+                  <span className="font-medium">
+                    Date: {appliedStartDate || 'any'} to {appliedEndDate || 'any'}
+                  </span>
+                </div>
               )}
             </div>
           )}
