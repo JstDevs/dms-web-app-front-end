@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useDocument } from '../contexts/DocumentContext';
 import { TrendingUp, Folder, BarChart3, FileText, RotateCcw, ChevronDown } from 'lucide-react';
 // import { Button } from '@chakra-ui/react'; // Uncomment if using Chakra UI buttons
@@ -14,7 +14,7 @@ import { fetchDocuments } from '@/pages/Document/utils/uploadAPIs';
 //
 
 const Dashboard: React.FC = () => {
-  const { documentList, fetchDocumentList } = useDocument();
+  const { fetchDocumentList } = useDocument();
   const { selectedRole, user } = useAuth();
   // Recent Activity moved to AuditTrail page
   
@@ -52,6 +52,7 @@ const Dashboard: React.FC = () => {
   const [activeUsersCount, setActiveUsersCount] = useState<number>(0);
   const [confidentialDocsCount, setConfidentialDocsCount] = useState<number>(0);
   const [totalPagesCount, setTotalPagesCount] = useState<number>(0);
+  const [totalDocumentsCount, setTotalDocumentsCount] = useState<number>(0);
 
   // Loading states
   const [isDocumentsLoading, setIsDocumentsLoading] = useState<boolean>(false);
@@ -72,18 +73,21 @@ const Dashboard: React.FC = () => {
     []
   );
 
-  // Function to fetch all pages for total page count calculation
+  // Function to fetch all pages and compute filtered totals
   const fetchAllPagesForCount = useCallback(async (
     userId: number,
     department?: string,
     subDepartment?: string,
     startDate?: string,
     endDate?: string
-  ): Promise<number> => {
+  ): Promise<{ totalDocuments: number; totalPages: number }> => {
     try {
-      let totalPages = 0;
+      let totalFilteredDocuments = 0;
+      let totalFilteredPages = 0;
       let currentPage = 1;
       let hasMorePages = true;
+      const startBound = startDate ? new Date(`${startDate}T00:00:00`) : null;
+      const endBound = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
 
       while (hasMorePages) {
         const response = await fetchDocuments(
@@ -101,14 +105,34 @@ const Dashboard: React.FC = () => {
         const docs = Array.isArray(data?.documents) ? data.documents : [];
         const pagination = data?.pagination ?? { totalPages: 1 };
 
-        // Sum page counts from current page's documents
-        const pageCount = docs.reduce((sum: number, doc: any) => {
-          const docPageCount = typeof doc?.PageCount === 'number' ? doc.PageCount : 
+        const filteredDocs = docs.filter((doc: any) => {
+          const docDeptId = Number(doc?.newdoc?.DepartmentId ?? doc?.DepartmentId ?? 0);
+          const docSubDeptId = Number(doc?.newdoc?.SubDepartmentId ?? doc?.SubDepartmentId ?? 0);
+          const matchesDepartment = !department || docDeptId === Number(department);
+          const matchesSubDepartment = !subDepartment || docSubDeptId === Number(subDepartment);
+          if (!matchesDepartment || !matchesSubDepartment) return false;
+
+          if (startBound || endBound) {
+            const docDateStr = doc?.newdoc?.CreatedDate || doc?.newdoc?.FileDate || doc?.CreatedDate || doc?.FileDate;
+            if (!docDateStr) return false;
+            const docDate = new Date(docDateStr);
+            if (Number.isNaN(docDate.getTime())) return false;
+            if (startBound && docDate < startBound) return false;
+            if (endBound && docDate > endBound) return false;
+          }
+
+          return true;
+        });
+
+        totalFilteredDocuments += filteredDocs.length;
+
+        const pageCount = filteredDocs.reduce((sum: number, doc: any) => {
+          const docPageCount = typeof doc?.PageCount === 'number' ? doc.PageCount :
                                typeof doc?.newdoc?.PageCount === 'number' ? doc.newdoc.PageCount : 0;
           return sum + (docPageCount || 0);
         }, 0);
         
-        totalPages += pageCount;
+        totalFilteredPages += pageCount;
 
         // Check if there are more pages
         if (currentPage >= (pagination.totalPages || 1) || docs.length === 0) {
@@ -118,10 +142,21 @@ const Dashboard: React.FC = () => {
         }
       }
 
-      return totalPages;
+      // When no filters are provided, fall back to pagination counts for efficiency
+      if (!department && !subDepartment && !startDate && !endDate) {
+        return {
+          totalDocuments: totalFilteredDocuments,
+          totalPages: totalFilteredPages,
+        };
+      }
+
+      return {
+        totalDocuments: totalFilteredDocuments,
+        totalPages: totalFilteredPages,
+      };
     } catch (error) {
       console.error('Error fetching all pages for count:', error);
-      return 0;
+      return { totalDocuments: 0, totalPages: 0 };
     }
   }, []);
 
@@ -129,23 +164,88 @@ const Dashboard: React.FC = () => {
   const fetchAllData = useCallback(async () => {
     if (!selectedRole?.ID) return;
     
+    // Reset counts when filters change to show loading state
+    const hasFilters = !!(selectedDepartment || selectedSubDepartment || startDate || endDate);
+    if (hasFilters) {
+      // Reset to 0 first to show that we're filtering
+      setTotalDocumentsCount(0);
+      setTotalPagesCount(0);
+    }
+    
     setIsDocumentsLoading(true);
     setIsAnalyticsLoading(true);
     setIsFilterLoading(true);
     
     try {
       // Fetch documents, analytics, and total page count in parallel
-      const [documentsResult, analyticsResult, totalPagesResult] = await Promise.allSettled([
-        // Documents API call (first page only for display)
-        fetchDocumentList(
-          Number(selectedRole.ID), 
-          1, 
-          undefined, 
-          selectedDepartment || undefined, 
-          selectedSubDepartment || undefined, 
-          startDate || undefined, 
-          endDate || undefined
-        ),
+      const [documentsResult, analyticsResult, countsResult] = await Promise.allSettled([
+        // Documents API call (first page only for display) - but we need the total count
+        (async () => {
+          // Fetch documents directly to get pagination info
+          const deptFilter = selectedDepartment || undefined;
+          const subDeptFilter = selectedSubDepartment || undefined;
+          
+          const hasFilters = !!(deptFilter || subDeptFilter || startDate || endDate);
+          
+          console.log('🔍 Dashboard fetching with filters:', {
+            userId: Number(selectedRole.ID),
+            department: deptFilter,
+            subDepartment: subDeptFilter,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+            hasFilters: hasFilters
+          });
+          
+          const response = await fetchDocuments(
+            Number(selectedRole.ID), 
+            1, 
+            undefined, 
+            deptFilter, 
+            subDeptFilter, 
+            startDate || undefined, 
+            endDate || undefined
+          );
+          
+          const raw = response?.data as any;
+          const data = (raw && (raw.data ?? raw)) as any;
+          const pagination = data?.pagination ?? { totalItems: 0 };
+          const docs = Array.isArray(data?.documents) ? data.documents : [];
+          
+          // Check if returned documents match the filters
+          const firstDoc = docs[0];
+          const docMatchesFilter = firstDoc ? (
+            (!deptFilter || Number(firstDoc.newdoc?.DepartmentId || firstDoc.DepartmentId) === Number(deptFilter)) &&
+            (!subDeptFilter || Number(firstDoc.newdoc?.SubDepartmentId || firstDoc.SubDepartmentId) === Number(subDeptFilter))
+          ) : true;
+          
+          console.log('📊 Dashboard API response:', {
+            totalItems: pagination?.totalItems,
+            totalPages: pagination?.totalPages,
+            documentsCount: docs.length,
+            hasFilters: hasFilters,
+            firstDocMatches: docMatchesFilter,
+            firstDoc: firstDoc ? {
+              id: firstDoc.newdoc?.ID || firstDoc.ID,
+              deptId: firstDoc.newdoc?.DepartmentId || firstDoc.DepartmentId,
+              subDeptId: firstDoc.newdoc?.SubDepartmentId || firstDoc.SubDepartmentId,
+              expectedDept: deptFilter,
+              expectedSubDept: subDeptFilter
+            } : 'no documents'
+          });
+          
+          // Also update the context for other components that might use it
+          await fetchDocumentList(
+            Number(selectedRole.ID), 
+            1, 
+            undefined, 
+            deptFilter, 
+            subDeptFilter, 
+            startDate || undefined, 
+            endDate || undefined
+          );
+          
+          return { totalDocuments: pagination?.totalItems ?? docs.length };
+        })(),
         // Analytics API call
         (async () => {
           const hasRange = Boolean(startDate && endDate);
@@ -350,16 +450,27 @@ const Dashboard: React.FC = () => {
       ]);
 
       // Handle results
-      if (documentsResult.status === 'rejected') {
+      if (documentsResult.status === 'fulfilled') {
+        const result = documentsResult.value;
+        if (result?.totalDocuments !== undefined) {
+          console.log('✅ Total documents updated:', result.totalDocuments);
+        }
+      } else if (documentsResult.status === 'rejected') {
         console.error('Failed to fetch documents:', documentsResult.reason);
+        setTotalDocumentsCount(0);
       }
       if (analyticsResult.status === 'rejected') {
         console.error('Failed to fetch analytics:', analyticsResult.reason);
       }
-      if (totalPagesResult.status === 'fulfilled') {
-        setTotalPagesCount(totalPagesResult.value);
-      } else if (totalPagesResult.status === 'rejected') {
-        console.error('Failed to fetch total page count:', totalPagesResult.reason);
+      if (countsResult.status === 'fulfilled') {
+        const { totalDocuments, totalPages } = countsResult.value;
+        setTotalDocumentsCount(totalDocuments);
+        setTotalPagesCount(totalPages);
+        console.log('✅ Filtered totals updated:', { totalDocuments, totalPages });
+      } else if (countsResult.status === 'rejected') {
+        console.error('Failed to fetch filtered totals:', countsResult.reason);
+        setTotalDocumentsCount(0);
+        setTotalPagesCount(0);
       }
       
     } catch (error) {
@@ -374,37 +485,38 @@ const Dashboard: React.FC = () => {
   // Effect to fetch all data on role change and filter changes
   useEffect(() => {
     if (selectedRole?.ID) {
+      // Always fetch data, whether filters are applied or not
+      // If filters are applied, debounce to avoid too many API calls
       if (startDate || endDate || selectedDepartment || selectedSubDepartment) {
         // Debounce filter changes
-        debouncedFetchData(fetchAllData, 100);
+        debouncedFetchData(fetchAllData, 300);
       } else {
-        // Immediate for role changes
+        // Immediate for role changes or when filters are cleared
         fetchAllData();
       }
     }
-  }, [selectedRole, startDate, endDate, selectedDepartment, selectedSubDepartment, fetchAllData, debouncedFetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRole?.ID, startDate, endDate, selectedDepartment, selectedSubDepartment]);
 
   // Update sub-departments when department selection changes
   useEffect(() => {
     if (selectedDepartment && departmentOptions.length > 0) {
-      const selectedDeptId = departmentOptions.find(
-        (dept) => dept.label === selectedDepartment
-      )?.value;
-
-      if (selectedDeptId) {
-        const subs = getSubDepartmentOptions(Number(selectedDeptId));
-        setSubDepartmentOptions(subs);
-        if (!subs.some((sub) => sub.label === selectedSubDepartment)) {
-          setSelectedSubDepartment('');
-        }
+      // selectedDepartment is now an ID (value), not a label
+      const subs = getSubDepartmentOptions(Number(selectedDepartment));
+      setSubDepartmentOptions(subs);
+      // Only clear selectedSubDepartment if it's not in the new options
+      if (selectedSubDepartment && !subs.some((sub) => sub.value === selectedSubDepartment)) {
+        setSelectedSubDepartment('');
       }
     } else {
       setSubDepartmentOptions([]);
+      // Only clear if there was a selection
       if (selectedSubDepartment) {
         setSelectedSubDepartment('');
       }
     }
-  }, [selectedDepartment, departmentOptions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDepartment, departmentOptions.length]);
 
   // Show welcome message only if sessionStorage says so (first after login)
   const [showWelcome, setShowWelcome] = useState(false);
@@ -428,10 +540,13 @@ const Dashboard: React.FC = () => {
   // This is calculated by fetching all pages, not just the first page
   const totalPagesFromDocuments = totalPagesCount;
 
+  // Note: totalDocumentsCount is now set directly in fetchAllData from API response
+  // Removed useEffect that synced from documentList to prevent infinite loops
+
   const statCards = [
     {
       title: 'Total Documents',
-      count: documentList?.totalDocuments,
+      count: totalDocumentsCount,
       icon: <Folder className="h-8 w-8 text-green-500" />,
       color: 'border-green-100',
       isLoading: isDocumentsLoading || isFilterLoading,
@@ -571,7 +686,7 @@ const Dashboard: React.FC = () => {
                   Select Department
                 </option>
                 {departmentOptions.map((dept) => (
-                  <option key={dept.value} value={dept.label}>
+                  <option key={dept.value} value={dept.value}>
                     {dept.label}
                   </option>
                 ))}
@@ -601,7 +716,7 @@ const Dashboard: React.FC = () => {
                     : 'Select Document Type'}
                 </option>
                 {subDepartmentOptions.map((subDept) => (
-                  <option key={subDept.value} value={subDept.label}>
+                  <option key={subDept.value} value={subDept.value}>
                     {subDept.label}
                   </option>
                 ))}
