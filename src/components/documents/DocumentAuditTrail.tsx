@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@chakra-ui/react';
 import { PaginationControls } from '@/components/ui/PaginationControls';
+import axios from '@/api/axios';
+import { User } from '@/types/User';
 import {
   Eye,
   Download,
@@ -45,8 +47,29 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
   const [totalItems, setTotalItems] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [usersMap, setUsersMap] = useState<Map<number, string>>(new Map());
 
   if (!document) return null;
+
+  // Fetch users to resolve user names if needed
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const { data } = await axios.get('/users');
+        const users: User[] = data.users || [];
+        const map = new Map<number, string>();
+        users.forEach((user) => {
+          if (user.ID) {
+            map.set(user.ID, user.UserName);
+          }
+        });
+        setUsersMap(map);
+      } catch (error) {
+        console.warn('Failed to fetch users for audit trail:', error);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   // Action meta mapping (label, colors, icon, layout style)
   const ACTION_META: Record<string, { 
@@ -410,23 +433,55 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
     
     // Normalize audit trail entries to ensure they have the correct structure
     const normalized = base.map((entry: any) => {
-      // Ensure actor object exists with id and userName
-      const actor = entry.actor || {
-        id: entry.ActionBy || entry.actionBy || 0,
-        userName: entry.userName || entry.user_name || entry.actor?.userName || 'Unknown'
-      };
+      // Get user ID from various possible fields
+      const userId = entry.actor?.id || 
+                     entry.ActionBy || 
+                     entry.actionBy || 
+                     entry.user?.ID ||
+                     entry.user?.id ||
+                     entry.userId ||
+                     entry.UserID ||
+                     0;
+      
+      // Get user name from various possible fields (check nested objects first, then flat fields)
+      let userName = entry.actor?.userName ||
+                     entry.actor?.user_name ||
+                     entry.user?.UserName ||
+                     entry.user?.userName ||
+                     entry.user?.user_name ||
+                     entry.userName ||
+                     entry.user_name ||
+                     entry.UserName ||
+                     entry.CreatedBy ||
+                     entry.createdBy ||
+                     (entry.actor && typeof entry.actor === 'object' && entry.actor.userName);
+      
+      // If we still don't have a user name but we have a user ID, try to get it from the users map
+      if (!userName && userId && usersMap.size > 0) {
+        userName = usersMap.get(Number(userId)) || 'Unknown';
+      }
+      
+      // Final fallback to Unknown
+      if (!userName) {
+        userName = 'Unknown';
+      }
+      
+      // Log if we're falling back to Unknown to help debug
+      if (userName === 'Unknown' && userId) {
+        console.warn('⚠️ User name not found for user ID:', userId, 'Entry data:', entry);
+      }
       
       return {
         ...entry,
         actor: {
-          id: actor.id || entry.ActionBy || 0,
-          userName: actor.userName || 'Unknown'
+          id: userId,
+          userName: userName
         }
       };
     });
     
     return normalized.sort((a, b) => new Date(b.ActionDate).getTime() - new Date(a.ActionDate).getTime());
-  }, [document.auditTrails]);
+  }, [document.auditTrails, usersMap]);
 
   // Set total items based on source entries
   useEffect(() => {
