@@ -18,6 +18,7 @@ import {
   PASSWORD_REQUIREMENTS_TEXT,
 } from '@/utils/passwordValidation';
 import axios from '@/api/axios';
+import { MODULE_IDS } from '@/constants/moduleIds';
 
 export const UsersPage: React.FC = () => {
   const { users, loading, error, refetch } = useUsers();
@@ -72,7 +73,7 @@ export const UsersPage: React.FC = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-  const userPagePermissions = useModulePermissions(5); // 1 = MODULE_ID
+  const userPagePermissions = useModulePermissions(MODULE_IDS.users);
   // Functions
   // ---------- Create USERS-------------
   const handleCreateSubmit = async (e: React.FormEvent) => {

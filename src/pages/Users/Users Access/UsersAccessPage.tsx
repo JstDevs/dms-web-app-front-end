@@ -17,6 +17,7 @@ import {
 } from './userAccessService';
 import { DeleteDialog } from '@/components/ui/DeleteDialog';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { MODULE_IDS } from '@/constants/moduleIds';
 
 const UserAccessPage = () => {
   const { permissions, isLoading: isPermissionsLoading } = usePermissions();
@@ -38,7 +39,7 @@ const UserAccessPage = () => {
   const [newRoleName, setNewRoleName] = useState('');
 
   const currentRole = roles.find((r) => r.role === selectedRole);
-  const userAccessPermissions = useModulePermissions(6); // 1 = MODULE_ID
+  const userAccessPermissions = useModulePermissions(MODULE_IDS.userAccess);
   // console.log({ selectedRole, currentRole, originalRoles });
   const handleAddNewRole = () => {
     if (addRole(newRoleName)) {

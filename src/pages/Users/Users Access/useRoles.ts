@@ -9,6 +9,21 @@ type UserAccess = {
   permissions: Permission[];
 };
 
+const normalizePermissionFlag = (value: unknown) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value === 1;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return ['1', 'true', 'y', 'yes'].includes(normalized);
+  }
+
+  return false;
+};
+
 const useRoles = (initialPermissions: Permission[]) => {
   const [roles, setRoles] = useState<UserAccess[]>([]);
   const [originalRoles, setOriginalRoles] = useState<UserAccess[]>([]);
@@ -31,13 +46,21 @@ const useRoles = (initialPermissions: Permission[]) => {
             const isAdmin =
               roleItem.Description.toLowerCase() === 'administrator' ||
               roleItem.ID === 1;
+            const normalizedMatch = {
+              view: normalizePermissionFlag(match?.View),
+              add: normalizePermissionFlag(match?.Add),
+              edit: normalizePermissionFlag(match?.Edit),
+              delete: normalizePermissionFlag(match?.Delete),
+              print: normalizePermissionFlag(match?.Print),
+            };
+
             return {
               ...perm,
-              view: isAdmin ? true : match?.View ?? false,
-              add: isAdmin ? true : match?.Add ?? false,
-              edit: isAdmin ? true : match?.Edit ?? false,
-              delete: isAdmin ? true : match?.Delete ?? false,
-              print: isAdmin ? true : match?.Print ?? false,
+              view: isAdmin ? true : normalizedMatch.view,
+              add: isAdmin ? true : normalizedMatch.add,
+              edit: isAdmin ? true : normalizedMatch.edit,
+              delete: isAdmin ? true : normalizedMatch.delete,
+              print: isAdmin ? true : normalizedMatch.print,
             };
           }),
         }));

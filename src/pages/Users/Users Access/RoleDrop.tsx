@@ -2,6 +2,7 @@ import { FiChevronDown } from 'react-icons/fi';
 import { useState, useRef, useEffect } from 'react';
 import { Users, Plus, Shield, Check } from 'lucide-react';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { MODULE_IDS } from '@/constants/moduleIds';
 
 type RoleDropdownProps = {
   roles: { role: string }[];
@@ -18,7 +19,7 @@ const RoleDropdown = ({
 }: RoleDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const userAccessPermissions = useModulePermissions(6); // 1 = MODULE_ID
+  const userAccessPermissions = useModulePermissions(MODULE_IDS.userAccess);
   
   const handleSelect = (role: string) => {
     if (role === 'Select Role') return; // Do nothing

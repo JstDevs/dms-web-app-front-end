@@ -2,6 +2,7 @@ import { Button } from '@chakra-ui/react';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { OCRField, fetchOCRFields } from './OCR/Fields/ocrFieldService';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { MODULE_IDS } from '@/constants/moduleIds';
  
 
 type FieldSettingsPanelProps = {
@@ -205,7 +206,7 @@ export const FieldSettingsPanel = forwardRef(
     useImperativeHandle(ref, () => ({
       cancelFields: handleCancel,
     }));
-    const allocationPermissions = useModulePermissions(7); // 1 = MODULE_ID
+    const fieldPermissions = useModulePermissions(MODULE_IDS.fields);
     return (
       <div className="bg-white border rounded-xl p-3 sm:p-6 space-y-4 mt-6 shadow-md">
         {/* Search Bar removed */}
@@ -302,7 +303,7 @@ export const FieldSettingsPanel = forwardRef(
         {fields.length > 0 ? (
           <div className="flex flex-col sm:flex-row justify-between items-center pt-4 gap-3">
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              {allocationPermissions?.Add && (
+              {fieldPermissions?.Add && (
                 <Button
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
                   onClick={handleSave}

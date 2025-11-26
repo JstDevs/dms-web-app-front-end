@@ -6,6 +6,7 @@ import { OCRField } from './ocrFieldService.ts';
 import { Edit, Trash2, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useOCRFields } from './useOCRFields.ts';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions.ts';
+import { MODULE_IDS } from '@/constants/moduleIds';
 const OCRFieldsManagement = () => {
   const { fields, loading, error, addField, editField, removeField } =
     useOCRFields();
@@ -16,7 +17,7 @@ const OCRFieldsManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const ocrFieldsPermissions = useModulePermissions(11); // 1 = MODULE_ID
+  const ocrFieldsPermissions = useModulePermissions(MODULE_IDS.fields);
   const handleAddField = () => {
     setCurrentField(null);
     setIsDialogOpen(true);
