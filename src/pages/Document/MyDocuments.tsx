@@ -3,8 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 // import { useDocument } from "@/contexts/DocumentContext";
 import DocumentCard from '@/components/documents/DocumentCard';
 // import { Input, Select } from "@/components/ui"; // Assuming you have these UI components
-import { FiSearch, FiFilter, FiX } from 'react-icons/fi';
-import { FileText, Search, Filter, X, Calendar, Building2, FolderOpen, AlertTriangle, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
+import { FileText, Search, Filter, X, Calendar, Building2, FolderOpen, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -415,8 +414,12 @@ const MyDocuments: React.FC = () => {
   const smartSearchMatch = (doc: any, searchTerm: string): boolean => {
     if (!searchTerm) return true;
     
-    const search = searchTerm.toLowerCase();
+    const search = searchTerm.toLowerCase().trim();
+    if (!search) return true;
+    
     const docData = doc.newdoc || doc;
+    const docId = docData.ID;
+    const fileName = docData.FileName || '';
     
     // Debug: Log document structure for first few documents
     if (documents.length > 0 && documents.indexOf(doc) < 2) {
@@ -469,13 +472,24 @@ const MyDocuments: React.FC = () => {
       docData.Text6, docData.Text7, docData.Text8, docData.Text9, docData.Text10
     ];
     
-    // Search in all text fields
+    // Search in all text fields - exact substring match
     const allTextFields = [...basicFields, ...textFields];
-    for (const field of allTextFields) {
+    for (let i = 0; i < allTextFields.length; i++) {
+      const field = allTextFields[i];
       if (field) {
         const fieldStr = field.toString().toLowerCase();
         if (fieldStr.includes(search)) {
-          console.log('✅ Found match in text field:', field);
+          const fieldName = i < basicFields.length 
+            ? ['FileName', 'FileDescription', 'Description', 'Remarks', 'DataName'][i]
+            : `Text${i - basicFields.length + 1}`;
+          console.log('✅ Found match in text field:', {
+            docId,
+            fileName,
+            fieldName,
+            fieldValue: field,
+            searchTerm: search,
+            matched: true
+          });
           return true;
         }
       }
@@ -509,7 +523,17 @@ const MyDocuments: React.FC = () => {
             
             for (const format of dateFormats) {
               if (format.toLowerCase().includes(search)) {
-                console.log('✅ Found match in date field:', dateField, 'format:', format);
+                const dateFieldName = dateFields.indexOf(dateField) < 3
+                  ? ['CreatedDate', 'FileDate', 'ExpirationDate'][dateFields.indexOf(dateField)]
+                  : `Date${dateFields.indexOf(dateField) - 2}`;
+                console.log('✅ Found match in date field:', {
+                  docId,
+                  fileName,
+                  fieldName: dateFieldName,
+                  dateValue: dateField,
+                  format,
+                  searchTerm: search
+                });
                 return true;
               }
             }
@@ -528,34 +552,30 @@ const MyDocuments: React.FC = () => {
     if (doc.OCRDocumentReadFields && Array.isArray(doc.OCRDocumentReadFields)) {
       for (const ocrField of doc.OCRDocumentReadFields) {
         if (ocrField.Field && ocrField.Field.toLowerCase().includes(search)) {
-          console.log('✅ Found match in OCR field name:', ocrField.Field);
+          console.log('✅ Found match in OCR field name:', {
+            docId,
+            fileName,
+            fieldName: 'OCR.Field',
+            fieldValue: ocrField.Field,
+            searchTerm: search
+          });
           return true;
         }
         if (ocrField.Value && ocrField.Value.toLowerCase().includes(search)) {
-          console.log('✅ Found match in OCR field value:', ocrField.Value);
+          console.log('✅ Found match in OCR field value:', {
+            docId,
+            fileName,
+            fieldName: 'OCR.Value',
+            fieldValue: ocrField.Value,
+            searchTerm: search
+          });
           return true;
         }
       }
     }
     
-    // Also search in any other fields that might exist
-    for (const [key, value] of Object.entries(docData)) {
-      if (value && typeof value === 'string' && value.toLowerCase().includes(search)) {
-        console.log('✅ Found match in other field:', key, value);
-        return true;
-      }
-    }
-    
-    // Fallback: Search through the entire document object as JSON string
-    try {
-      const docJson = JSON.stringify(doc).toLowerCase();
-      if (docJson.includes(search)) {
-        console.log('✅ Found match in document JSON (fallback search)');
-        return true;
-      }
-    } catch (e) {
-      console.warn('Failed to stringify document for fallback search:', e);
-    }
+    // Only search in known fields - don't search all fields to avoid false matches
+    // If a field is not in our list above, it won't be searched
     
     return false;
   };
@@ -597,10 +617,24 @@ const MyDocuments: React.FC = () => {
         searchTerm: debouncedSearchTerm,
         documentsBeforeSearch: filtered.length
       });
-      filtered = filtered.filter((doc: any) => smartSearchMatch(doc, debouncedSearchTerm));
+      
+      const matchedDocs: any[] = [];
+      filtered = filtered.filter((doc: any) => {
+        const matches = smartSearchMatch(doc, debouncedSearchTerm);
+        if (matches) {
+          matchedDocs.push({
+            id: doc.newdoc?.ID,
+            fileName: doc.newdoc?.FileName,
+            searchTerm: debouncedSearchTerm
+          });
+        }
+        return matches;
+      });
+      
       console.log('🔍 Documents after smart search:', {
         searchTerm: debouncedSearchTerm,
-        documentsAfterSearch: filtered.length
+        documentsAfterSearch: filtered.length,
+        matchedDocuments: matchedDocs
       });
     }
 
@@ -833,15 +867,15 @@ const MyDocuments: React.FC = () => {
 
       {/* Enhanced Search and Filter Bar */}
       <div className="mb-6">
-        <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
-          <div className="relative flex-1 max-w-2xl">
+        <div className="relative max-w-2xl">
+          <div className="relative group">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors z-10" size={20} />
             <Input
               type="text"
-              placeholder="Search documents, dates (e.g. 'September 2024'), or field values (e.g. 'Vendor')..."
+              placeholder="Search by name, date, or field value..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-12 py-4 text-base border-2 border-gray-300 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-gray-500"
+              className="w-full pl-12 pr-12 py-3.5 text-base border-2 border-gray-200 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-gray-400 hover:border-gray-300"
               disabled={filterLoading}
             />
             {filterLoading ? (
@@ -851,36 +885,26 @@ const MyDocuments: React.FC = () => {
             ) : searchTerm ? (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Clear search"
               >
-                <X className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
               </button>
             ) : null}
-            
-            {/* Search Tips */}
-            {searchTerm && (
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-blue-700">
-                    <span className="font-medium">Smart Search Active:</span> Searching in document names, descriptions, custom fields (Text1-10), dates, and OCR data.
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
-
-          {/* <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium"
-          >
-            <FiFilter />
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </button> */}
+          
+          {/* Search Tips - Compact */}
+          {searchTerm && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+              <span>Searching in names, dates, and all document fields</span>
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* Enhanced Filter Panel */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 mb-6">
+      {/* Enhanced Filter Panel */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 mb-6">
           <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
             <div className="p-2 bg-blue-100 rounded-lg">
               <Filter className="w-5 h-5 text-blue-600" />
@@ -1007,8 +1031,6 @@ const MyDocuments: React.FC = () => {
               </div>
             </div>
           </div>
-      </div>
-
 
       {/* Enhanced Results Count */}
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
