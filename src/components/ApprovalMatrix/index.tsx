@@ -17,6 +17,8 @@ import {
   deleteDocumentApprover,
   DocumentApproverRecord,
 } from '@/api/documentApprovers';
+import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { MODULE_IDS } from '@/constants/moduleIds';
 
 type LevelApprover = {
   id?: number;
@@ -89,6 +91,39 @@ const ApprovalMatrix = () => {
   >([]);
   const [loadingMatrix, setLoadingMatrix] = useState(false);
   const [saving, setSaving] = useState(false);
+  const approvalMatrixPermissions = useModulePermissions(
+    MODULE_IDS.approvalMatrix
+  );
+  const canAdd = Boolean(approvalMatrixPermissions?.Add);
+  const canEdit = Boolean(approvalMatrixPermissions?.Edit);
+  const canDelete = Boolean(approvalMatrixPermissions?.Delete);
+
+  const ensureAddPermission = () => {
+    if (canAdd) return true;
+    toast.error('You do not have permission to add approval entries.');
+    return false;
+  };
+
+  const ensureEditPermission = () => {
+    if (canEdit) return true;
+    toast.error('You do not have permission to edit the approval matrix.');
+    return false;
+  };
+
+  const ensureDeletePermission = () => {
+    if (canDelete) return true;
+    toast.error('You do not have permission to delete approval entries.');
+    return false;
+  };
+
+  const handleApprovalRuleChange = (value: ApprovalRule) => {
+    if (existingMatrix) {
+      if (!ensureEditPermission()) return;
+    } else if (!ensureAddPermission()) {
+      return;
+    }
+    setApprovalRule(value);
+  };
 
   const canConfigure = Boolean(
     selectedDepartmentId && selectedDocumentTypeId
@@ -171,6 +206,7 @@ const ApprovalMatrix = () => {
   }, [canConfigure, loadConfiguration, resetForm]);
 
   const addLevel = () => {
+    if (!ensureAddPermission()) return;
     setLevels((prev) => [
       ...prev,
       createEmptyLevel(prev.length + 1),
@@ -178,6 +214,7 @@ const ApprovalMatrix = () => {
   };
 
   const removeLevel = (sequenceLevel: number) => {
+    if (!ensureDeletePermission()) return;
     if (levels.length === 1) {
       toast.error('At least one level is required');
       return;
@@ -199,6 +236,7 @@ const ApprovalMatrix = () => {
   };
 
   const addApproverToLevel = (levelIndex: number) => {
+    if (!ensureAddPermission()) return;
     setLevels((prev) =>
       prev.map((level, index) =>
         index === levelIndex
@@ -219,6 +257,16 @@ const ApprovalMatrix = () => {
     approverIndex: number,
     value: string
   ) => {
+    const targetLevel = levels[levelIndex];
+    const targetApprover = targetLevel?.approvers?.[approverIndex];
+    const isExistingApprover = Boolean(targetApprover?.id);
+
+    if (isExistingApprover) {
+      if (!ensureEditPermission()) return;
+    } else if (!ensureAddPermission()) {
+      return;
+    }
+
     setLevels((prev) =>
       prev.map((level, index) => {
         if (index !== levelIndex) return level;
@@ -240,6 +288,7 @@ const ApprovalMatrix = () => {
     levelIndex: number,
     approverIndex: number
   ) => {
+    if (!ensureDeletePermission()) return;
     setLevels((prev) =>
       prev.map((level, index) => {
         if (index !== levelIndex) return level;
@@ -365,6 +414,18 @@ const ApprovalMatrix = () => {
         existing.Active === false
       );
     });
+
+    if (toDelete.length > 0 && !canDelete) {
+      toast.error('You do not have permission to delete approval entries.');
+      return;
+    }
+
+    const requiresAddPermission = !existingMatrix || toCreate.length > 0;
+    const requiresEditPermission =
+      Boolean(existingMatrix) || toUpdate.length > 0 || toDelete.length > 0;
+
+    if (requiresAddPermission && !ensureAddPermission()) return;
+    if (requiresEditPermission && !ensureEditPermission()) return;
 
     setSaving(true);
     try {
@@ -668,9 +729,10 @@ const ApprovalMatrix = () => {
                         value="ALL"
                         checked={approvalRule === 'ALL'}
                         onChange={(e) =>
-                          setApprovalRule(e.target.value as ApprovalRule)
+                          handleApprovalRuleChange(e.target.value as ApprovalRule)
                         }
-                        className="h-5 w-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                        disabled={existingMatrix ? !canEdit : !canAdd}
+                        className="h-5 w-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:text-gray-400"
                       />
                     </div>
                     <div>
@@ -689,9 +751,10 @@ const ApprovalMatrix = () => {
                         value="MAJORITY"
                         checked={approvalRule === 'MAJORITY'}
                         onChange={(e) =>
-                          setApprovalRule(e.target.value as ApprovalRule)
+                          handleApprovalRuleChange(e.target.value as ApprovalRule)
                         }
-                        className="h-5 w-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                        disabled={existingMatrix ? !canEdit : !canAdd}
+                        className="h-5 w-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:text-gray-400"
                       />
                     </div>
                     <div>
@@ -720,7 +783,8 @@ const ApprovalMatrix = () => {
                   <button
                     type="button"
                     onClick={addLevel}
-                    className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                    disabled={!canAdd}
+                    className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
                   >
                     <Plus className="h-5 w-5" />
                     <span>Add Level</span>
@@ -753,7 +817,8 @@ const ApprovalMatrix = () => {
                         <button
                           type="button"
                           onClick={() => removeLevel(level.sequenceLevel)}
-                          className="flex items-center space-x-2 px-3 py-2 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-all duration-200 font-medium"
+                          disabled={!canDelete}
+                          className="flex items-center space-x-2 px-3 py-2 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-red-600"
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="hidden sm:inline">Remove</span>
@@ -781,7 +846,8 @@ const ApprovalMatrix = () => {
                                     e.target.value
                                   )
                                 }
-                                className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 pr-10 appearance-none bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-300 cursor-pointer"
+                                disabled={!(canAdd || canEdit)}
+                                className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 pr-10 appearance-none bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-300 cursor-pointer disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                               >
                                 <option value="">Select User</option>
                                 {userOptions.map((user) => (
@@ -798,7 +864,8 @@ const ApprovalMatrix = () => {
                             onClick={() =>
                               removeApproverFromLevel(levelIndex, approverIndex)
                             }
-                            className="flex items-center justify-center px-4 py-2.5 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-all duration-200 border border-red-200 hover:border-red-600"
+                            disabled={!canDelete}
+                            className="flex items-center justify-center px-4 py-2.5 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-all duration-200 border border-red-200 hover:border-red-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-red-600"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -808,7 +875,8 @@ const ApprovalMatrix = () => {
                       <button
                         type="button"
                         onClick={() => addApproverToLevel(levelIndex)}
-                        className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-4 py-2.5 rounded-lg transition-all duration-200 font-medium border-2 border-dashed border-blue-200 hover:border-blue-300"
+                        disabled={!canAdd}
+                        className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-4 py-2.5 rounded-lg transition-all duration-200 font-medium border-2 border-dashed border-blue-200 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                       >
                         <Plus className="h-5 w-5" />
                         <span>Add Approver</span>
@@ -832,7 +900,7 @@ const ApprovalMatrix = () => {
                   type="button"
                   onClick={handleSave}
                   className="flex items-center space-x-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:opacity-60 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-200 font-semibold"
-                  disabled={saving}
+                  disabled={saving || (!canAdd && !canEdit)}
                 >
                   <Save className="h-5 w-5" />
                   <span>{saving ? 'Saving...' : 'Save Approval Matrix'}</span>
