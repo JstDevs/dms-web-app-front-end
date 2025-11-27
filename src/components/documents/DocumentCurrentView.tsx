@@ -1040,30 +1040,34 @@ const DocumentCurrentView = ({
                       Download
                     </button>
                   )}
-                  <button
+                  {/* <button
                     onClick={handleBrownload}
                     disabled={!currentDocumentInfo?.filepath || isSaving}
                     className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg shadow-sm hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                   >
                     <Download className="h-4 w-4" />
                     Brownload
-                  </button>
+                  </button> */}
+
                 </div>
+                
               </div>
+
             </div>
+
           </div>
 
           {/* Document Information */}
           <div className="px-6 py-6 min-h-[400px]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2 relative group">
-            <div className="relative">
-              <Info className="h-5 w-5 text-blue-500 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110" />
-              <div className="absolute -inset-1 rounded-full bg-blue-500/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </div>
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
-              Document Information
-            </span>
-          </h3>
+              <div className="relative">
+                <Info className="h-5 w-5 text-blue-500 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110" />
+                <div className="absolute -inset-1 rounded-full bg-blue-500/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </div>
+              <span className="bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
+                Document Information
+              </span>
+            </h3>
 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
