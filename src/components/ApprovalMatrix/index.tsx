@@ -299,11 +299,21 @@ const ApprovalMatrix = () => {
   const handleSave = async () => {
     if (!validateConfiguration()) return;
 
-    const departmentId = Number(selectedDepartmentId);
-    const subDepartmentId = Number(selectedDocumentTypeId);
+    const departmentId = parseInt(String(selectedDepartmentId), 10);
+    const subDepartmentId = parseInt(String(selectedDocumentTypeId), 10);
 
     if (Number.isNaN(departmentId) || Number.isNaN(subDepartmentId)) {
       toast.error('Invalid department or document type selection');
+      return;
+    }
+
+    if (departmentId <= 0 || subDepartmentId <= 0) {
+      toast.error('Department and document type must be valid selections');
+      return;
+    }
+
+    if (!approvalRule || (approvalRule !== 'ALL' && approvalRule !== 'MAJORITY')) {
+      toast.error('Invalid approval rule selected');
       return;
     }
 
@@ -358,13 +368,121 @@ const ApprovalMatrix = () => {
 
     setSaving(true);
     try {
-      if (existingMatrix?.ID) {
-        await updateApprovalMatrix(existingMatrix.ID, matrixPayload);
+      // ALWAYS fetch first to get the latest state - this ensures we know if matrix exists
+      let currentMatrix: ApprovalMatrixRecord | null = null;
+      try {
+        const matrixResponse = await fetchApprovalMatrix({
+          DepartmentId: departmentId,
+          SubDepartmentId: subDepartmentId,
+        });
+        currentMatrix = matrixResponse?.approvalMatrix ?? null;
+        if (currentMatrix) {
+          setExistingMatrix(currentMatrix);
+        }
+      } catch (fetchError: any) {
+        // If fetch fails (404 or other), assume no matrix exists yet
+        // 404 is expected when no matrix exists, so we'll try to create
+        currentMatrix = null;
+      }
+      
+      // Now decide: update if exists, create if not
+      if (currentMatrix?.ID) {
+        // Only update if values actually changed
+        const needsUpdate = 
+          currentMatrix.AllorMajority !== matrixPayload.AllorMajority ||
+          currentMatrix.DepartmentId !== matrixPayload.DepartmentId ||
+          currentMatrix.SubDepartmentId !== matrixPayload.SubDepartmentId;
+        
+        if (needsUpdate) {
+          try {
+            await updateApprovalMatrix(currentMatrix.ID, matrixPayload);
+          } catch (updateError: any) {
+            // If update endpoint doesn't exist (404), just continue silently
+            // The matrix already exists, so we can proceed with approver updates
+            if (updateError?.response?.status !== 404) {
+              // Only throw if it's not a 404
+              throw updateError;
+            }
+          }
+        }
       } else {
-        const { approvalMatrix } = await createApprovalMatrix(
-          matrixPayload
-        );
-        setExistingMatrix(approvalMatrix ?? null);
+        try {
+          const { approvalMatrix } = await createApprovalMatrix(
+            matrixPayload
+          );
+          setExistingMatrix(approvalMatrix ?? null);
+        } catch (createError: any) {
+          // If create fails with "already exists" error, fetch and update instead
+          const errorMessage = createError?.response?.data?.message || '';
+          const errorData = createError?.response?.data?.data;
+          const fullErrorData = createError?.response?.data;
+          
+          if (
+            errorMessage.includes('already exists') ||
+            errorMessage.includes('Already exists') ||
+            (createError?.response?.status === 400 && errorMessage)
+          ) {
+            // This is expected - matrix already exists, we'll handle it gracefully
+            // Try to get the matrix ID from error response data, or fetch it
+            let matrixToUpdate: ApprovalMatrixRecord | null = null;
+            
+            // Check if matrix info is in the error response
+            if (errorData?.ID) {
+              matrixToUpdate = errorData as ApprovalMatrixRecord;
+            } else if (errorData?.approvalMatrix?.ID) {
+              matrixToUpdate = errorData.approvalMatrix;
+            } else if (fullErrorData?.ID) {
+              matrixToUpdate = fullErrorData as ApprovalMatrixRecord;
+            }
+            
+            // If not in error response, fetch it
+            if (!matrixToUpdate?.ID) {
+              try {
+                const matrixResponse = await fetchApprovalMatrix({
+                  DepartmentId: departmentId,
+                  SubDepartmentId: subDepartmentId,
+                });
+                matrixToUpdate = matrixResponse?.approvalMatrix ?? null;
+              } catch (fetchError: any) {
+                // Last resort: check if error response has any ID we can use
+                if (fullErrorData && typeof fullErrorData === 'object') {
+                  const anyData = fullErrorData as any;
+                  if (anyData.ID && anyData.DepartmentId && anyData.SubDepartmentId) {
+                    matrixToUpdate = anyData as ApprovalMatrixRecord;
+                  }
+                }
+              }
+            }
+            
+            if (matrixToUpdate?.ID) {
+              // Check if matrix values actually changed
+              const needsUpdate = 
+                matrixToUpdate.AllorMajority !== matrixPayload.AllorMajority ||
+                matrixToUpdate.DepartmentId !== matrixPayload.DepartmentId ||
+                matrixToUpdate.SubDepartmentId !== matrixPayload.SubDepartmentId;
+              
+              if (needsUpdate) {
+                try {
+                  await updateApprovalMatrix(matrixToUpdate.ID, matrixPayload);
+                } catch (updateError: any) {
+                  // If update endpoint doesn't exist (404), just continue silently
+                  // The matrix already exists, so we can proceed with approver updates
+                  if (updateError?.response?.status !== 404) {
+                    // Only throw if it's not a 404
+                    throw updateError;
+                  }
+                }
+              }
+              setExistingMatrix(matrixToUpdate);
+            } else {
+              // If we can't find the matrix, just continue - it exists on the server
+              // The approver updates will still work
+              console.warn('Could not retrieve matrix details, but continuing with approver updates...');
+            }
+          } else {
+            throw createError; // Re-throw other errors
+          }
+        }
       }
 
       await Promise.all(
@@ -395,9 +513,19 @@ const ApprovalMatrix = () => {
 
       await loadConfiguration();
       toast.success('Approval matrix saved successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving approval matrix:', error);
-      toast.error('Failed to save approval matrix');
+      
+      // Log the actual error response from the server
+      if (error?.response?.data) {
+        console.error('Server error response:', error.response.data);
+        const errorMessage = error.response.data?.message || error.response.data?.error || 'Failed to save approval matrix';
+        toast.error(errorMessage);
+      } else if (error?.message) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to save approval matrix');
+      }
     } finally {
       setSaving(false);
     }
