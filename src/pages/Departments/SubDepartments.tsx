@@ -21,6 +21,7 @@ import { Select } from '@/components/ui/Select';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { logSystemActivity } from '@/utils/activityLogger';
 import { useAuth } from '@/contexts/AuthContext';
+import { MODULE_IDS } from '@/constants/moduleIds';
 
 export const SubDepartments: React.FC = () => {
   // Redux
@@ -57,7 +58,7 @@ export const SubDepartments: React.FC = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-  const subDepartmentPermissions = useModulePermissions(2); // 1 = MODULE_ID
+  const subDepartmentPermissions = useModulePermissions(MODULE_IDS.documentTypes); // 5 = Document Type Module ID
   // Effects
   useEffect(() => {
     dispatch(fetchSubDepartments());

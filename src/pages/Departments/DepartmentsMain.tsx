@@ -33,6 +33,7 @@ import { PaginationControls } from '@/components/ui/PaginationControls';
 import { logSystemActivity } from '@/utils/activityLogger';
 import { useAuth } from '@/contexts/AuthContext';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { MODULE_IDS } from '@/constants/moduleIds';
 
 export const DepartmentsMain: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,7 +57,7 @@ export const DepartmentsMain: React.FC = () => {
   );
   const { user } = useAuth();
 
-  const departmentPermissions = useModulePermissions(1); // 1 = MODULE_ID
+  const departmentPermissions = useModulePermissions(MODULE_IDS.departments); // 4 = Department Module ID
 
   // Create flattened list for searching and pagination
   const createFlattenedList = () => {
