@@ -192,17 +192,19 @@ export const UsersPage: React.FC = () => {
       await refetch();
       
       // Log user update activity
-      try {
-        await logSystemActivity(
-          'USER_UPDATED',
-          user!.ID,
-          user!.UserName,
-          'User',
-          currentUser.UserName,
-          `Updated by ${user.UserName}`
-        );
-      } catch (logError) {
-        console.warn('Failed to log user update activity:', logError);
+      if (user && currentUser) {
+        try {
+          await logSystemActivity(
+            'USER_UPDATED',
+            user.ID,
+            user.UserName,
+            'User',
+            currentUser.UserName,
+            `Updated by ${user.UserName}`
+          );
+        } catch (logError) {
+          console.warn('Failed to log user update activity:', logError);
+        }
       }
       
       // ✅ if editing the logged-in user, update context
@@ -240,12 +242,12 @@ export const UsersPage: React.FC = () => {
       await deleteUserSoft(id);
       
       // Log user deletion activity
-      if (userToDelete) {
+      if (userToDelete && user) {
         try {
           await logSystemActivity(
             'USER_DELETED',
-            user!.ID,
-            user!.UserName,
+            user.ID,
+            user.UserName,
             'User',
             userToDelete.UserName,
             `Deleted by ${user.UserName}`
