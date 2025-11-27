@@ -9,6 +9,7 @@ import { fetchAvailableFields } from '../Document/utils/fieldAllocationService';
 import { fetchOCRFields } from '../OCR/Fields/ocrFieldService';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
+import { MODULE_IDS } from '@/constants/moduleIds';
 import { useUsers } from '../Users/useUser';
 type PermissionKey =
   | 'view'
@@ -70,7 +71,28 @@ export const AllocationPanel = () => {
   const [subDepartmentOptions, setSubDepartmentOptions] = useState<
     { value: string; label: string }[]
   >([]);
-  const allocationPermissions = useModulePermissions(7); // 1 = MODULE_ID
+  const allocationPermissions = useModulePermissions(MODULE_IDS.allocation);
+  const canAdd = Boolean(allocationPermissions?.Add);
+  const canEdit = Boolean(allocationPermissions?.Edit);
+  const canDelete = Boolean(allocationPermissions?.Delete);
+
+  const ensureAddPermission = () => {
+    if (canAdd) return true;
+    toast.error('You do not have permission to add allocations.');
+    return false;
+  };
+
+  const ensureEditPermission = () => {
+    if (canEdit) return true;
+    toast.error('You do not have permission to edit allocations.');
+    return false;
+  };
+
+  const ensureDeletePermission = () => {
+    if (canDelete) return true;
+    toast.error('You do not have permission to delete allocations.');
+    return false;
+  };
   // Update document types when department selection changes
   // useEffect(() => {
   //   if (selectedDept) {
@@ -331,9 +353,6 @@ export const AllocationPanel = () => {
             const linkAllocs = await fetchAllocationsByLink(selectedSubDept);
             if (linkAllocs && linkAllocs.length > 0) {
               console.log(`Fetched ${linkAllocs.length} allocations via LinkID endpoint`);
-              const linkUserIDs = linkAllocs.map((a: any) => Number(a.UserID));
-              const stillMissing = missingUsers.filter(userId => !linkUserIDs.includes(userId));
-              
               // Merge LinkID allocations with existing ones (deduplicate by UserID)
               const existingUserIDs = new Set(allocations.map((a: any) => Number(a.UserID)));
               const newFromLink = linkAllocs.filter((a: any) => !existingUserIDs.has(Number(a.UserID)));
@@ -572,6 +591,15 @@ export const AllocationPanel = () => {
   }, [selectedSubDept, usersList]);
 
   const togglePermission = (username: string, field: PermissionKey) => {
+    const targetUser = users.find((user) => user.username === username);
+    if (!targetUser || !targetUser.isEditing) return;
+
+    if (targetUser.allocationId) {
+      if (!ensureEditPermission()) return;
+    } else if (!ensureAddPermission()) {
+      return;
+    }
+
     setUsers((prev) =>
       prev.map((user) =>
         user.username === username ? { ...user, [field]: !user[field] } : user
@@ -580,6 +608,18 @@ export const AllocationPanel = () => {
   };
 
   const toggleEditMode = (username: string) => {
+    const targetUser = users.find((user) => user.username === username);
+    if (!targetUser) return;
+
+    const willEnable = !targetUser.isEditing;
+    if (willEnable) {
+      if (targetUser.allocationId) {
+        if (!ensureEditPermission()) return;
+      } else if (!ensureAddPermission()) {
+        return;
+      }
+    }
+
     setUsers((prev) =>
       prev.map((user) =>
         user.username === username
@@ -607,6 +647,13 @@ export const AllocationPanel = () => {
 
     if (!userID) {
       toast.error('User ID not found');
+      return;
+    }
+
+    const isNewUser = !user.allocationId;
+    if (isNewUser) {
+      if (!ensureAddPermission()) return;
+    } else if (!ensureEditPermission()) {
       return;
     }
 
@@ -790,6 +837,7 @@ export const AllocationPanel = () => {
   };
 
   const addUser = () => {
+    if (!ensureAddPermission()) return;
     // FINDING THE SELECTED ACCESS LEVEL
     // const newUserLabel = accessOptions?.items?.find(
     //   (item: any) => item.value === newUsername
@@ -828,9 +876,17 @@ export const AllocationPanel = () => {
   };
 
   const removeUser = (username: string) => {
-    if (username !== 'admin') {
-      setUsers(users.filter((user) => user.username !== username));
+    if (username === 'admin') return;
+    const targetUser = users.find((user) => user.username === username);
+    if (!targetUser) return;
+
+    if (targetUser.allocationId) {
+      if (!ensureDeletePermission()) return;
+    } else if (!ensureAddPermission()) {
+      return;
     }
+
+    setUsers((prev) => prev.filter((user) => user.username !== username));
   };
 
   const handleAllocation = async () => {
@@ -839,8 +895,29 @@ export const AllocationPanel = () => {
       return;
     }
 
+    if (!canAdd && !canEdit) {
+      toast.error('You do not have permission to save allocations.');
+      return;
+    }
+
     // Save ALL users, not just the first one
     const savePromises = users.map(async (user) => {
+      const isNew = !user.allocationId;
+      if (isNew && !canAdd) {
+        return {
+          username: user.username,
+          success: false,
+          error: 'No permission to add users',
+        };
+      }
+      if (!isNew && !canEdit) {
+        return {
+          username: user.username,
+          success: false,
+          error: 'No permission to edit users',
+        };
+      }
+
       const userID = (usersList || [])?.find(
         (item) => item.UserName === user.username
       )?.ID;
@@ -1472,6 +1549,7 @@ export const AllocationPanel = () => {
                 onCancel={(resetFields) => {
                   setSavedFieldsData(resetFields);
                 }}
+                readOnly={!canAdd}
               />
             )}
           </div>
@@ -1503,61 +1581,67 @@ export const AllocationPanel = () => {
             {/* Permissions Cards */}
             {users.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {users.map((user) => (
-                  <div
-                    key={user.username}
-                    className={`bg-white border rounded-lg shadow-sm p-5 transition-all ${
-                      user.isEditing ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
-                    }`}
-                  >
-                    {/* User Header */}
-                    <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-200">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-800">{user.username}</h3>
-                        {user.isEditing && (
-                          <span className="text-xs text-blue-600 font-medium">Editing Mode</span>
-                        )}
+                {users.map((user) => {
+                  const canModifyUser = user.allocationId ? canEdit : canAdd;
+                  const canRemoveUser = user.allocationId ? canDelete : canAdd;
+                  const editButtonDisabled = user.username === 'admin' || !canModifyUser;
+                  const deleteButtonDisabled = user.username === 'admin' || !canRemoveUser;
+                  return (
+                    <div
+                      key={user.username}
+                      className={`bg-white border rounded-lg shadow-sm p-5 transition-all ${
+                        user.isEditing ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
+                      }`}
+                    >
+                      {/* User Header */}
+                      <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-200">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800">{user.username}</h3>
+                          {user.isEditing && (
+                            <span className="text-xs text-blue-600 font-medium">Editing Mode</span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {user.isEditing ? (
+                            <>
+                              <Button
+                                onClick={() => saveUser(user.username)}
+                                className="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Save"
+                                disabled={!canModifyUser}
+                              >
+                                <Save className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                onClick={() => toggleEditMode(user.username)}
+                                className="text-gray-600 hover:text-gray-800 bg-gray-50 hover:bg-gray-100 p-2 rounded"
+                                title="Cancel"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                onClick={() => toggleEditMode(user.username)}
+                                className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Edit"
+                                disabled={editButtonDisabled}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                onClick={() => removeUser(user.username)}
+                                className="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Delete"
+                                disabled={deleteButtonDisabled}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        {user.isEditing ? (
-                          <>
-                            <Button
-                              onClick={() => saveUser(user.username)}
-                              className="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 p-2 rounded"
-                              title="Save"
-                            >
-                              <Save className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              onClick={() => toggleEditMode(user.username)}
-                              className="text-gray-600 hover:text-gray-800 bg-gray-50 hover:bg-gray-100 p-2 rounded"
-                              title="Cancel"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              onClick={() => toggleEditMode(user.username)}
-                              className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 p-2 rounded"
-                              title="Edit"
-                              disabled={user.username === 'admin'}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              onClick={() => removeUser(user.username)}
-                              className="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 p-2 rounded"
-                              title="Delete"
-                              disabled={user.username === 'admin'}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
 
                     {/* Permissions Grid */}
                     <div className="space-y-4">
@@ -1578,7 +1662,8 @@ export const AllocationPanel = () => {
                                 onChange={() => togglePermission(user.username, field)}
                                 disabled={
                                   (!user.isEditing && user.username !== 'admin') ||
-                                  user.username === 'admin'
+                                  user.username === 'admin' ||
+                                  (user.isEditing && !canModifyUser)
                                 }
                                 className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
                                   user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
@@ -1615,7 +1700,8 @@ export const AllocationPanel = () => {
                                 onChange={() => togglePermission(user.username, field)}
                                 disabled={
                                   (!user.isEditing && user.username !== 'admin') ||
-                                  user.username === 'admin'
+                                  user.username === 'admin' ||
+                                  (user.isEditing && !canModifyUser)
                                 }
                                 className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
                                   user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
@@ -1652,7 +1738,8 @@ export const AllocationPanel = () => {
                                 onChange={() => togglePermission(user.username, field)}
                                 disabled={
                                   (!user.isEditing && user.username !== 'admin') ||
-                                  user.username === 'admin'
+                                  user.username === 'admin' ||
+                                  (user.isEditing && !canModifyUser)
                                 }
                                 className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
                                   user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
@@ -1672,8 +1759,9 @@ export const AllocationPanel = () => {
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
@@ -1690,7 +1778,8 @@ export const AllocationPanel = () => {
                 disabled={
                   !Boolean(selectedSubDept) ||
                   !Boolean(selectedDept) ||
-                  users.length === 0
+                  users.length === 0 ||
+                  (!canAdd && !canEdit)
                 }
                 className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-medium
                   disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed

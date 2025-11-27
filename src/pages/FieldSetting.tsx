@@ -30,6 +30,7 @@ type FieldSettingsPanelProps = {
       FieldID?: number;
     }[]
   ) => void;
+  readOnly?: boolean;
 };
 
 export const FieldSettingsPanel = forwardRef(
@@ -41,6 +42,7 @@ export const FieldSettingsPanel = forwardRef(
       masterFields = [],
       onSave,
       onCancel,
+      readOnly = false,
     }: FieldSettingsPanelProps,
     ref: React.Ref<any>
   ) => {
@@ -57,6 +59,7 @@ export const FieldSettingsPanel = forwardRef(
       }[]
     >([]);
     const [saving, setSaving] = useState(false);
+    const isReadOnly = Boolean(readOnly);
 
     // Fetch master fields if not provided
     useEffect(() => {
@@ -124,6 +127,7 @@ export const FieldSettingsPanel = forwardRef(
     }, [fieldsInfo]);
 
     const toggleFieldActive = (index: number) => {
+      if (isReadOnly) return;
       setFields((prev) =>
         prev.map((field, i) =>
           i === index ? { ...field, active: !field.active } : field
@@ -132,6 +136,7 @@ export const FieldSettingsPanel = forwardRef(
     };
 
     const handleFieldSelection = (index: number, masterFieldId: string) => {
+      if (isReadOnly) return;
       const selectedMasterField = masterFieldsList.find(mf => mf.ID === Number(masterFieldId));
       
       if (selectedMasterField) {
@@ -167,12 +172,14 @@ export const FieldSettingsPanel = forwardRef(
     };
 
     const handleTypeChange = (index: number, type: string) => {
+      if (isReadOnly) return;
       setFields((prev) =>
         prev.map((field, i) => (i === index ? { ...field, Type: type } : field))
       );
     };
 
     const handleSave = async () => {
+      if (isReadOnly) return;
       if (saving) return;
       setSaving(true);
       try {
@@ -211,6 +218,12 @@ export const FieldSettingsPanel = forwardRef(
       <div className="bg-white border rounded-xl p-3 sm:p-6 space-y-4 mt-6 shadow-md">
         {/* Search Bar removed */}
 
+        {isReadOnly && (
+          <div className="text-sm text-gray-600 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2">
+            You do not have permission to modify these fields.
+          </div>
+        )}
+
         {/* Dynamic Fields - 10 slots with dropdowns */}
         <div className="space-y-3">
           <div className="text-sm text-gray-600 mb-2">
@@ -240,13 +253,13 @@ export const FieldSettingsPanel = forwardRef(
                   checked={field.active}
                   onChange={() => toggleFieldActive(index)}
                   className="h-4 w-4 cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!field.FieldID} // Disable checkbox if no field selected (need to select field first)
+                  disabled={!field.FieldID || isReadOnly} // Disable checkbox if no field selected or read-only
                 />
                 <select
                   className="flex-1 px-3 py-2 border rounded text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={field.FieldID || ''}
                   onChange={(e) => handleFieldSelection(index, e.target.value)}
-                  disabled={false} // Always enabled - user can select any time
+                  disabled={isReadOnly} // Disable in read-only mode
                 >
                   <option value="">-- Select Field --</option>
                   {masterFieldsList.length > 0 ? (
@@ -275,7 +288,7 @@ export const FieldSettingsPanel = forwardRef(
                     checked={field.Type === 'text'}
                     onChange={() => handleTypeChange(index, 'text')}
                     className="cursor-pointer"
-                    disabled={!field.FieldID}
+                    disabled={!field.FieldID || isReadOnly}
                   />
                   Text
                 </label>
@@ -287,7 +300,7 @@ export const FieldSettingsPanel = forwardRef(
                     checked={field.Type === 'date'}
                     onChange={() => handleTypeChange(index, 'date')}
                     className="cursor-pointer"
-                    disabled={!field.FieldID}
+                    disabled={!field.FieldID || isReadOnly}
                   />
                   Date
                 </label>
@@ -303,7 +316,7 @@ export const FieldSettingsPanel = forwardRef(
         {fields.length > 0 ? (
           <div className="flex flex-col sm:flex-row justify-between items-center pt-4 gap-3">
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              {fieldPermissions?.Add && (
+              {fieldPermissions?.Add && !isReadOnly && (
                 <Button
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full"
                   onClick={handleSave}
