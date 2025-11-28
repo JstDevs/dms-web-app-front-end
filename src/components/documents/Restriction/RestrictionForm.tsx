@@ -340,7 +340,7 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
           {/* Collaborator Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              Select Collaborator *
+              Select User *
             </label>
             <select
               value={formData.userId || ''}
