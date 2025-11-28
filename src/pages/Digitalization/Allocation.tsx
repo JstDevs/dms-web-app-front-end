@@ -409,7 +409,6 @@ export const AllocationPanel = () => {
               affectedUsers: affectedUsersList.map(u => ({
                 id: u.ID,
                 name: u.UserName,
-                email: u.Email,
               })),
               affectedUsersCount: affectedUsersList.length,
             });
@@ -447,10 +446,10 @@ export const AllocationPanel = () => {
               edit: r.edit,
               delete: r.delete,
             },
-            affectedUsers: r.affectedUsers.map(u => ({
+            affectedUsers: r.affectedUsers?.map(u => ({
               id: u.ID,
               name: u.UserName,
-            })),
+            })) || [],
             affectedUsersCount: r.affectedUsersCount,
           })),
         });
