@@ -13,6 +13,10 @@ import RestrictionForm from './Restriction/RestrictionForm';
 import RestrictionList from './Restriction/RestrictionList';
 import { logSecurityActivity } from '@/utils/activityLogger';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  fetchRoleAllocations,
+  fetchRoleAllocationsByLink,
+} from '@/pages/Digitalization/utils/allocationServices';
 
 interface FieldRestrictionProps {
   document: CurrentDocument | null;
@@ -24,6 +28,13 @@ interface SelectionArea {
   width: number;
   height: number;
 }
+
+const toBool = (val: any): boolean => {
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'number') return val === 1;
+  if (typeof val === 'string') return val === '1' || val.toLowerCase() === 'true';
+  return false;
+};
 
 const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
   const [restrictions, setRestrictions] = useState<Restriction[]>([]);
@@ -40,7 +51,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
     field: '',
     reason: '',
     userId: null,
-    userRole: 1,
+    userRole: null,
     restrictedType: 'field',
     coordinates: {
       xaxis: 0,
@@ -52,12 +63,63 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
 
   const { fetchDocument } = useDocument();
   const { user } = useAuth();
+  const [availableRoles, setAvailableRoles] = useState<
+    Array<{ id: number; name: string }>
+  >([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
 
   useEffect(() => {
     if (document) {
       fetchRestrictions();
     }
   }, [document]);
+
+useEffect(() => {
+  const deptId = document?.document?.[0]?.DepartmentId;
+  const subDeptId = document?.document?.[0]?.SubDepartmentId;
+
+  if (!deptId || !subDeptId) {
+    setAvailableRoles([]);
+    return;
+  }
+
+  let isMounted = true;
+
+  const loadRolesWithViewPermission = async () => {
+    setRolesLoading(true);
+    try {
+      let roleAllocs = await fetchRoleAllocations(deptId, subDeptId);
+      if (!roleAllocs || roleAllocs.length === 0) {
+        roleAllocs = await fetchRoleAllocationsByLink(subDeptId);
+      }
+      const filteredRoles =
+        roleAllocs
+          ?.filter((alloc) => toBool(alloc.View))
+          .map((alloc) => ({
+            id: alloc.UserAccessID,
+            name: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
+          })) || [];
+      if (isMounted) {
+        setAvailableRoles(filteredRoles);
+      }
+    } catch (error) {
+      console.error('Failed to load roles for document restrictions:', error);
+      if (isMounted) {
+        setAvailableRoles([]);
+      }
+    } finally {
+      if (isMounted) {
+        setRolesLoading(false);
+      }
+    }
+  };
+
+  loadRolesWithViewPermission();
+
+  return () => {
+    isMounted = false;
+  };
+}, [document]);
 
   // Update coordinates when area is selected
   useEffect(() => {
@@ -165,7 +227,12 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
   };
 
   const handleAddRestriction = async () => {
-    if (!document || !formData.field || !formData.userId) return;
+    if (!document || !formData.field) return;
+
+    if (!formData.userRole) {
+      showMessage('Please select a role to restrict.', true);
+      return;
+    }
 
     if (!formData.reason.trim()) {
       showMessage('Please provide a reason for the restriction.', true);
@@ -183,7 +250,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
         Field:
           formData.field === 'custom_area' ? 'Custom Area' : formData.field,
         Reason: formData.reason.trim(),
-        UserID: formData.userId,
+        UserID: formData.userId ?? formData.userRole,
         UserRole: formData.userRole,
         restrictedType: formData.restrictedType,
         xaxis: formData.coordinates.xaxis,
@@ -235,7 +302,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
           field: '',
           reason: '',
           userId: null,
-          userRole: 1,
+          userRole: null,
           restrictedType: 'field',
           coordinates: { xaxis: 0, yaxis: 0, width: 0, height: 0 },
         });
@@ -442,6 +509,8 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
           document={document}
           selectedArea={selectedArea}
           onClearSelection={handleClearSelection}
+          availableRoles={availableRoles}
+          rolesLoading={rolesLoading}
         />
 
         {/* Document Preview - Only show when custom area is selected */}

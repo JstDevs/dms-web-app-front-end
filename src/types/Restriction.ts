@@ -19,7 +19,7 @@ export interface RestrictionFormData {
   field: string;
   reason: string;
   userId: number | null;
-  userRole: number;
+  userRole: number | null;
   restrictedType: 'field' | 'open';
   coordinates: {
     xaxis: number;

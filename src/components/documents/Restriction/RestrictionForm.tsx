@@ -245,6 +245,8 @@ interface RestrictionFormProps {
   document: CurrentDocument | null;
   selectedArea: { x: number; y: number; width: number; height: number } | null;
   onClearSelection: () => void;
+  availableRoles: Array<{ id: number; name: string }>;
+  rolesLoading: boolean;
 }
 
 const RestrictionForm: React.FC<RestrictionFormProps> = ({
@@ -255,6 +257,8 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
   document,
   selectedArea,
   onClearSelection,
+  availableRoles,
+  rolesLoading,
 }) => {
   const availableFields =
     document?.OCRDocumentReadFields?.map((field) => field.Field) || [];
@@ -264,8 +268,10 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
   const isFieldRestriction = formData.field === 'field_restriction' || (formData.field && formData.field !== 'custom_area' && availableFields.includes(formData.field));
   const hasSelectedField = formData.field && formData.field !== 'field_restriction' && formData.field !== 'custom_area' && availableFields.includes(formData.field);
   
+  const hasSelectedRole = typeof formData.userRole === 'number';
+
   const canSubmit =
-    formData.userId &&
+    hasSelectedRole &&
     formData.reason.trim() &&
     ((isCustomArea && selectedArea) || (isFieldRestriction && hasSelectedField));
 
@@ -337,26 +343,41 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
             </div>
           </div>
 
-          {/* Collaborator Selection */}
+          {/* Role Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              Select User *
+              Select Role *
             </label>
             <select
-              value={formData.userId || ''}
-              onChange={(e) =>
-                onFormChange({ userId: Number(e.target.value) || null })
-              }
+              value={formData.userRole ?? ''}
+              onChange={(e) => {
+                const roleId = e.target.value ? Number(e.target.value) : null;
+                onFormChange({
+                  userRole: roleId,
+                  userId: roleId,
+                });
+              }}
               className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-              disabled={isSubmitting}
+              disabled={isSubmitting || rolesLoading || availableRoles.length === 0}
             >
-              <option value="">Choose a collaborator to restrict</option>
-              {document?.collaborations?.map((collab) => (
-                <option key={collab.ID} value={collab.CollaboratorID}>
-                  {collab.CollaboratorName}
+              <option value="">
+                {rolesLoading
+                  ? 'Loading roles...'
+                  : availableRoles.length === 0
+                  ? 'No roles with view permission'
+                  : 'Choose a role with view access'}
+              </option>
+              {availableRoles.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
                 </option>
               ))}
             </select>
+            {!rolesLoading && availableRoles.length === 0 && (
+              <p className="text-xs text-gray-500 mt-2">
+                No roles with view permission are configured for this department and document type.
+              </p>
+            )}
           </div>
         </div>
 
