@@ -333,71 +333,72 @@ export const AllocationPanel = () => {
     return false;
   };
 
-  // Fetch existing role allocations when Document Type is selected
-  useEffect(() => {
-    const fetchRoleAllocationsData = async () => {
-      if (!selectedSubDept || !selectedDept) {
-        setRoleAllocations([]);
-        return;
+  // Helper function to refresh role allocations (reusable)
+  const refreshRoleAllocations = async () => {
+    if (!selectedSubDept || !selectedDept) {
+      setRoleAllocations([]);
+      return;
+    }
+
+    try {
+      // Fetch role allocations by department and subdepartment
+      let roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
+      
+      // If empty, try by LinkID as fallback
+      if (!roleAllocs || roleAllocs.length === 0) {
+        roleAllocs = await fetchRoleAllocationsByLink(selectedSubDept);
       }
 
-      try {
-        // Fetch role allocations by department and subdepartment
-        let roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
-        
-        // If empty, try by LinkID as fallback
-        if (!roleAllocs || roleAllocs.length === 0) {
-          roleAllocs = await fetchRoleAllocationsByLink(selectedSubDept);
-        }
+      // Map RoleDocumentAccess to RolePermission format and fetch affected users
+      const mappedRoles: RolePermission[] = await Promise.all(
+        roleAllocs.map(async (alloc: RoleDocumentAccess) => {
+          // Fetch affected users for this role
+          const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
+          
+          return {
+            roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
+            roleID: alloc.UserAccessID,
+            allocationId: alloc.id,
+            view: toBool(alloc.View),
+            add: toBool(alloc.Add),
+            edit: toBool(alloc.Edit),
+            delete: toBool(alloc.Delete),
+            print: toBool(alloc.Print),
+            confidential: toBool(alloc.Confidential),
+            comment: toBool(alloc.Comment),
+            collaborate: toBool(alloc.Collaborate),
+            finalize: toBool(alloc.Finalize),
+            masking: toBool(alloc.Masking),
+            isEditing: false,
+            affectedUsersCount: affectedUsersList.length,
+            affectedUsers: affectedUsersList,
+          };
+        })
+      );
 
-        // Map RoleDocumentAccess to RolePermission format and fetch affected users
-        const mappedRoles: RolePermission[] = await Promise.all(
-          roleAllocs.map(async (alloc: RoleDocumentAccess) => {
-            // Fetch affected users for this role
-            const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
-            
-            return {
-              roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
-              roleID: alloc.UserAccessID,
-              allocationId: alloc.id,
-              view: toBool(alloc.View),
-              add: toBool(alloc.Add),
-              edit: toBool(alloc.Edit),
-              delete: toBool(alloc.Delete),
-              print: toBool(alloc.Print),
-              confidential: toBool(alloc.Confidential),
-              comment: toBool(alloc.Comment),
-              collaborate: toBool(alloc.Collaborate),
-              finalize: toBool(alloc.Finalize),
-              masking: toBool(alloc.Masking),
-              isEditing: false,
-              affectedUsersCount: affectedUsersList.length,
-              affectedUsers: affectedUsersList,
-            };
-          })
-        );
-
-        setRoleAllocations(mappedRoles);
-        
-        // Set savedFieldsData from the first allocation's fields (they should be the same)
-        if (roleAllocs[0]?.fields && Array.isArray(roleAllocs[0].fields) && roleAllocs[0].fields.length > 0) {
-          setSavedFieldsData(roleAllocs[0].fields.map((f: any) => ({
-            ID: f.ID,
-            Field: f.Field || f.Description || '',
-            Type: f.Type || 'text',
-            Description: f.Description || f.Field || '',
-          })));
-        } else {
-          setSavedFieldsData([]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch role allocations:', error);
-        setRoleAllocations([]);
+      setRoleAllocations(mappedRoles);
+      
+      // Set savedFieldsData from the first allocation's fields (they should be the same)
+      if (roleAllocs[0]?.fields && Array.isArray(roleAllocs[0].fields) && roleAllocs[0].fields.length > 0) {
+        setSavedFieldsData(roleAllocs[0].fields.map((f: any) => ({
+          ID: f.ID,
+          Field: f.Field || f.Description || '',
+          Type: f.Type || 'text',
+          Description: f.Description || f.Field || '',
+        })));
+      } else {
         setSavedFieldsData([]);
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch role allocations:', error);
+      setRoleAllocations([]);
+      setSavedFieldsData([]);
+    }
+  };
 
-    fetchRoleAllocationsData();
+  // Fetch existing role allocations when Document Type is selected
+  useEffect(() => {
+    refreshRoleAllocations();
   }, [selectedSubDept, selectedDept]);
 
   // Load available roles for dropdown
@@ -522,31 +523,7 @@ export const AllocationPanel = () => {
       }
 
       // Reload role allocations to reflect saved changes
-      const roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
-      const mappedRoles: RolePermission[] = await Promise.all(
-        roleAllocs.map(async (alloc: RoleDocumentAccess) => {
-          const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
-          return {
-            roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
-            roleID: alloc.UserAccessID,
-            allocationId: alloc.id,
-            view: toBool(alloc.View),
-            add: toBool(alloc.Add),
-            edit: toBool(alloc.Edit),
-            delete: toBool(alloc.Delete),
-            print: toBool(alloc.Print),
-            confidential: toBool(alloc.Confidential),
-            comment: toBool(alloc.Comment),
-            collaborate: toBool(alloc.Collaborate),
-            finalize: toBool(alloc.Finalize),
-            masking: toBool(alloc.Masking),
-            isEditing: false,
-            affectedUsersCount: affectedUsersList.length,
-            affectedUsers: affectedUsersList,
-          };
-        })
-      );
-      setRoleAllocations(mappedRoles);
+      await refreshRoleAllocations();
 
       toast.success(`Permissions saved for ${role.roleName}`);
     } catch (error: any) {
@@ -602,35 +579,11 @@ export const AllocationPanel = () => {
       };
 
       await addRoleAllocation(payload);
+      
+      // Refresh role allocations using the same logic as initial load (includes fallback)
+      await refreshRoleAllocations();
+      
       toast.success('Role allocated successfully');
-
-      // Refresh role allocations
-      const roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
-      const mappedRoles: RolePermission[] = await Promise.all(
-        roleAllocs.map(async (alloc: RoleDocumentAccess) => {
-          const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
-          return {
-            roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
-            roleID: alloc.UserAccessID,
-            allocationId: alloc.id,
-            view: toBool(alloc.View),
-            add: toBool(alloc.Add),
-            edit: toBool(alloc.Edit),
-            delete: toBool(alloc.Delete),
-            print: toBool(alloc.Print),
-            confidential: toBool(alloc.Confidential),
-            comment: toBool(alloc.Comment),
-            collaborate: toBool(alloc.Collaborate),
-            finalize: toBool(alloc.Finalize),
-            masking: toBool(alloc.Masking),
-            isEditing: false,
-            affectedUsersCount: affectedUsersList.length,
-            affectedUsers: affectedUsersList,
-          };
-        })
-      );
-      setRoleAllocations(mappedRoles);
-
       setNewRoleID('');
       setShowAddRoleModal(false);
     } catch (error: any) {
@@ -648,34 +601,11 @@ export const AllocationPanel = () => {
 
       try {
         await deleteRoleAllocation(Number(selectedSubDept), roleID);
-        toast.success(`Role allocation removed`);
         
         // Refresh role allocations
-        const roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
-        const mappedRoles: RolePermission[] = await Promise.all(
-          roleAllocs.map(async (alloc: RoleDocumentAccess) => {
-            const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
-            return {
-              roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
-              roleID: alloc.UserAccessID,
-              allocationId: alloc.id,
-              view: toBool(alloc.View),
-              add: toBool(alloc.Add),
-              edit: toBool(alloc.Edit),
-              delete: toBool(alloc.Delete),
-              print: toBool(alloc.Print),
-              confidential: toBool(alloc.Confidential),
-              comment: toBool(alloc.Comment),
-              collaborate: toBool(alloc.Collaborate),
-              finalize: toBool(alloc.Finalize),
-              masking: toBool(alloc.Masking),
-              isEditing: false,
-              affectedUsersCount: affectedUsersList.length,
-              affectedUsers: affectedUsersList,
-            };
-          })
-        );
-        setRoleAllocations(mappedRoles);
+        await refreshRoleAllocations();
+        
+        toast.success(`Role allocation removed`);
       } catch (error: any) {
         console.error('Failed to remove role allocation:', error);
         toast.error('Failed to remove role allocation');
