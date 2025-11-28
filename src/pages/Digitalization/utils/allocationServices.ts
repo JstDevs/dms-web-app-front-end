@@ -313,3 +313,305 @@ export const fetchAllocationByUserAndDept = async (
     return null;
   }
 };
+
+// ============================================================================
+// ROLE-BASED ALLOCATION SERVICES
+// ============================================================================
+
+export interface RoleDocumentAccess {
+  id: number;
+  LinkID: number;
+  UserAccessID: number; // Role ID
+  DepartmentId?: number; // Optional - may not always be in response
+  View: number;
+  Add: number;
+  Edit: number;
+  Delete: number;
+  Print: number;
+  Confidential: number;
+  Comment: number;
+  Collaborate: number;
+  Finalize: number;
+  Masking: number;
+  Active: number;
+  CreatedBy?: string;
+  CreatedDate?: string;
+  userAccess?: {
+    ID: number;
+    Description: string;
+    Active: boolean;
+  };
+  fields?: Array<{
+    ID: number;
+    Field: string;
+    Type: string;
+    Description: string;
+  }>;
+}
+
+/**
+ * Fetch all role allocations for a department and subdepartment
+ */
+export const fetchRoleAllocations = async (
+  departmentId: number | string,
+  subDepartmentId: number | string
+): Promise<RoleDocumentAccess[]> => {
+  try {
+    const response = await axios.get(`/allocation/role-allocations`, {
+      params: {
+        departmentId: String(departmentId),
+        subDepartmentId: String(subDepartmentId),
+      },
+    });
+    const allocations = response?.data?.data ?? [];
+    
+    // Parse fields if they come as JSON string from database
+    return allocations.map((alloc: any) => {
+      if (alloc.fields) {
+        if (Array.isArray(alloc.fields)) {
+          return alloc;
+        }
+        if (typeof alloc.fields === 'string') {
+          try {
+            alloc.fields = JSON.parse(alloc.fields);
+          } catch (e) {
+            console.error('Failed to parse fields JSON:', e);
+            alloc.fields = [];
+          }
+        }
+      } else {
+        alloc.fields = [];
+      }
+      return alloc;
+    });
+  } catch (error: any) {
+    // If 500 error, backend might not have the endpoint implemented yet
+    if (error?.response?.status === 500) {
+      console.error('❌ Backend error (500) - role allocations endpoint returned 500:', {
+        departmentId,
+        subDepartmentId,
+        error: error?.response?.data || error?.message,
+        message: 'Backend endpoint /allocation/role-allocations is returning 500 error. Check backend logs.',
+      });
+      // Return empty array - this is expected if backend hasn't implemented the endpoint yet
+      return [];
+    }
+    // For 404, no allocations exist (this is normal)
+    if (error?.response?.status === 404) {
+      console.log('ℹ️ No role allocations found (404) for:', { departmentId, subDepartmentId });
+      return [];
+    }
+    console.error('Failed to fetch role allocations:', error);
+    return [];
+  }
+};
+
+/**
+ * Fetch role allocations by LinkID
+ */
+export const fetchRoleAllocationsByLink = async (
+  linkId: number | string
+): Promise<RoleDocumentAccess[]> => {
+  try {
+    const linkIdStr = String(linkId);
+    const response = await axios.get(`/allocation/role-allocations/${linkIdStr}`);
+    const allocations = response?.data?.data ?? [];
+    
+    // Parse fields if they come as JSON string from database
+    return allocations.map((alloc: any) => {
+      if (alloc.fields) {
+        if (Array.isArray(alloc.fields)) {
+          return alloc;
+        }
+        if (typeof alloc.fields === 'string') {
+          try {
+            alloc.fields = JSON.parse(alloc.fields);
+          } catch (e) {
+            console.error('Failed to parse fields JSON:', e);
+            alloc.fields = [];
+          }
+        }
+      } else {
+        alloc.fields = [];
+      }
+      return alloc;
+    });
+  } catch (error: any) {
+    // If 500 error, backend might not have the endpoint implemented yet
+    if (error?.response?.status === 500) {
+      console.error('Backend error (500) - role allocations by link endpoint may not be implemented:', error);
+      // Return empty array - this is expected if backend hasn't implemented the endpoint yet
+      return [];
+    }
+    // For 404, no allocations exist (this is normal)
+    if (error?.response?.status === 404) {
+      return [];
+    }
+    console.error('Failed to fetch role allocations by link:', error);
+    return [];
+  }
+};
+
+/**
+ * Get available roles for allocation (excludes already allocated roles)
+ */
+export const fetchAvailableRolesForAllocation = async (
+  linkId: number,
+  subDeptId: number,
+  deptId: number,
+  userAccessId?: number
+): Promise<{
+  availableRoles: Array<{ ID: number; Description: string }>;
+  departmentName: string;
+  subDepartmentName: string;
+}> => {
+  try {
+    const params: any = {
+      linkid: linkId,
+      subdepid: subDeptId,
+      depid: deptId,
+    };
+    if (userAccessId) {
+      params.useraccessid = userAccessId;
+    }
+    
+    const response = await axios.get(`/allocation/add-role`, { params });
+    return response?.data?.data ?? {
+      availableRoles: [],
+      departmentName: '',
+      subDepartmentName: '',
+    };
+  } catch (error) {
+    console.error('Failed to fetch available roles for allocation:', error);
+    return {
+      availableRoles: [],
+      departmentName: '',
+      subDepartmentName: '',
+    };
+  }
+};
+
+/**
+ * Create role allocation
+ */
+export const addRoleAllocation = async (payload: {
+  depid: number;
+  subdepid: number;
+  useraccessid: number;
+  linkid: number;
+  View: number;
+  Add: number;
+  Edit: number;
+  Delete: number;
+  Print: number;
+  Confidential: number;
+  Comment: number;
+  Collaborate: number;
+  Finalize: number;
+  Masking: number;
+  fields: Array<{ ID: number; Field: string; Type: string; Description: string }>;
+}): Promise<any> => {
+  try {
+    const response = await axios.post(`/allocation/add-role`, payload);
+    return response?.data?.data ?? response?.data;
+  } catch (error) {
+    console.error('Failed to add role allocation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get role allocation for editing
+ */
+export const fetchRoleAllocationForEdit = async (
+  linkId: number,
+  userAccessId: number
+): Promise<RoleDocumentAccess | null> => {
+  try {
+    const response = await axios.get(`/allocation/edit-role`, {
+      params: {
+        linkid: linkId,
+        useraccessid: userAccessId,
+      },
+    });
+    const allocation = response?.data?.data;
+    if (allocation) {
+      // Parse fields if needed
+      if (allocation.fields && typeof allocation.fields === 'string') {
+        try {
+          allocation.fields = JSON.parse(allocation.fields);
+        } catch (e) {
+          allocation.fields = [];
+        }
+      }
+      return allocation;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch role allocation for edit:', error);
+    return null;
+  }
+};
+
+/**
+ * Update role allocation
+ */
+export const updateRoleAllocation = async (payload: {
+  linkid: number;
+  useraccessid: number;
+  View?: number;
+  Add?: number;
+  Edit?: number;
+  Delete?: number;
+  Print?: number;
+  Confidential?: number;
+  Comment?: number;
+  Collaborate?: number;
+  Finalize?: number;
+  Masking?: number;
+  fields?: Array<{ ID: number; Field: string; Type: string; Description: string }>;
+}): Promise<any> => {
+  try {
+    const response = await axios.put(`/allocation/update-role`, payload);
+    return response?.data?.data ?? response?.data;
+  } catch (error) {
+    console.error('Failed to update role allocation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete role allocation
+ */
+export const deleteRoleAllocation = async (
+  linkId: number,
+  userAccessId: number
+): Promise<any> => {
+  try {
+    const response = await axios.delete(`/allocation/delete-role`, {
+      params: {
+        linkid: linkId,
+        useraccessid: userAccessId,
+      },
+    });
+    return response?.data?.data ?? response?.data;
+  } catch (error) {
+    console.error('Failed to delete role allocation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all users with a specific role
+ */
+export const fetchUsersByRole = async (
+  userAccessId: number
+): Promise<Array<{ ID: number; UserName: string }>> => {
+  try {
+    const response = await axios.get(`/allocation/users-by-role/${userAccessId}`);
+    return response?.data?.data ?? [];
+  } catch (error) {
+    console.error('Failed to fetch users by role:', error);
+    return [];
+  }
+};

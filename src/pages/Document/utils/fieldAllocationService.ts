@@ -47,24 +47,14 @@ export const fetchFieldAllocations = async (
       `/allocation/fields/${departmentId}/${subDepartmentId}/${userId}`
     );
     return response.data.data;
-  } catch (error) {
+  } catch (error: any) {
+    // If 404 or 400, user has no allocation - throw error so caller can handle it
+    if (error?.response?.status === 404 || error?.response?.status === 400) {
+      throw error; // Re-throw so useAllocationPermissions can handle it properly
+    }
+    // For other errors, log and throw
     console.error('Failed to fetch field allocations:', error);
-    // Return empty data if API fails - this allows the system to work without field allocations
-    return {
-      fields: [],
-      userPermissions: {
-        View: true,
-        Add: true,
-        Edit: true,
-        Delete: true,
-        Print: true,
-        Confidential: true,
-        Comment: true,
-        Collaborate: true,
-        Finalize: true,
-        Masking: true,
-      },
-    };
+    throw error;
   }
 };
 

@@ -52,23 +52,23 @@ export const useFieldAllocations = ({ departmentId, subDepartmentId, userId }: U
       try {
         data = await fetchFieldAllocations(departmentId, subDepartmentId, userId);
       } catch (err: any) {
-        // If user-specific allocations don't exist (404), fall back to available fields
+        // If user-specific allocations don't exist (404), user has no permissions
         if (err?.response?.status === 404 || err?.response?.status === 400) {
-          console.log('User-specific allocations not found, falling back to available fields');
-          // Fall back to loading available fields
+          console.log('User-specific allocations not found - no permissions granted');
+          // Fall back to loading available fields (for field display only)
           await loadAvailableFields();
-          // Set default permissions when using available fields
+          // Set all permissions to false when no allocation exists
           setUserPermissions({
-            View: true,
-            Add: true,
-            Edit: true,
-            Delete: true,
-            Print: true,
-            Confidential: true,
-            Comment: true,
-            Collaborate: true,
-            Finalize: true,
-            Masking: true,
+            View: false,
+            Add: false,
+            Edit: false,
+            Delete: false,
+            Print: false,
+            Confidential: false,
+            Comment: false,
+            Collaborate: false,
+            Finalize: false,
+            Masking: false,
           });
           return;
         }

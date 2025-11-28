@@ -4,13 +4,13 @@ import { FieldSettingsPanel } from '../FieldSetting';
 import { Button } from '@chakra-ui/react';
 // import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
 import toast from 'react-hot-toast';
-import { allocateFieldsToUsers, updateAllocation, fetchFieldsByLink, Field, updateFieldsByLink, fetchAllocationsByLink, fetchAllocationsByDept, fetchAllAllocations, fetchAllocationByUserAndDept, DocumentAccess } from './utils/allocationServices';
+import { fetchFieldsByLink, Field, updateFieldsByLink, fetchRoleAllocations, fetchRoleAllocationsByLink, addRoleAllocation, updateRoleAllocation, deleteRoleAllocation, fetchUsersByRole, RoleDocumentAccess } from './utils/allocationServices';
 import { fetchAvailableFields } from '../Document/utils/fieldAllocationService';
 import { fetchOCRFields } from '../OCR/Fields/ocrFieldService';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { MODULE_IDS } from '@/constants/moduleIds';
-import { useUsers } from '../Users/useUser';
+import { getAllUserAccess } from '@/pages/Users/Users Access/userAccessService';
 type PermissionKey =
   | 'view'
   | 'add'
@@ -23,10 +23,13 @@ type PermissionKey =
   | 'finalize'
   | 'masking';
 
-type UserPermission = {
-  username: string;
+type RolePermission = {
+  roleName: string;
+  roleID: number; // UserAccessID
   isEditing?: boolean;
   allocationId?: number; // Store the allocation ID if it exists
+  affectedUsersCount?: number;
+  affectedUsers?: Array<{ ID: number; UserName: string }>;
 } & Record<PermissionKey, boolean>;
 type updatedFields = {
   ID: number;
@@ -48,11 +51,13 @@ type FieldInfo = {
 export const AllocationPanel = () => {
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedSubDept, setSelectedSubDept] = useState('');
-  const [users, setUsers] = useState<UserPermission[]>([]);
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [newUserID, setNewUserID] = useState('');
+  const [roleAllocations, setRoleAllocations] = useState<RolePermission[]>([]);
+  const [showAddRoleModal, setShowAddRoleModal] = useState(false);
+  const [newRoleID, setNewRoleID] = useState<number | ''>('');
+  const [availableRoles, setAvailableRoles] = useState<Array<{ ID: number; Description: string }>>([]);
+  const [expandedRoles, setExpandedRoles] = useState<Record<number, boolean>>({});
   const [savedFieldsData, setSavedFieldsData] = useState<updatedFields>([]);
-  const [activeTab, setActiveTab] = useState<'fields' | 'users'>('fields');
+  const [activeTab, setActiveTab] = useState<'fields' | 'roles'>('fields');
 
   // const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
   const {
@@ -60,7 +65,6 @@ export const AllocationPanel = () => {
     getSubDepartmentOptions,
     loading: loadingDepartments,
   } = useNestedDepartmentOptions();
-  const { users: usersList } = useUsers();
   const fieldPanelRef = useRef<any>(null);
   const [fieldsLoading, setFieldsLoading] = useState(false);
   const [fieldsInfo, setFieldsInfo] = useState<FieldInfo[]>([]);
@@ -321,496 +325,99 @@ export const AllocationPanel = () => {
     fetchFields();
   }, [selectedSubDept]);
 
-  // Fetch existing user allocations when Document Type is selected
+  // Helper function to convert any value to boolean
+  const toBool = (val: any): boolean => {
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'number') return val === 1;
+    if (typeof val === 'string') return val === '1' || val === 'true' || val === 'True';
+    return false;
+  };
+
+  // Fetch existing role allocations when Document Type is selected
   useEffect(() => {
-    const fetchExistingAllocations = async () => {
-      if (!selectedSubDept || !usersList || usersList.length === 0) {
-        setUsers([]);
+    const fetchRoleAllocationsData = async () => {
+      if (!selectedSubDept || !selectedDept) {
+        setRoleAllocations([]);
         return;
       }
 
       try {
-        // Try fetching by department + subdepartment first (more reliable)
-        console.log('Fetching allocations for dept:', selectedDept, 'subdept:', selectedSubDept);
-        let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
-        
-        console.log(`Initial fetch returned ${allocations.length} allocations`);
-        const fetchedUserIDs = allocations.map((a: any) => Number(a.UserID));
-        console.log('Fetched UserIDs:', fetchedUserIDs);
-        
-        // WORKAROUND: If backend doesn't return all allocations, try alternative methods
-        // First, try fetching by LinkID which might return more complete results
-        const usersInList = usersList.map((u: any) => Number(u.ID));
-        const missingUsers = usersInList.filter(userId => !fetchedUserIDs.includes(userId));
-        console.log('Users in list but not in fetched allocations:', missingUsers);
-        
-        // If there are missing users, try alternative fetch methods
-        if (missingUsers.length > 0) {
-          console.log('Some users missing from dept endpoint, trying alternative methods...');
-          
-          // First, try fetching by LinkID (subdepartment) which might be more complete
-          try {
-            const linkAllocs = await fetchAllocationsByLink(selectedSubDept);
-            if (linkAllocs && linkAllocs.length > 0) {
-              console.log(`Fetched ${linkAllocs.length} allocations via LinkID endpoint`);
-              // Merge LinkID allocations with existing ones (deduplicate by UserID)
-              const existingUserIDs = new Set(allocations.map((a: any) => Number(a.UserID)));
-              const newFromLink = linkAllocs.filter((a: any) => !existingUserIDs.has(Number(a.UserID)));
-              
-              if (newFromLink.length > 0) {
-                allocations = [...allocations, ...newFromLink];
-                console.log(`✅ Added ${newFromLink.length} allocations from LinkID endpoint. Total now: ${allocations.length}`);
-              }
-              
-              // Update missing users list after LinkID fetch
-              const updatedFetchedUserIDs = allocations.map((a: any) => Number(a.UserID));
-              const stillMissingAfterLink = usersInList.filter(userId => !updatedFetchedUserIDs.includes(userId));
-              
-              if (stillMissingAfterLink.length > 0) {
-                console.log(`Still missing ${stillMissingAfterLink.length} users after LinkID fetch:`, stillMissingAfterLink);
-                console.log(`Attempting to fetch missing user allocations individually...`);
-                
-                // Try individual user endpoint for remaining missing users
-                const missingAllocs: any[] = [];
-                for (const userId of stillMissingAfterLink) {
-                  try {
-                    console.log(`Fetching allocation for UserID ${userId}, Dept ${selectedDept}, SubDept ${selectedSubDept}...`);
-                    const alloc = await fetchAllocationByUserAndDept(
-                      userId,
-                      Number(selectedDept),
-                      selectedSubDept
-                    );
-                    if (alloc) {
-                      console.log(`✅ Found missing allocation for UserID ${userId}:`, alloc);
-                      missingAllocs.push(alloc);
-                    }
-                  } catch (err: any) {
-                    // Silently continue if individual fetch fails
-                    if (err?.response?.status !== 404) {
-                      console.log(`Error fetching allocation for UserID ${userId}:`, err?.response?.status);
-                    }
-                  }
-                }
-                
-                if (missingAllocs.length > 0) {
-                  allocations = [...allocations, ...missingAllocs];
-                  console.log(`✅ Added ${missingAllocs.length} allocations from individual user endpoint. Total now: ${allocations.length}`);
-                }
-                
-                // Last resort: fetch all allocations and filter by matching users
-                const finalFetchedUserIDs = allocations.map((a: any) => Number(a.UserID));
-                const stillMissingFinal = usersInList.filter(userId => !finalFetchedUserIDs.includes(userId));
-                
-                if (stillMissingFinal.length > 0) {
-                  console.log(`⚠️ Still missing ${stillMissingFinal.length} users after all methods. Trying fetch-all approach...`);
-                  try {
-                    const allAllocs = await fetchAllAllocations();
-                    console.log(`Fetched ${allAllocs.length} total allocations from /allocation/all`);
-                    
-                    // Filter to only include allocations for users that are in our missing list
-                    // This prevents adding allocations from other departments
-                    const missingUserSet = new Set(stillMissingFinal);
-                    const existingUserIDsSet = new Set(allocations.map((a: any) => Number(a.UserID)));
-                    
-                    const relevantAllocs = allAllocs.filter((a: any) => {
-                      const userId = Number(a.UserID);
-                      // Only include if user is in missing list and not already in allocations
-                      return missingUserSet.has(userId) && !existingUserIDsSet.has(userId);
-                    });
-                    
-                    if (relevantAllocs.length > 0) {
-                      console.log(`Found ${relevantAllocs.length} additional allocations for missing users:`, relevantAllocs.map((a: any) => ({ UserID: a.UserID, id: a.id })));
-                      allocations = [...allocations, ...relevantAllocs];
-                      console.log(`✅ Added ${relevantAllocs.length} missing allocations. Total now: ${allocations.length}`);
-                    } else {
-                      console.log(`No additional allocations found for missing users in fetch-all`);
-                    }
-                  } catch (err: any) {
-                    console.log(`Could not fetch all allocations:`, err?.response?.status || err?.message);
-                  }
-                }
-              }
-            }
-          } catch (err: any) {
-            console.log(`LinkID fetch failed, trying individual user endpoints...`, err?.response?.status || err?.message);
-            
-            // Fallback to individual user endpoint
-            const missingAllocs: any[] = [];
-            for (const userId of missingUsers) {
-              try {
-                const alloc = await fetchAllocationByUserAndDept(
-                  userId,
-                  Number(selectedDept),
-                  selectedSubDept
-                );
-                if (alloc) {
-                  console.log(`✅ Found missing allocation for UserID ${userId}:`, alloc);
-                  missingAllocs.push(alloc);
-                }
-              } catch (err: any) {
-                // Silently continue
-              }
-            }
-            
-            if (missingAllocs.length > 0) {
-              allocations = [...allocations, ...missingAllocs];
-              console.log(`✅ Added ${missingAllocs.length} missing allocations. Total now: ${allocations.length}`);
-            }
-          }
-        }
-        
-        // If that returns empty, try by LinkID as fallback
-        if (!allocations || allocations.length === 0) {
-          console.log('Fetch by dept returned empty, trying by LinkID...');
-          allocations = await fetchAllocationsByLink(selectedSubDept);
-        }
-        
-        // Deduplicate allocations by UserID - keep only the most recent one (highest id) for each user
-        const allocationsByUser = new Map<number, DocumentAccess>();
-        allocations.forEach((alloc: any) => {
-          const userId = Number(alloc.UserID);
-          const existing = allocationsByUser.get(userId);
-          if (!existing || Number(alloc.id) > Number(existing.id)) {
-            allocationsByUser.set(userId, alloc);
-          }
+        console.log('📋 [Allocation] Fetching role allocations for:', {
+          departmentId: selectedDept,
+          subDepartmentId: selectedSubDept,
         });
-        allocations = Array.from(allocationsByUser.values());
-        console.log(`Deduplicated allocations: ${allocations.length} unique users`);
         
-        console.log('Received allocations:', allocations);
-        console.log('Allocations details:', allocations.map(a => ({
-          id: a.id,
-          UserID: a.UserID,
-          LinkID: a.LinkID,
-          Active: a.Active,
-          View: a.View,
-          Add: a.Add,
-          Edit: a.Edit,
-          Delete: a.Delete
-        })));
+        // Fetch role allocations by department and subdepartment
+        let roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
         
-        // Check if UserID 29 exists in allocations
-        const user29Alloc = allocations.find((a: any) => Number(a.UserID) === 29);
-        if (user29Alloc) {
-          console.log('Found UserID 29 allocation:', user29Alloc);
-        } else {
-          console.log('UserID 29 NOT FOUND in fetched allocations. Available UserIDs:', allocations.map((a: any) => a.UserID));
-        }
-        
-        if (allocations && allocations.length > 0) {
-          // Helper function to check if allocation is active
-          const isActive = (alloc: any): boolean => {
-            const active = alloc.Active;
-            if (typeof active === 'boolean') return active;
-            if (typeof active === 'number') return active === 1;
-            if (typeof active === 'string') return active === '1' || active === 'true' || active === 'True';
-            return true; // Default to true if unknown
-          };
-          
-          // Log ALL allocations before filtering
-          console.log('All allocations before filtering:', allocations.map(a => ({
+        console.log('📋 [Allocation] Role allocations from fetchRoleAllocations:', {
+          count: roleAllocs?.length || 0,
+          allocations: roleAllocs?.map((a: any) => ({
             id: a.id,
-            UserID: a.UserID,
-            Active: a.Active,
-            isActive: isActive(a)
-          })));
-          
-          // Map DocumentAccess records to UserPermission format
-          const mappedUsers: UserPermission[] = allocations
-            .filter((alloc: DocumentAccess) => {
-              const active = isActive(alloc);
-              console.log(`Allocation ${alloc.id} for User ${alloc.UserID} - Active: ${alloc.Active} (${typeof alloc.Active}) -> ${active}`);
-              return active;
-            })
-            .map((alloc: DocumentAccess) => {
-              const user = usersList.find((u: any) => Number(u.ID) === Number(alloc.UserID));
-              
-              // Helper function to convert any value to boolean
-              const toBool = (val: any): boolean => {
-                if (typeof val === 'boolean') return val;
-                if (typeof val === 'number') return val === 1;
-                if (typeof val === 'string') return val === '1' || val === 'true' || val === 'True';
-                return false;
-              };
-              
-              console.log(`Mapping user ${alloc.UserID} (${user?.UserName || 'Unknown'}) - View: ${alloc.View} (${typeof alloc.View}), Add: ${alloc.Add} (${typeof alloc.Add}), Edit: ${alloc.Edit} (${typeof alloc.Edit}), Delete: ${alloc.Delete} (${typeof alloc.Delete})`); // Debug log
-              
-              const mappedUser = {
-                username: user?.UserName || `User ${alloc.UserID}`,
-                allocationId: alloc.id, // Store the allocation ID for updates
-                // Convert database values to boolean (handles both number 0/1 and boolean)
-                view: toBool(alloc.View),
-                add: toBool(alloc.Add),
-                edit: toBool(alloc.Edit),
-                delete: toBool(alloc.Delete),
-                print: toBool(alloc.Print),
-                confidential: toBool(alloc.Confidential),
-                comment: toBool(alloc.Comment),
-                collaborate: toBool(alloc.Collaborate),
-                finalize: toBool(alloc.Finalize),
-                masking: toBool(alloc.Masking),
-                isEditing: false,
-              };
-              
-              console.log(`Mapped user result - username: ${mappedUser.username}, view: ${mappedUser.view}, add: ${mappedUser.add}, edit: ${mappedUser.edit}, delete: ${mappedUser.delete}`);
-              return mappedUser;
-            });
-          
-          console.log('Mapped users:', mappedUsers);
-          console.log('Mapped users details:', mappedUsers.map(u => ({
-            username: u.username,
-            view: u.view,
-            add: u.add,
-            edit: u.edit,
-            delete: u.delete
-          })));
-          console.log('Setting users to state:', mappedUsers.length, 'users');
-          setUsers(mappedUsers);
-          
-          // Also set savedFieldsData from the first allocation's fields (they should be the same)
-          if (allocations[0]?.fields && Array.isArray(allocations[0].fields) && allocations[0].fields.length > 0) {
-            setSavedFieldsData(allocations[0].fields.map((f: any) => ({
-              ID: f.ID,
-              Field: f.Field || f.Description || '',
-              Type: f.Type || 'text',
-              Description: f.Description || f.Field || '',
-            })));
-          }
-        } else {
-          setUsers([]);
-          setSavedFieldsData([]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch existing allocations:', error);
-        setUsers([]);
-        setSavedFieldsData([]);
-      }
-    };
-
-    fetchExistingAllocations();
-  }, [selectedSubDept, usersList]);
-
-  const togglePermission = (username: string, field: PermissionKey) => {
-    const targetUser = users.find((user) => user.username === username);
-    if (!targetUser || !targetUser.isEditing) return;
-
-    if (targetUser.allocationId) {
-      if (!ensureEditPermission()) return;
-    } else if (!ensureAddPermission()) {
-      return;
-    }
-
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.username === username ? { ...user, [field]: !user[field] } : user
-      )
-    );
-  };
-
-  const toggleEditMode = (username: string) => {
-    const targetUser = users.find((user) => user.username === username);
-    if (!targetUser) return;
-
-    const willEnable = !targetUser.isEditing;
-    if (willEnable) {
-      if (targetUser.allocationId) {
-        if (!ensureEditPermission()) return;
-      } else if (!ensureAddPermission()) {
-        return;
-      }
-    }
-
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.username === username
-          ? { ...user, isEditing: !user.isEditing }
-          : { ...user, isEditing: false }
-      )
-    );
-  };
-
-  const saveUser = async (username: string) => {
-    if (!selectedDept || !selectedSubDept) {
-      toast.error('Please select Department and Document Type first.');
-      return;
-    }
-
-    const user = users.find((u) => u.username === username);
-    if (!user) {
-      toast.error('User not found');
-      return;
-    }
-
-    const userID = (usersList || [])?.find(
-      (item) => item.UserName === username
-    )?.ID;
-
-    if (!userID) {
-      toast.error('User ID not found');
-      return;
-    }
-
-    const isNewUser = !user.allocationId;
-    if (isNewUser) {
-      if (!ensureAddPermission()) return;
-    } else if (!ensureEditPermission()) {
-      return;
-    }
-
-    const payload = {
-      depid: Number(selectedDept),
-      subdepid: Number(selectedSubDept),
-      userid: Number(userID),
-      View: user.view ? 1 : 0,
-      Add: user.add ? 1 : 0,
-      Edit: user.edit ? 1 : 0,
-      Delete: user.delete ? 1 : 0,
-      Print: user.print ? 1 : 0,
-      Confidential: user.confidential ? 1 : 0,
-      Comment: user.comment ? 1 : 0,
-      Collaborate: user.collaborate ? 1 : 0,
-      Finalize: user.finalize ? 1 : 0,
-      Masking: user.masking ? 1 : 0,
-      fields: savedFieldsData.map((field) => ({
-        ID: Number(field.ID),
-        Field: field.Field,
-        Type: field.Type,
-        Description: field.Description || '',
-      })),
-    };
-
-    try {
-      // If allocationId exists, update; otherwise create new
-      if (user.allocationId) {
-        await updateAllocation(user.allocationId, payload);
-      } else {
-        // Try to create, but if 409 error, try to update instead
-        try {
-          await allocateFieldsToUsers(payload);
-        } catch (createError: any) {
-          if (createError?.response?.status === 409) {
-            // User already exists, try to fetch the allocation
-            console.log(`409 Conflict: Allocation exists for UserID ${userID}, searching for it...`);
-            let existingAlloc: DocumentAccess | null = null;
-            
-            // Check if error response contains allocation data first
-            if (createError?.response?.data?.data) {
-              existingAlloc = createError.response.data.data;
-              console.log(`Found allocation in error response:`, existingAlloc);
-            }
-            
-            // If not in error response, try multiple search methods
-            if (!existingAlloc) {
-              // First try by department + subdepartment
-              let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
-              existingAlloc = allocations.find(
-                (a: DocumentAccess) => Number(a.UserID) === Number(userID)
-              ) || null;
-              
-              if (existingAlloc) {
-                console.log(`Found allocation via dept endpoint`);
-              }
-            }
-            
-            // If not found, try by LinkID
-            if (!existingAlloc) {
-              console.log('Allocation not found by dept, trying by LinkID...');
-              const linkAllocs = await fetchAllocationsByLink(selectedSubDept);
-              existingAlloc = linkAllocs.find(
-                (a: DocumentAccess) => Number(a.UserID) === Number(userID)
-              ) || null;
-              
-              if (existingAlloc) {
-                console.log(`Found allocation via LinkID endpoint`);
-              }
-            }
-            
-            // If still not found, try fetching by user + dept + subdept
-            if (!existingAlloc) {
-              console.log('Allocation not found, trying by user+dept+subdept...');
-              const alloc = await fetchAllocationByUserAndDept(
-                Number(userID),
-                Number(selectedDept),
-                selectedSubDept
-              );
-              if (alloc) {
-                existingAlloc = alloc;
-                console.log(`Found allocation via user+dept+subdept endpoint`);
-              }
-            }
-            
-            // Last resort: fetch all allocations and filter
-            if (!existingAlloc) {
-              console.log('Trying fetch-all approach as last resort...');
-              try {
-                const allAllocs = await fetchAllAllocations();
-                // Filter to find allocation for this specific user
-                existingAlloc = allAllocs.find(
-                  (a: DocumentAccess) => Number(a.UserID) === Number(userID)
-                ) || null;
-                
-                if (existingAlloc) {
-                  console.log(`Found allocation via fetch-all approach`);
-                }
-              } catch (err: any) {
-                console.log(`Fetch-all failed:`, err?.message);
-              }
-            }
-            
-            if (existingAlloc) {
-              console.log(`Updating existing allocation ID ${existingAlloc.id} for UserID ${userID}`);
-              await updateAllocation(existingAlloc.id, payload);
-              // Update the user's allocationId in state
-              setUsers((prev) =>
-                prev.map((u) =>
-                  u.username === username ? { ...u, allocationId: existingAlloc!.id } : u
-                )
-              );
-            } else {
-              // If still not found, show error but don't throw - user can try again
-              console.error(`Could not find existing allocation to update for UserID ${userID}`);
-              console.error(`Searched via: dept endpoint, LinkID endpoint, user+dept+subdept endpoint, and fetch-all`);
-              toast.error(`User ${username} already exists but allocation not found. Please refresh and try again.`);
-              throw createError;
-            }
-          } else {
-            throw createError;
-          }
-        }
-      }
-      
-      // Reload allocations to reflect saved changes
-      let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
-      if (!allocations || allocations.length === 0) {
-        allocations = await fetchAllocationsByLink(selectedSubDept);
-      }
-      if (allocations && allocations.length > 0) {
-        // Helper function to check if allocation is active
-        const isActive = (alloc: any): boolean => {
-          const active = alloc.Active;
-          if (typeof active === 'boolean') return active;
-          if (typeof active === 'number') return active === 1;
-          if (typeof active === 'string') return active === '1' || active === 'true' || active === 'True';
-          return true; // Default to true if unknown
-        };
+            linkId: a.LinkID,
+            roleId: a.UserAccessID,
+            roleName: a.userAccess?.Description,
+            departmentId: a.DepartmentId,
+            View: a.View,
+            Add: a.Add,
+            Edit: a.Edit,
+          })),
+        });
         
-        const mappedUsers: UserPermission[] = allocations
-          .filter((alloc: DocumentAccess) => isActive(alloc))
-          .map((alloc: DocumentAccess) => {
-            const user = usersList.find((u: any) => Number(u.ID) === Number(alloc.UserID));
+        // If empty, try by LinkID as fallback
+        if (!roleAllocs || roleAllocs.length === 0) {
+          console.log('📋 [Allocation] No allocations found, trying by LinkID:', selectedSubDept);
+          roleAllocs = await fetchRoleAllocationsByLink(selectedSubDept);
+          console.log('📋 [Allocation] Role allocations from fetchRoleAllocationsByLink:', {
+            count: roleAllocs?.length || 0,
+            allocations: roleAllocs?.map((a: any) => ({
+              id: a.id,
+              linkId: a.LinkID,
+              roleId: a.UserAccessID,
+              roleName: a.userAccess?.Description,
+              departmentId: a.DepartmentId,
+              View: a.View,
+              Add: a.Add,
+              Edit: a.Edit,
+            })),
+          });
+        }
+
+        // Map RoleDocumentAccess to RolePermission format and fetch affected users
+        console.log('📋 [Allocation] Fetching users for each role allocation...');
+        const mappedRoles: RolePermission[] = await Promise.all(
+          roleAllocs.map(async (alloc: RoleDocumentAccess) => {
+            // Fetch affected users for this role
+            const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
             
-            // Helper function to convert any value to boolean
-            const toBool = (val: any): boolean => {
-              if (typeof val === 'boolean') return val;
-              if (typeof val === 'number') return val === 1;
-              if (typeof val === 'string') return val === '1' || val === 'true' || val === 'True';
-              return false;
-            };
+            console.log(`📋 [Allocation] Role "${alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`}" (ID: ${alloc.UserAccessID}):`, {
+              allocationId: alloc.id,
+              linkId: alloc.LinkID,
+              departmentId: alloc.DepartmentId,
+              permissions: {
+                View: toBool(alloc.View),
+                Add: toBool(alloc.Add),
+                Edit: toBool(alloc.Edit),
+                Delete: toBool(alloc.Delete),
+                Print: toBool(alloc.Print),
+                Confidential: toBool(alloc.Confidential),
+                Comment: toBool(alloc.Comment),
+                Collaborate: toBool(alloc.Collaborate),
+                Finalize: toBool(alloc.Finalize),
+                Masking: toBool(alloc.Masking),
+              },
+              affectedUsers: affectedUsersList.map(u => ({
+                id: u.ID,
+                name: u.UserName,
+                email: u.Email,
+              })),
+              affectedUsersCount: affectedUsersList.length,
+            });
             
             return {
-              username: user?.UserName || `User ${alloc.UserID}`,
+              roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
+              roleID: alloc.UserAccessID,
               allocationId: alloc.id,
-              // Convert database values to boolean (handles both number 0/1 and boolean)
               view: toBool(alloc.View),
               add: toBool(alloc.Add),
               edit: toBool(alloc.Edit),
@@ -822,125 +429,248 @@ export const AllocationPanel = () => {
               finalize: toBool(alloc.Finalize),
               masking: toBool(alloc.Masking),
               isEditing: false,
+              affectedUsersCount: affectedUsersList.length,
+              affectedUsers: affectedUsersList,
             };
-          });
-        setUsers(mappedUsers);
+          })
+        );
+
+        console.log('📋 [Allocation] Final mapped roles with users:', {
+          totalRoles: mappedRoles.length,
+          roles: mappedRoles.map(r => ({
+            roleName: r.roleName,
+            roleID: r.roleID,
+            allocationId: r.allocationId,
+            permissions: {
+              view: r.view,
+              add: r.add,
+              edit: r.edit,
+              delete: r.delete,
+            },
+            affectedUsers: r.affectedUsers.map(u => ({
+              id: u.ID,
+              name: u.UserName,
+            })),
+            affectedUsersCount: r.affectedUsersCount,
+          })),
+        });
+
+        setRoleAllocations(mappedRoles);
+        
+        // Set savedFieldsData from the first allocation's fields (they should be the same)
+        if (roleAllocs[0]?.fields && Array.isArray(roleAllocs[0].fields) && roleAllocs[0].fields.length > 0) {
+          setSavedFieldsData(roleAllocs[0].fields.map((f: any) => ({
+            ID: f.ID,
+            Field: f.Field || f.Description || '',
+            Type: f.Type || 'text',
+            Description: f.Description || f.Field || '',
+          })));
+        } else {
+          setSavedFieldsData([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch role allocations:', error);
+        setRoleAllocations([]);
+        setSavedFieldsData([]);
       }
-      
-      toast.success(`Permissions saved for ${username}`);
+    };
+
+    fetchRoleAllocationsData();
+  }, [selectedSubDept, selectedDept]);
+
+  // Load available roles for dropdown
+  useEffect(() => {
+    const loadAvailableRoles = async () => {
+      try {
+        const result = await getAllUserAccess();
+        const roles = result?.data?.userAccess || [];
+        setAvailableRoles(roles.map((role: any) => ({
+          ID: role.ID,
+          Description: role.Description,
+        })));
+      } catch (error) {
+        console.error('Failed to load available roles:', error);
+      }
+    };
+
+    loadAvailableRoles();
+  }, []);
+
+  const toggleRolePermission = (roleID: number, field: PermissionKey) => {
+    const targetRole = roleAllocations.find((role) => role.roleID === roleID);
+    if (!targetRole || !targetRole.isEditing) return;
+
+    if (targetRole.allocationId) {
+      if (!ensureEditPermission()) return;
+    } else if (!ensureAddPermission()) {
+      return;
+    }
+
+    setRoleAllocations((prev) =>
+      prev.map((role) =>
+        role.roleID === roleID ? { ...role, [field]: !role[field] } : role
+      )
+    );
+  };
+
+  const toggleRoleEditMode = (roleID: number) => {
+    const targetRole = roleAllocations.find((role) => role.roleID === roleID);
+    if (!targetRole) return;
+
+    const willEnable = !targetRole.isEditing;
+    if (willEnable) {
+      if (targetRole.allocationId) {
+        if (!ensureEditPermission()) return;
+      } else if (!ensureAddPermission()) {
+        return;
+      }
+    }
+
+    setRoleAllocations((prev) =>
+      prev.map((role) =>
+        role.roleID === roleID
+          ? { ...role, isEditing: !role.isEditing }
+          : { ...role, isEditing: false }
+      )
+    );
+  };
+
+  const saveRoleAllocation = async (roleID: number) => {
+    if (!selectedDept || !selectedSubDept) {
+      toast.error('Please select Department and Document Type first.');
+      return;
+    }
+
+    const role = roleAllocations.find((r) => r.roleID === roleID);
+    if (!role) {
+      toast.error('Role not found');
+      return;
+    }
+
+    const isNewRole = !role.allocationId;
+    if (isNewRole) {
+      if (!ensureAddPermission()) return;
+    } else if (!ensureEditPermission()) {
+      return;
+    }
+
+    const payload = {
+      linkid: Number(selectedSubDept),
+      useraccessid: roleID,
+      View: role.view ? 1 : 0,
+      Add: role.add ? 1 : 0,
+      Edit: role.edit ? 1 : 0,
+      Delete: role.delete ? 1 : 0,
+      Print: role.print ? 1 : 0,
+      Confidential: role.confidential ? 1 : 0,
+      Comment: role.comment ? 1 : 0,
+      Collaborate: role.collaborate ? 1 : 0,
+      Finalize: role.finalize ? 1 : 0,
+      Masking: role.masking ? 1 : 0,
+      fields: savedFieldsData.map((field) => ({
+        ID: Number(field.ID),
+        Field: field.Field,
+        Type: field.Type,
+        Description: field.Description || '',
+      })),
+    };
+
+    try {
+      if (role.allocationId) {
+        await updateRoleAllocation(payload);
+      } else {
+        // If creating, need full payload with depid and subdepid
+        await addRoleAllocation({
+          depid: Number(selectedDept),
+          subdepid: Number(selectedSubDept),
+          useraccessid: roleID,
+          linkid: Number(selectedSubDept),
+          View: payload.View,
+          Add: payload.Add,
+          Edit: payload.Edit,
+          Delete: payload.Delete,
+          Print: payload.Print,
+          Confidential: payload.Confidential,
+          Comment: payload.Comment,
+          Collaborate: payload.Collaborate,
+          Finalize: payload.Finalize,
+          Masking: payload.Masking,
+          fields: payload.fields,
+        });
+      }
+
+      // Reload role allocations to reflect saved changes
+      const roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
+      const mappedRoles: RolePermission[] = await Promise.all(
+        roleAllocs.map(async (alloc: RoleDocumentAccess) => {
+          const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
+          return {
+            roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
+            roleID: alloc.UserAccessID,
+            allocationId: alloc.id,
+            view: toBool(alloc.View),
+            add: toBool(alloc.Add),
+            edit: toBool(alloc.Edit),
+            delete: toBool(alloc.Delete),
+            print: toBool(alloc.Print),
+            confidential: toBool(alloc.Confidential),
+            comment: toBool(alloc.Comment),
+            collaborate: toBool(alloc.Collaborate),
+            finalize: toBool(alloc.Finalize),
+            masking: toBool(alloc.Masking),
+            isEditing: false,
+            affectedUsersCount: affectedUsersList.length,
+            affectedUsers: affectedUsersList,
+          };
+        })
+      );
+      setRoleAllocations(mappedRoles);
+
+      toast.success(`Permissions saved for ${role.roleName}`);
     } catch (error: any) {
-      console.error('Save user failed:', error);
+      console.error('Save role failed:', error);
       toast.error(
         `Failed to save: ${error?.response?.data?.error || 'Please try again.'}`
       );
     }
   };
 
-  const addUser = () => {
+  const handleAddRoleAllocation = async () => {
     if (!ensureAddPermission()) return;
-    // FINDING THE SELECTED ACCESS LEVEL
-    // const newUserLabel = accessOptions?.items?.find(
-    //   (item: any) => item.value === newUsername
-    // ) as { value: string; label: string };
-    const newUserLabel = usersList?.find(
-      (item: any) => Number(item.ID) === Number(newUserID)
-    );
-    // CHECKING IF THE USER ALREADY EXISTS
-    if (users.some((u) => u.username === newUserLabel?.UserName)) {
-      toast.error('User already exists');
-      return;
-    }
-    console.log({ usersList });
-    // ADDING THE NEW USER
-    setUsers([
-      ...users,
-      {
-        username: newUserLabel?.UserName || '',
-        allocationId: undefined, // New user, no allocation ID yet
-        view: true,
-        add: false,
-        edit: false,
-        delete: false,
-        print: false,
-        confidential: false,
-        comment: false,
-        collaborate: false,
-        finalize: false,
-        masking: false,
-        isEditing: false,
-      },
-    ]);
-
-    setNewUserID('');
-    setShowAddUserModal(false);
-  };
-
-  const removeUser = (username: string) => {
-    if (username === 'admin') return;
-    const targetUser = users.find((user) => user.username === username);
-    if (!targetUser) return;
-
-    if (targetUser.allocationId) {
-      if (!ensureDeletePermission()) return;
-    } else if (!ensureAddPermission()) {
+    if (!selectedDept || !selectedSubDept || !newRoleID) {
+      toast.error('Please select Department, Document Type, and a role.');
       return;
     }
 
-    setUsers((prev) => prev.filter((user) => user.username !== username));
-  };
-
-  const handleAllocation = async () => {
-    if (!selectedDept || !selectedSubDept || users.length === 0) {
-      toast.error('Please select Department, Document Type, and add at least one user.');
+    // Check if role already allocated
+    if (roleAllocations.some((r) => r.roleID === Number(newRoleID))) {
+      toast.error('Role already allocated');
       return;
     }
 
-    if (!canAdd && !canEdit) {
-      toast.error('You do not have permission to save allocations.');
+    const selectedRole = availableRoles.find((r) => r.ID === Number(newRoleID));
+    if (!selectedRole) {
+      toast.error('Role not found');
       return;
     }
 
-    // Save ALL users, not just the first one
-    const savePromises = users.map(async (user) => {
-      const isNew = !user.allocationId;
-      if (isNew && !canAdd) {
-        return {
-          username: user.username,
-          success: false,
-          error: 'No permission to add users',
-        };
-      }
-      if (!isNew && !canEdit) {
-        return {
-          username: user.username,
-          success: false,
-          error: 'No permission to edit users',
-        };
-      }
-
-      const userID = (usersList || [])?.find(
-        (item) => item.UserName === user.username
-      )?.ID;
-
-      if (!userID) {
-        console.warn(`User ID not found for ${user.username}`);
-        return null;
-      }
-
+    try {
+      // Create role allocation with default permissions (View only)
       const payload = {
         depid: Number(selectedDept),
         subdepid: Number(selectedSubDept),
-        userid: Number(userID),
-        View: user.view ? 1 : 0,
-        Add: user.add ? 1 : 0,
-        Edit: user.edit ? 1 : 0,
-        Delete: user.delete ? 1 : 0,
-        Print: user.print ? 1 : 0,
-        Confidential: user.confidential ? 1 : 0,
-        Comment: user.comment ? 1 : 0,
-        Collaborate: user.collaborate ? 1 : 0,
-        Finalize: user.finalize ? 1 : 0,
-        Masking: user.masking ? 1 : 0,
+        useraccessid: Number(newRoleID),
+        linkid: Number(selectedSubDept),
+        View: 1,
+        Add: 0,
+        Edit: 0,
+        Delete: 0,
+        Print: 0,
+        Confidential: 0,
+        Comment: 0,
+        Collaborate: 0,
+        Finalize: 0,
+        Masking: 0,
         fields: savedFieldsData.map((field) => ({
           ID: Number(field.ID),
           Field: field.Field,
@@ -949,198 +679,98 @@ export const AllocationPanel = () => {
         })),
       };
 
-      try {
-        // If allocationId exists, update; otherwise try to create
-        if (user.allocationId) {
-          await updateAllocation(user.allocationId, payload);
-          return { username: user.username, success: true };
-        } else {
-          // Try to create, but if 409 error, try to update instead
-          try {
-            await allocateFieldsToUsers(payload);
-            return { username: user.username, success: true };
-          } catch (createError: any) {
-            if (createError?.response?.status === 409) {
-              // User already exists, try to fetch the allocation
-              console.log(`409 Conflict: Allocation exists for UserID ${userID}, searching for it...`);
-              let existingAlloc: DocumentAccess | null = null;
-              
-              // Check if error response contains allocation data first
-              if (createError?.response?.data?.data) {
-                existingAlloc = createError.response.data.data;
-                console.log(`Found allocation in error response:`, existingAlloc);
-              }
-              
-              // If not in error response, try multiple search methods
-              if (!existingAlloc) {
-                // First try by department + subdepartment
-                let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
-                existingAlloc = allocations.find(
-                  (a: DocumentAccess) => Number(a.UserID) === Number(userID)
-                ) || null;
-                
-                if (existingAlloc) {
-                  console.log(`Found allocation via dept endpoint`);
-                }
-              }
-              
-              // If not found, try by LinkID
-              if (!existingAlloc) {
-                console.log('Allocation not found by dept, trying by LinkID...');
-                const linkAllocs = await fetchAllocationsByLink(selectedSubDept);
-                existingAlloc = linkAllocs.find(
-                  (a: DocumentAccess) => Number(a.UserID) === Number(userID)
-                ) || null;
-                
-                if (existingAlloc) {
-                  console.log(`Found allocation via LinkID endpoint`);
-                }
-              }
-              
-              // If still not found, try fetching by user + dept + subdept
-              if (!existingAlloc) {
-                console.log('Allocation not found, trying by user+dept+subdept...');
-                const alloc = await fetchAllocationByUserAndDept(
-                  Number(userID),
-                  Number(selectedDept),
-                  selectedSubDept
-                );
-                if (alloc) {
-                  existingAlloc = alloc;
-                  console.log(`Found allocation via user+dept+subdept endpoint`);
-                }
-              }
-              
-              // Last resort: fetch all allocations and filter
-              if (!existingAlloc) {
-                console.log('Trying fetch-all approach as last resort...');
-                try {
-                  const allAllocs = await fetchAllAllocations();
-                  // Filter to find allocation for this specific user, dept, and subdept
-                  // We'll match by UserID and check if it might belong to this dept/subdept
-                  existingAlloc = allAllocs.find(
-                    (a: DocumentAccess) => Number(a.UserID) === Number(userID)
-                  ) || null;
-                  
-                  if (existingAlloc) {
-                    console.log(`Found allocation via fetch-all approach`);
-                  }
-                } catch (err: any) {
-                  console.log(`Fetch-all failed:`, err?.message);
-                }
-              }
-              
-              if (existingAlloc) {
-                console.log(`Updating existing allocation ID ${existingAlloc.id} for UserID ${userID}`);
-                await updateAllocation(existingAlloc.id, payload);
-                return { username: user.username, success: true };
-              } else {
-                console.error(`Could not find existing allocation to update for UserID ${userID}`);
-                console.error(`Searched via: dept endpoint, LinkID endpoint, user+dept+subdept endpoint, and fetch-all`);
-                return { 
-                  username: user.username, 
-                  success: false, 
-                  error: 'Allocation exists but could not be found to update' 
-                };
-              }
-            } else {
-              throw createError;
-            }
-          }
-        }
-      } catch (error: any) {
-        console.error(`Failed to allocate for ${user.username}:`, error);
-        return { 
-          username: user.username, 
-          success: false, 
-          error: error?.response?.data?.error || 'Unknown error' 
-        };
-      }
-    });
+      await addRoleAllocation(payload);
+      toast.success('Role allocated successfully');
 
-    try {
-      const results = await Promise.all(savePromises);
-      const successful = results.filter(r => r && r.success).length;
-      const failed = results.filter(r => r && !r.success);
-
-      if (failed.length > 0) {
-        toast.error(`${failed.length} user(s) failed to save. ${successful} user(s) saved successfully.`);
-        failed.forEach(f => {
-          if (f) {
-            console.error(`Failed for ${f.username}:`, f.error);
-          }
-        });
-      } else {
-        toast.success(`All ${successful} user(s) allocated successfully`);
-      }
-
-      // Reload allocations to reflect saved changes
-      if (successful > 0) {
-        let allocations = await fetchAllocationsByDept(selectedDept, selectedSubDept);
-        if (!allocations || allocations.length === 0) {
-          allocations = await fetchAllocationsByLink(selectedSubDept);
-        }
-        if (allocations && allocations.length > 0) {
-          // Helper function to check if allocation is active
-          const isActive = (alloc: any): boolean => {
-            const active = alloc.Active;
-            if (typeof active === 'boolean') return active;
-            if (typeof active === 'number') return active === 1;
-            if (typeof active === 'string') return active === '1' || active === 'true' || active === 'True';
-            return true; // Default to true if unknown
+      // Refresh role allocations
+      const roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
+      const mappedRoles: RolePermission[] = await Promise.all(
+        roleAllocs.map(async (alloc: RoleDocumentAccess) => {
+          const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
+          return {
+            roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
+            roleID: alloc.UserAccessID,
+            allocationId: alloc.id,
+            view: toBool(alloc.View),
+            add: toBool(alloc.Add),
+            edit: toBool(alloc.Edit),
+            delete: toBool(alloc.Delete),
+            print: toBool(alloc.Print),
+            confidential: toBool(alloc.Confidential),
+            comment: toBool(alloc.Comment),
+            collaborate: toBool(alloc.Collaborate),
+            finalize: toBool(alloc.Finalize),
+            masking: toBool(alloc.Masking),
+            isEditing: false,
+            affectedUsersCount: affectedUsersList.length,
+            affectedUsers: affectedUsersList,
           };
-          
-          // Helper function to convert any value to boolean
-          const toBool = (val: any): boolean => {
-            if (typeof val === 'boolean') return val;
-            if (typeof val === 'number') return val === 1;
-            if (typeof val === 'string') return val === '1' || val === 'true' || val === 'True';
-            return false;
-          };
-          
-          const mappedUsers: UserPermission[] = allocations
-            .filter((alloc: DocumentAccess) => isActive(alloc))
-            .map((alloc: DocumentAccess) => {
-              const user = usersList.find((u: any) => Number(u.ID) === Number(alloc.UserID));
-              return {
-                username: user?.UserName || `User ${alloc.UserID}`,
-                allocationId: alloc.id,
-                // Convert database values to boolean (handles both number 0/1 and boolean)
-                view: toBool(alloc.View),
-                add: toBool(alloc.Add),
-                edit: toBool(alloc.Edit),
-                delete: toBool(alloc.Delete),
-                print: toBool(alloc.Print),
-                confidential: toBool(alloc.Confidential),
-                comment: toBool(alloc.Comment),
-                collaborate: toBool(alloc.Collaborate),
-                finalize: toBool(alloc.Finalize),
-                masking: toBool(alloc.Masking),
-                isEditing: false,
-              };
-            });
-          setUsers(mappedUsers);
-        }
-      }
-    } catch (error: any) {
-      console.error('Allocation failed:', error);
-      toast.error(
-        'Failed to allocate: ' + (error?.response?.data?.error || 'Please try again.')
+        })
       );
+      setRoleAllocations(mappedRoles);
+
+      setNewRoleID('');
+      setShowAddRoleModal(false);
+    } catch (error: any) {
+      console.error('Failed to add role allocation:', error);
+      toast.error(error?.response?.data?.error || 'Failed to add role allocation');
     }
   };
-  console.log({ selectedDept, selectedSubDept });
-  // console.log({ fieldsInfo });
-  const userOptions = usersList?.map((user) => ({
-    label: user.UserName,
-    value: user.ID,
-  }));
+
+  const removeRoleAllocation = async (roleID: number) => {
+    const role = roleAllocations.find((r) => r.roleID === roleID);
+    if (!role) return;
+
+    if (role.allocationId) {
+      if (!ensureDeletePermission()) return;
+
+      try {
+        await deleteRoleAllocation(Number(selectedSubDept), roleID);
+        toast.success(`Role allocation removed`);
+        
+        // Refresh role allocations
+        const roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
+        const mappedRoles: RolePermission[] = await Promise.all(
+          roleAllocs.map(async (alloc: RoleDocumentAccess) => {
+            const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
+            return {
+              roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
+              roleID: alloc.UserAccessID,
+              allocationId: alloc.id,
+              view: toBool(alloc.View),
+              add: toBool(alloc.Add),
+              edit: toBool(alloc.Edit),
+              delete: toBool(alloc.Delete),
+              print: toBool(alloc.Print),
+              confidential: toBool(alloc.Confidential),
+              comment: toBool(alloc.Comment),
+              collaborate: toBool(alloc.Collaborate),
+              finalize: toBool(alloc.Finalize),
+              masking: toBool(alloc.Masking),
+              isEditing: false,
+              affectedUsersCount: affectedUsersList.length,
+              affectedUsers: affectedUsersList,
+            };
+          })
+        );
+        setRoleAllocations(mappedRoles);
+      } catch (error: any) {
+        console.error('Failed to remove role allocation:', error);
+        toast.error('Failed to remove role allocation');
+      }
+    } else {
+      // Just remove from state if not saved yet
+      setRoleAllocations((prev) => prev.filter((r) => r.roleID !== roleID));
+    }
+  };
+
+  // Get available roles for dropdown (excludes already allocated)
+  const getAvailableRolesForDropdown = () => {
+    const allocatedRoleIDs = new Set(roleAllocations.map(r => r.roleID));
+    return availableRoles.filter(role => !allocatedRoleIDs.has(role.ID));
+  };
   
-  // Check if there are any available users to add
-  const availableUsersToAdd = userOptions?.filter((user: any) => 
-    !users.some((u) => u.username === user.label)
-  ) || [];
-  const canAddMoreUsers = availableUsersToAdd.length > 0;
+  const canAddMoreRoles = getAvailableRolesForDropdown().length > 0;
   
   return (
     <div className="bg-white shadow-md rounded-xl p-3 md:p-6 space-y-6">
@@ -1222,15 +852,15 @@ export const AllocationPanel = () => {
             Field Settings
           </button>
           <button
-            onClick={() => setActiveTab('users')}
+            onClick={() => setActiveTab('roles')}
             className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
-              activeTab === 'users'
+              activeTab === 'roles'
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
             <Users className="w-5 h-5" />
-            User Permissions
+            Role Allocations
           </button>
         </nav>
       </div>
@@ -1555,65 +1185,67 @@ export const AllocationPanel = () => {
           </div>
         )}
 
-        {activeTab === 'users' && (
+        {activeTab === 'roles' && (
           <div className="w-full space-y-6">
-            {/* Header with Add User Button */}
+            {/* Header with Add Role Button */}
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-blue-800">
-                User Permissions
+                Role Allocations
               </h2>
               {allocationPermissions?.Add && (
                 <Button
-                  onClick={() => setShowAddUserModal(true)}
-                  disabled={!canAddMoreUsers}
+                  onClick={() => setShowAddRoleModal(true)}
+                  disabled={!canAddMoreRoles}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
-                    !canAddMoreUsers
+                    !canAddMoreRoles
                       ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
                   <PlusCircle className="w-4 h-4" />
-                  Add User
+                  Add Role
                 </Button>
               )}
             </div>
 
-            {/* Permissions Cards */}
-            {users.length > 0 ? (
+            {/* Role Allocations Cards */}
+            {roleAllocations.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {users.map((user) => {
-                  const canModifyUser = user.allocationId ? canEdit : canAdd;
-                  const canRemoveUser = user.allocationId ? canDelete : canAdd;
-                  const editButtonDisabled = user.username === 'admin' || !canModifyUser;
-                  const deleteButtonDisabled = user.username === 'admin' || !canRemoveUser;
+                {roleAllocations.map((role) => {
+                  const canModifyRole = role.allocationId ? canEdit : canAdd;
+                  const canRemoveRole = role.allocationId ? canDelete : canAdd;
+                  const showUsers = expandedRoles[role.roleID] || false;
                   return (
                     <div
-                      key={user.username}
+                      key={role.roleID}
                       className={`bg-white border rounded-lg shadow-sm p-5 transition-all ${
-                        user.isEditing ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
+                        role.isEditing ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
                       }`}
                     >
-                      {/* User Header */}
+                      {/* Role Header */}
                       <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-200">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-800">{user.username}</h3>
-                          {user.isEditing && (
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-800">{role.roleName}</h3>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Affects: {role.affectedUsersCount || 0} user{role.affectedUsersCount !== 1 ? 's' : ''}
+                          </p>
+                          {role.isEditing && (
                             <span className="text-xs text-blue-600 font-medium">Editing Mode</span>
                           )}
                         </div>
                         <div className="flex gap-2">
-                          {user.isEditing ? (
+                          {role.isEditing ? (
                             <>
                               <Button
-                                onClick={() => saveUser(user.username)}
+                                onClick={() => saveRoleAllocation(role.roleID)}
                                 className="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Save"
-                                disabled={!canModifyUser}
+                                disabled={!canModifyRole}
                               >
                                 <Save className="w-4 h-4" />
                               </Button>
                               <Button
-                                onClick={() => toggleEditMode(user.username)}
+                                onClick={() => toggleRoleEditMode(role.roleID)}
                                 className="text-gray-600 hover:text-gray-800 bg-gray-50 hover:bg-gray-100 p-2 rounded"
                                 title="Cancel"
                               >
@@ -1623,18 +1255,25 @@ export const AllocationPanel = () => {
                           ) : (
                             <>
                               <Button
-                                onClick={() => toggleEditMode(user.username)}
+                                onClick={() => setExpandedRoles(prev => ({ ...prev, [role.roleID]: !prev[role.roleID] }))}
+                                className="text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 p-2 rounded"
+                                title="View Users"
+                              >
+                                <Users className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                onClick={() => toggleRoleEditMode(role.roleID)}
                                 className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Edit"
-                                disabled={editButtonDisabled}
+                                disabled={!canModifyRole}
                               >
                                 <Pencil className="w-4 h-4" />
                               </Button>
                               <Button
-                                onClick={() => removeUser(user.username)}
+                                onClick={() => removeRoleAllocation(role.roleID)}
                                 className="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Delete"
-                                disabled={deleteButtonDisabled}
+                                disabled={!canRemoveRole}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -1643,122 +1282,127 @@ export const AllocationPanel = () => {
                         </div>
                       </div>
 
-                    {/* Permissions Grid */}
-                    <div className="space-y-4">
-                      {/* Basic Permissions */}
-                      <div>
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                          Basic Access
-                        </h4>
-                        <div className="grid grid-cols-2 gap-3">
-                          {(['view', 'add', 'edit', 'delete'] as PermissionKey[]).map((field) => (
-                            <label
-                              key={field}
-                              className="flex items-center gap-2 cursor-pointer group"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={user[field]}
-                                onChange={() => togglePermission(user.username, field)}
-                                disabled={
-                                  (!user.isEditing && user.username !== 'admin') ||
-                                  user.username === 'admin' ||
-                                  (user.isEditing && !canModifyUser)
-                                }
-                                className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
-                                  user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
-                                    ? 'cursor-not-allowed opacity-50'
-                                    : 'cursor-pointer'
-                                }`}
-                              />
-                              <span className={`text-sm capitalize ${
-                                user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
-                                  ? 'text-gray-400'
-                                  : 'text-gray-700 group-hover:text-blue-600'
-                              }`}>
-                                {field}
+                      {/* Affected Users List */}
+                      {showUsers && role.affectedUsers && role.affectedUsers.length > 0 && (
+                        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <h4 className="text-xs font-semibold text-gray-600 mb-2">Affected Users:</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {role.affectedUsers.map((user) => (
+                              <span
+                                key={user.ID}
+                                className="px-2 py-1 bg-white border border-gray-300 rounded text-xs text-gray-700"
+                              >
+                                {user.UserName}
                               </span>
-                            </label>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Advanced Permissions */}
-                      <div>
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                          Advanced Access
-                        </h4>
-                        <div className="grid grid-cols-2 gap-3">
-                          {(['print', 'confidential', 'comment', 'collaborate'] as PermissionKey[]).map((field) => (
-                            <label
-                              key={field}
-                              className="flex items-center gap-2 cursor-pointer group"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={user[field]}
-                                onChange={() => togglePermission(user.username, field)}
-                                disabled={
-                                  (!user.isEditing && user.username !== 'admin') ||
-                                  user.username === 'admin' ||
-                                  (user.isEditing && !canModifyUser)
-                                }
-                                className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
-                                  user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
-                                    ? 'cursor-not-allowed opacity-50'
-                                    : 'cursor-pointer'
-                                }`}
-                              />
-                              <span className={`text-sm capitalize ${
-                                user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
-                                  ? 'text-gray-400'
-                                  : 'text-gray-700 group-hover:text-blue-600'
-                              }`}>
-                                {field}
-                              </span>
-                            </label>
-                          ))}
+                      {/* Permissions Grid */}
+                      <div className="space-y-4">
+                        {/* Basic Permissions */}
+                        <div>
+                          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                            Basic Access
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            {(['view', 'add', 'edit', 'delete'] as PermissionKey[]).map((field) => (
+                              <label
+                                key={field}
+                                className="flex items-center gap-2 cursor-pointer group"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={role[field]}
+                                  onChange={() => toggleRolePermission(role.roleID, field)}
+                                  disabled={!role.isEditing || !canModifyRole}
+                                  className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                                    !role.isEditing || !canModifyRole
+                                      ? 'cursor-not-allowed opacity-50'
+                                      : 'cursor-pointer'
+                                  }`}
+                                />
+                                <span className={`text-sm capitalize ${
+                                  !role.isEditing || !canModifyRole
+                                    ? 'text-gray-400'
+                                    : 'text-gray-700 group-hover:text-blue-600'
+                                }`}>
+                                  {field}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Special Permissions */}
-                      <div>
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                          Special Permissions
-                        </h4>
-                        <div className="grid grid-cols-2 gap-3">
-                          {(['finalize', 'masking'] as PermissionKey[]).map((field) => (
-                            <label
-                              key={field}
-                              className="flex items-center gap-2 cursor-pointer group"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={user[field]}
-                                onChange={() => togglePermission(user.username, field)}
-                                disabled={
-                                  (!user.isEditing && user.username !== 'admin') ||
-                                  user.username === 'admin' ||
-                                  (user.isEditing && !canModifyUser)
-                                }
-                                className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
-                                  user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
-                                    ? 'cursor-not-allowed opacity-50'
-                                    : 'cursor-pointer'
-                                }`}
-                              />
-                              <span className={`text-sm capitalize ${
-                                user.username === 'admin' || (!user.isEditing && user.username !== 'admin')
-                                  ? 'text-gray-400'
-                                  : 'text-gray-700 group-hover:text-blue-600'
-                              }`}>
-                                {field}
-                              </span>
-                            </label>
-                          ))}
+                        {/* Advanced Permissions */}
+                        <div>
+                          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                            Advanced Access
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            {(['print', 'confidential', 'comment', 'collaborate'] as PermissionKey[]).map((field) => (
+                              <label
+                                key={field}
+                                className="flex items-center gap-2 cursor-pointer group"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={role[field]}
+                                  onChange={() => toggleRolePermission(role.roleID, field)}
+                                  disabled={!role.isEditing || !canModifyRole}
+                                  className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                                    !role.isEditing || !canModifyRole
+                                      ? 'cursor-not-allowed opacity-50'
+                                      : 'cursor-pointer'
+                                  }`}
+                                />
+                                <span className={`text-sm capitalize ${
+                                  !role.isEditing || !canModifyRole
+                                    ? 'text-gray-400'
+                                    : 'text-gray-700 group-hover:text-blue-600'
+                                }`}>
+                                  {field}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Special Permissions */}
+                        <div>
+                          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                            Special Permissions
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            {(['finalize', 'masking'] as PermissionKey[]).map((field) => (
+                              <label
+                                key={field}
+                                className="flex items-center gap-2 cursor-pointer group"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={role[field]}
+                                  onChange={() => toggleRolePermission(role.roleID, field)}
+                                  disabled={!role.isEditing || !canModifyRole}
+                                  className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                                    !role.isEditing || !canModifyRole
+                                      ? 'cursor-not-allowed opacity-50'
+                                      : 'cursor-pointer'
+                                  }`}
+                                />
+                                <span className={`text-sm capitalize ${
+                                  !role.isEditing || !canModifyRole
+                                    ? 'text-gray-400'
+                                    : 'text-gray-700 group-hover:text-blue-600'
+                                }`}>
+                                  {field}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
                     </div>
                   );
                 })}
@@ -1766,45 +1410,25 @@ export const AllocationPanel = () => {
             ) : (
               <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg font-medium">No users allocated</p>
-                <p className="text-gray-400 text-sm mt-2">Click "Add User" to start allocating permissions</p>
+                <p className="text-gray-500 text-lg font-medium">No roles allocated</p>
+                <p className="text-gray-400 text-sm mt-2">Click "Add Role" to start allocating permissions</p>
               </div>
             )}
-
-            {/* Footer Allocate Button */}
-            <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-gray-200">
-              <Button
-                onClick={handleAllocation}
-                disabled={
-                  !Boolean(selectedSubDept) ||
-                  !Boolean(selectedDept) ||
-                  users.length === 0 ||
-                  (!canAdd && !canEdit)
-                }
-                className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-medium
-                  disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed
-                  bg-blue-600 text-white hover:bg-blue-700 
-                `}
-              >
-                <PlusCircle className="w-4 h-4" />
-                Allocate All Users
-              </Button>
-            </div>
           </div>
         )}
       </div>
 
-      {/* Add User Modal */}
-      {showAddUserModal && (
+      {/* Add Role Modal */}
+      {showAddRoleModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-xl">
-              <h2 className="text-xl font-semibold text-gray-800">Add New User</h2>
+              <h2 className="text-xl font-semibold text-gray-800">Add New Role</h2>
               <button
                 onClick={() => {
-                  setShowAddUserModal(false);
-                  setNewUserID('');
+                  setShowAddRoleModal(false);
+                  setNewRoleID('');
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -1814,32 +1438,32 @@ export const AllocationPanel = () => {
 
             {/* Modal Body */}
             <div className="p-6 space-y-6">
-              {/* User Selection */}
+              {/* Role Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select User
+                  Select Role
                 </label>
                 <select
-                  value={newUserID}
-                  onChange={(e) => setNewUserID(e.target.value)}
+                  value={newRoleID}
+                  onChange={(e) => setNewRoleID(e.target.value ? Number(e.target.value) : '')}
                   className="w-full px-4 py-3 rounded-lg bg-white border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="" hidden>
-                    Choose a user to add...
+                    Choose a role to add...
                   </option>
-                  {userOptions?.filter((user: any) => !users.some((u) => u.username === user.label)).map((user: any) => (
-                    <option key={user.value} value={user.value}>
-                      {user.label}
+                  {getAvailableRolesForDropdown().map((role) => (
+                    <option key={role.ID} value={role.ID}>
+                      {role.Description}
                     </option>
                   ))}
                 </select>
-                {userOptions?.filter((user: any) => !users.some((u) => u.username === user.label)).length === 0 && (
-                  <p className="text-sm text-gray-500 mt-2">All available users have been added.</p>
+                {getAvailableRolesForDropdown().length === 0 && (
+                  <p className="text-sm text-gray-500 mt-2">All available roles have been allocated.</p>
                 )}
               </div>
 
               {/* Permission Groups Preview */}
-              {newUserID && (
+              {newRoleID && (
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <h3 className="text-sm font-semibold text-blue-800 mb-3">Default Permissions</h3>
                   <div className="grid grid-cols-2 gap-2 text-sm">
@@ -1852,7 +1476,7 @@ export const AllocationPanel = () => {
                       <span className="text-gray-500">All other permissions disabled</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-600 mt-3">You can edit permissions after adding the user.</p>
+                  <p className="text-xs text-gray-600 mt-3">You can edit permissions after adding the role.</p>
                 </div>
               )}
             </div>
@@ -1861,23 +1485,23 @@ export const AllocationPanel = () => {
             <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3 rounded-b-xl">
               <Button
                 onClick={() => {
-                  setShowAddUserModal(false);
-                  setNewUserID('');
+                  setShowAddRoleModal(false);
+                  setNewRoleID('');
                 }}
                 className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300"
               >
                 Cancel
               </Button>
               <Button
-                onClick={addUser}
-                disabled={!newUserID}
+                onClick={handleAddRoleAllocation}
+                disabled={!newRoleID}
                 className={`px-4 py-2 rounded-md text-sm font-medium ${
-                  !newUserID
+                  !newRoleID
                     ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                Add User
+                Add Role
               </Button>
             </div>
           </div>
