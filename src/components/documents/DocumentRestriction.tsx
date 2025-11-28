@@ -535,6 +535,7 @@ useEffect(() => {
           onRemoveRestriction={handleRemoveRestriction}
           processingRestriction={processingRestriction}
           document={document}
+          availableRoles={availableRoles}
         />
 
         {/* Empty State */}

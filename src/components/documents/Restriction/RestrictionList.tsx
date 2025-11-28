@@ -20,6 +20,7 @@ interface RestrictionListProps {
   onRemoveRestriction: (restrictionId: number) => void;
   processingRestriction: number | null;
   document: CurrentDocument | null;
+  availableRoles: Array<{ id: number; name: string }>;
 }
 
 const formatDate = (dateString: string) => {
@@ -39,16 +40,42 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
   onRemoveRestriction,
   processingRestriction,
   document,
+  availableRoles,
 }) => {
-  // Group restrictions by collaborator
-  const restrictionsByCollaborator =
-    document?.collaborations?.reduce((acc, collaborator) => {
-      acc[collaborator.CollaboratorID] = restrictions.filter(
-        (restriction) => restriction.UserID === collaborator.CollaboratorID || 
-                       Number(restriction.UserID) === collaborator.CollaboratorID
+  const baseRoles = availableRoles || [];
+  const baseRoleIds = new Set(baseRoles.map((role) => role.id));
+
+  const extraRolesMap = new Map<number, string>();
+  restrictions.forEach((restriction) => {
+    const roleId = restriction.UserRole ?? restriction.UserID;
+    if (
+      typeof roleId === 'number' &&
+      !Number.isNaN(roleId) &&
+      !baseRoleIds.has(roleId) &&
+      !extraRolesMap.has(roleId)
+    ) {
+      extraRolesMap.set(
+        roleId,
+        restriction.CollaboratorName || `Role ${roleId}`
       );
-      return acc;
-    }, {} as Record<number, Restriction[]>) || {};
+    }
+  });
+
+  const roleEntries = [
+    ...baseRoles,
+    ...Array.from(extraRolesMap.entries()).map(([id, name]) => ({
+      id,
+      name,
+    })),
+  ];
+
+  const restrictionsByRole = roleEntries.reduce((acc, role) => {
+    acc[role.id] = restrictions.filter((restriction) => {
+      const roleId = restriction.UserRole ?? restriction.UserID;
+      return roleId === role.id;
+    });
+    return acc;
+  }, {} as Record<number, Restriction[]>);
 
   return (
     <div className="p-6">
@@ -57,57 +84,51 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
           Active Restrictions ({restrictions.length})
         </h3>
         <p className="text-sm text-gray-600">
-          Manage existing field and area maskings for each collaborator
+          Manage existing field and area maskings per role
         </p>
       </div>
 
-      {document?.collaborations?.length === 0 ? (
+      {roleEntries.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
           <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <UserCircle size={28} className="text-gray-400" />
           </div>
-          <p className="text-gray-600 font-medium text-lg mb-1">
-            No collaborators found
-          </p>
+          <p className="text-gray-600 font-medium text-lg mb-1">No roles found</p>
           <p className="text-sm text-gray-500">
-            Add collaborators to the document to manage access restrictions
+            Configure allocation roles with view permission to manage restrictions.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {document?.collaborations?.map((collab) => {
-            const collaboratorRestrictions =
-              restrictionsByCollaborator[collab.CollaboratorID] || [];
-            const isExpanded = expandedUser === collab.CollaboratorID;
+          {roleEntries.map((role) => {
+            const roleRestrictions = restrictionsByRole[role.id] || [];
+            const isExpanded = expandedUser === role.id;
 
-            // Separate field and area restrictions
-            const fieldRestrictions = collaboratorRestrictions.filter(
+            const fieldRestrictions = roleRestrictions.filter(
               (r) => r.restrictedType === 'field'
             );
-            const areaRestrictions = collaboratorRestrictions.filter(
+            const areaRestrictions = roleRestrictions.filter(
               (r) => r.restrictedType === 'open'
             );
 
             return (
               <div
-                key={collab.ID}
+                key={role.id}
                 className="border border-gray-200 rounded-xl overflow-hidden shadow-sm"
               >
                 {/* Collaborator Header */}
                 <div
                   className={`flex items-center justify-between p-5 cursor-pointer transition-all duration-200 ${
-                    collaboratorRestrictions.length > 0
+                    roleRestrictions.length > 0
                       ? 'bg-gradient-to-r from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100'
                       : 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-150'
                   }`}
-                  onClick={() =>
-                    setExpandedUser(isExpanded ? null : collab.CollaboratorID)
-                  }
+                  onClick={() => setExpandedUser(isExpanded ? null : role.id)}
                 >
                   <div className="flex items-center gap-4">
                     <div
                       className={`h-12 w-12 rounded-full flex items-center justify-center shadow-sm ${
-                        collaboratorRestrictions.length > 0
+                        roleRestrictions.length > 0
                           ? 'bg-gradient-to-r from-red-500 to-orange-500'
                           : 'bg-gradient-to-r from-gray-500 to-gray-600'
                       }`}
@@ -116,13 +137,13 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-900 text-lg">
-                        {collab.CollaboratorName}
+                        {role.name}
                       </h4>
                       <div className="flex items-center gap-4 mt-1">
                         <span className="text-sm text-gray-600">
-                          {collaboratorRestrictions.length > 0
-                            ? `${collaboratorRestrictions.length} masking${
-                                collaboratorRestrictions.length !== 1 ? 's' : ''
+                          {roleRestrictions.length > 0
+                            ? `${roleRestrictions.length} masking${
+                                roleRestrictions.length !== 1 ? 's' : ''
                               }`
                             : 'No maskings'}
                         </span>
@@ -142,7 +163,7 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {collaboratorRestrictions.length > 0 && (
+                    {roleRestrictions.length > 0 && (
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
                         <EyeOff className="h-4 w-4 mr-1" />
                         Restricted
@@ -157,7 +178,7 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
                 {/* Expanded Content */}
                 {isExpanded && (
                   <div className="bg-white border-t border-gray-200">
-                    {collaboratorRestrictions.length === 0 ? (
+                    {roleRestrictions.length === 0 ? (
                       <div className="text-center py-8">
                         <div className="p-3 bg-green-100 rounded-full w-14 h-14 mx-auto mb-3 flex items-center justify-center">
                           <Eye size={24} className="text-green-600" />
@@ -330,11 +351,11 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
                         {/* Fallback when types are not recognized but there are items */}
                         {fieldRestrictions.length === 0 &&
                           areaRestrictions.length === 0 &&
-                          collaboratorRestrictions.length > 0 && (
+                          roleRestrictions.length > 0 && (
                           <div>
-                            <h5 className="font-medium text-gray-900 mb-3">All Restrictions ({collaboratorRestrictions.length})</h5>
+                            <h5 className="font-medium text-gray-900 mb-3">All Restrictions ({roleRestrictions.length})</h5>
                             <div className="space-y-3">
-                              {collaboratorRestrictions.map((restriction) => (
+                              {roleRestrictions.map((restriction) => (
                                 <div key={restriction.ID} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                   <div className="flex items-start justify-between">
                                     <div className="flex-1">
