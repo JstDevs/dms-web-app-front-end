@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useDocument } from '../contexts/DocumentContext';
 import { TrendingUp, Folder, BarChart3, FileText, RotateCcw, ChevronDown } from 'lucide-react';
 // import { Button } from '@chakra-ui/react'; // Uncomment if using Chakra UI buttons
@@ -9,6 +9,7 @@ import axios from '@/api/axios';
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { fetchDocuments } from '@/pages/Document/utils/uploadAPIs';
+import { fetchRoleAllocations, fetchRoleAllocationsByLink } from '@/pages/Digitalization/utils/allocationServices';
 //
 
 //
@@ -138,6 +139,16 @@ const formatFileTypeLabel = (typeKey: string): string => {
     : typeKey.toUpperCase();
 };
 
+const toBool = (value: unknown): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === '1' || normalized === 'true';
+  }
+  return false;
+};
+
 const Dashboard: React.FC = () => {
   const { fetchDocumentList } = useDocument();
   const { selectedRole, user } = useAuth();
@@ -169,6 +180,13 @@ const Dashboard: React.FC = () => {
     departmentOptions,
     getSubDepartmentOptions,
   } = useNestedDepartmentOptions();
+  const [accessibleDepartments, setAccessibleDepartments] = useState<
+    { value: string; label: string }[]
+  >([]);
+  const [accessibleSubDepartmentsMap, setAccessibleSubDepartmentsMap] = useState<
+    Record<string, { value: string; label: string }[]>
+  >({});
+  const [isAccessOptionsLoading, setIsAccessOptionsLoading] = useState(false);
 
   // Dynamic state for charts and quick stats
   const [documentTypeData, setDocumentTypeData] = useState<{ name: string; value: number }[]>([]);
@@ -183,6 +201,7 @@ const Dashboard: React.FC = () => {
   const [isDocumentsLoading, setIsDocumentsLoading] = useState<boolean>(false);
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState<boolean>(false);
   const [isFilterLoading, setIsFilterLoading] = useState<boolean>(false);
+  const roleAccessCacheRef = useRef<Map<string, boolean>>(new Map());
 
   const COLORS = ['#5fad56', '#f2c14e', '#f78154', '#4d9078'];
 
@@ -511,6 +530,177 @@ const Dashboard: React.FC = () => {
     }
   }, [selectedRole, fetchDocumentList, fetchAllPagesForCount, startDate, endDate, selectedDepartment, selectedSubDepartment, selectedYear]);
 
+  const buildFullSubDeptMap = useCallback(() => {
+    return departmentOptions.reduce((acc, dept) => {
+      acc[dept.value] = getSubDepartmentOptions(Number(dept.value));
+      return acc;
+    }, {} as Record<string, { value: string; label: string }[]>);
+  }, [departmentOptions, getSubDepartmentOptions]);
+
+  const checkRoleViewAccess = useCallback(
+    async (departmentId: number, subDepartmentId: number) => {
+      if (!selectedRole?.ID) return false;
+      const cacheKey = `${selectedRole.ID}-${departmentId}-${subDepartmentId}`;
+      if (roleAccessCacheRef.current.has(cacheKey)) {
+        return roleAccessCacheRef.current.get(cacheKey) as boolean;
+      }
+      try {
+        let allocations = await fetchRoleAllocations(departmentId, subDepartmentId);
+        if (!allocations || allocations.length === 0) {
+          allocations = await fetchRoleAllocationsByLink(subDepartmentId);
+        }
+        const match = allocations?.find(
+          (alloc: any) => Number(alloc.UserAccessID) === Number(selectedRole.ID)
+        );
+        const canView = match ? toBool(match.View) : false;
+        roleAccessCacheRef.current.set(cacheKey, canView);
+        return canView;
+      } catch (error) {
+        console.error('Failed to evaluate role allocations for filters:', error);
+        roleAccessCacheRef.current.set(cacheKey, false);
+        return false;
+      }
+    },
+    [selectedRole?.ID]
+  );
+
+  useEffect(() => {
+    roleAccessCacheRef.current.clear();
+    setSelectedDepartment('');
+    setSelectedSubDepartment('');
+  }, [selectedRole?.ID]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const filterOptionsByRole = async () => {
+      if (!selectedRole?.ID) {
+        if (isMounted) {
+          setIsAccessOptionsLoading(false);
+          setAccessibleDepartments([]);
+          setAccessibleSubDepartmentsMap({});
+        }
+        return;
+      }
+
+      if (departmentOptions.length === 0) {
+        if (isMounted) {
+          setIsAccessOptionsLoading(false);
+          setAccessibleDepartments([]);
+          setAccessibleSubDepartmentsMap({});
+        }
+        return;
+      }
+
+      const isAdmin =
+        selectedRole.Description?.toLowerCase() === 'administrator' ||
+        selectedRole.Description?.toLowerCase() === 'administration';
+
+      if (isAdmin) {
+        if (isMounted) {
+          setIsAccessOptionsLoading(false);
+          setAccessibleDepartments(departmentOptions);
+          setAccessibleSubDepartmentsMap(buildFullSubDeptMap());
+        }
+        return;
+      }
+
+      setIsAccessOptionsLoading(true);
+      try {
+        const deptByValue = new Map<string, { value: string; label: string }>();
+        const tasks: Array<{
+          deptValue: string;
+          deptId: number;
+          sub: { value: string; label: string };
+        }> = [];
+
+        for (const dept of departmentOptions) {
+          const deptId = Number(dept.value);
+          const subOptions = getSubDepartmentOptions(deptId);
+          if (!subOptions.length) continue;
+          deptByValue.set(dept.value, dept);
+          subOptions.forEach((sub) => {
+            tasks.push({
+              deptValue: dept.value,
+              deptId,
+              sub,
+            });
+          });
+        }
+
+        const allowedDeptSet = new Set<string>();
+        const subMap: Record<string, { value: string; label: string }[]> = {};
+        const CONCURRENCY = 5;
+
+        for (let i = 0; i < tasks.length; i += CONCURRENCY) {
+          if (!isMounted) return;
+          const slice = tasks.slice(i, i + CONCURRENCY);
+          const sliceResults = await Promise.all(
+            slice.map(async ({ deptValue, deptId, sub }) => {
+              const canView = await checkRoleViewAccess(deptId, Number(sub.value));
+              return canView
+                ? {
+                    deptValue,
+                    sub,
+                  }
+                : null;
+            })
+          );
+
+          sliceResults.forEach((result) => {
+            if (!result) return;
+            allowedDeptSet.add(result.deptValue);
+            if (!subMap[result.deptValue]) {
+              subMap[result.deptValue] = [];
+            }
+            subMap[result.deptValue].push(result.sub);
+          });
+        }
+
+        const allowedDepts = departmentOptions.filter((dept) =>
+          allowedDeptSet.has(dept.value)
+        );
+
+        if (isMounted) {
+          setAccessibleDepartments(allowedDepts);
+          setAccessibleSubDepartmentsMap(subMap);
+        }
+      } catch (error) {
+        console.error('Failed to limit filter options by role allocations:', error);
+        if (isMounted) {
+          setAccessibleDepartments(departmentOptions);
+          setAccessibleSubDepartmentsMap(buildFullSubDeptMap());
+        }
+      } finally {
+        if (isMounted) {
+          setIsAccessOptionsLoading(false);
+        }
+      }
+    };
+
+    filterOptionsByRole();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    selectedRole?.ID,
+    selectedRole?.Description,
+    departmentOptions,
+    getSubDepartmentOptions,
+    buildFullSubDeptMap,
+    checkRoleViewAccess,
+  ]);
+
+  useEffect(() => {
+    if (!selectedDepartment) return;
+    const stillAllowed = accessibleDepartments.some((dept) => dept.value === selectedDepartment);
+    if (!stillAllowed) {
+      setSelectedDepartment('');
+      setSelectedSubDepartment('');
+    }
+  }, [selectedDepartment, accessibleDepartments]);
+
   // Effect to fetch all data on role change and filter changes
   useEffect(() => {
     if (selectedRole?.ID) {
@@ -529,23 +719,19 @@ const Dashboard: React.FC = () => {
 
   // Update sub-departments when department selection changes
   useEffect(() => {
-    if (selectedDepartment && departmentOptions.length > 0) {
-      // selectedDepartment is now an ID (value), not a label
-      const subs = getSubDepartmentOptions(Number(selectedDepartment));
-      setSubDepartmentOptions(subs);
-      // Only clear selectedSubDepartment if it's not in the new options
-      if (selectedSubDepartment && !subs.some((sub) => sub.value === selectedSubDepartment)) {
+    if (selectedDepartment) {
+      const allowedSubs = accessibleSubDepartmentsMap[selectedDepartment] || [];
+      setSubDepartmentOptions(allowedSubs);
+      if (selectedSubDepartment && !allowedSubs.some((sub) => sub.value === selectedSubDepartment)) {
         setSelectedSubDepartment('');
       }
     } else {
       setSubDepartmentOptions([]);
-      // Only clear if there was a selection
       if (selectedSubDepartment) {
         setSelectedSubDepartment('');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDepartment, departmentOptions.length]);
+  }, [selectedDepartment, accessibleSubDepartmentsMap, selectedSubDepartment]);
 
   // Show welcome message only if sessionStorage says so (first after login)
   const [showWelcome, setShowWelcome] = useState(false);
@@ -706,15 +892,20 @@ const Dashboard: React.FC = () => {
               <select
                 value={selectedDepartment}
                 onChange={(e) => setSelectedDepartment(e.target.value)}
+                disabled={isAccessOptionsLoading || accessibleDepartments.length === 0}
                 className="w-full px-4 py-2.5 border border-blue-200 rounded-lg text-sm bg-white 
                           appearance-none cursor-pointer focus:outline-none 
                           focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
-                          transition-all shadow-sm hover:border-blue-300"
+                          transition-all shadow-sm hover:border-blue-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
               >
                 <option value="" hidden>
-                  Select Department
+                  {isAccessOptionsLoading
+                    ? 'Loading departments...'
+                    : accessibleDepartments.length === 0
+                    ? 'No departments available'
+                    : 'Select Department'}
                 </option>
-                {departmentOptions.map((dept) => (
+                {accessibleDepartments.map((dept) => (
                   <option key={dept.value} value={dept.value}>
                     {dept.label}
                   </option>
@@ -732,7 +923,11 @@ const Dashboard: React.FC = () => {
               <select
                 value={selectedSubDepartment}
                 onChange={(e) => setSelectedSubDepartment(e.target.value)}
-                disabled={!selectedDepartment}
+                disabled={
+                  !selectedDepartment ||
+                  isAccessOptionsLoading ||
+                  subDepartmentOptions.length === 0
+                }
                 className="w-full px-4 py-2.5 border border-blue-200 rounded-lg text-sm bg-white 
                           appearance-none cursor-pointer focus:outline-none 
                           focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
@@ -740,7 +935,9 @@ const Dashboard: React.FC = () => {
                           disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
               >
                 <option value="" hidden>
-                  {subDepartmentOptions.length === 0
+                  {isAccessOptionsLoading
+                    ? 'Loading document types...'
+                    : subDepartmentOptions.length === 0
                     ? 'No document types available'
                     : 'Select Document Type'}
                 </option>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '@/redux/store';
 import { fetchDepartments } from '@/redux/thunk/DepartmentThunk';
@@ -28,7 +28,7 @@ export const useNestedDepartmentOptions = () => {
   }, [departments]);
 
   // Function to get sub-department options for a specific department
-  const getSubDepartmentOptions = (departmentId: number) => {
+  const getSubDepartmentOptions = useCallback((departmentId: number) => {
     const department = departments.find((dept) => dept.ID === departmentId);
     if (!department || !department.SubDepartments) return [];
 
@@ -36,7 +36,7 @@ export const useNestedDepartmentOptions = () => {
       value: String(subDept.ID),
       label: subDept.Name,
     }));
-  };
+  }, [departments]);
 
   return {
     departmentOptions,
