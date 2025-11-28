@@ -1,6 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Eye, Loader2, Image as ImageIcon, Move, Square } from 'lucide-react';
 import { CurrentDocument } from '@/types/Document';
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import PdfJsWorker from 'pdfjs-dist/build/pdf.worker?worker';
+import axios from '@/api/axios';
+
+// @ts-ignore
+GlobalWorkerOptions.workerPort = new PdfJsWorker();
 
 interface Rect {
   x: number;
@@ -25,7 +31,7 @@ interface DocumentPreviewProps {
 }
 
 const DocumentPreview: React.FC<DocumentPreviewProps> = ({
-  document,
+  document: currentDocument,
   onAreaSelect,
   selectedArea,
   existingRestrictions,
@@ -43,6 +49,136 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   });
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  const [pdfRendering, setPdfRendering] = useState(false);
+
+  const docInfo = currentDocument?.document?.[0];
+  const filePath = docInfo?.filepath;
+  const hasDataImage = Boolean(docInfo?.DataImage?.data?.length);
+  const isPdf = filePath?.toLowerCase()?.endsWith('.pdf');
+
+  const renderPdfToImage = async (pdfUrl: string): Promise<string> => {
+    setPdfRendering(true);
+    try {
+      let pdfData: Uint8Array | undefined;
+
+      try {
+        // Try fetching via Axios with credentials (handles CORS)
+        const response = await axios.get<ArrayBuffer>(pdfUrl, {
+          responseType: 'arraybuffer',
+          withCredentials: false,
+        });
+        pdfData = new Uint8Array(response.data);
+      } catch (fetchError) {
+        console.warn('Axios fetch for PDF preview failed, trying fallback URL:', fetchError);
+      }
+
+      const loadingTask = pdfData
+        ? getDocument({ data: pdfData })
+        : getDocument({
+            url: pdfUrl,
+            withCredentials: false,
+          });
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: context!, viewport }).promise;
+      return canvas.toDataURL('image/png');
+    } finally {
+      setPdfRendering(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    let objectUrl: string | null = null;
+
+    const buildDocumentUrl = async () => {
+      setImageLoading(true);
+      setImageError(false);
+
+      if (!docInfo) {
+        if (isMounted) {
+          setDocumentUrl(null);
+          setImageLoading(false);
+          setImageError(true);
+        }
+        return;
+      }
+
+      try {
+        if (hasDataImage && docInfo.DataImage?.data) {
+          const bytes = new Uint8Array(docInfo.DataImage.data);
+          const blob = new Blob([bytes], {
+            type: docInfo.DataImage.type || 'image/png',
+          });
+          objectUrl = URL.createObjectURL(blob);
+          if (isMounted) {
+            setDocumentUrl(objectUrl);
+          }
+          return;
+        }
+
+        if (filePath) {
+          let normalizedPath = filePath;
+          if (
+            !normalizedPath.startsWith('http') &&
+            !normalizedPath.startsWith('/')
+          ) {
+            normalizedPath = `/${normalizedPath}`;
+          }
+
+          if (isPdf) {
+            try {
+              const pdfImage = await renderPdfToImage(normalizedPath);
+              if (isMounted) {
+                setDocumentUrl(pdfImage);
+              }
+            } catch (error) {
+              console.error('Failed to render PDF preview:', error);
+              if (isMounted) {
+                setDocumentUrl(null);
+                setImageError(true);
+                setImageLoading(false);
+              }
+            }
+            return;
+          }
+
+          if (isMounted) {
+            setDocumentUrl(normalizedPath);
+          }
+          return;
+        }
+
+        if (isMounted) {
+          setDocumentUrl(null);
+          setImageError(true);
+          setImageLoading(false);
+        }
+      } catch (error) {
+        console.error('Failed to prepare document preview:', error);
+        if (isMounted) {
+          setDocumentUrl(null);
+          setImageError(true);
+          setImageLoading(false);
+        }
+      }
+    };
+
+    buildDocumentUrl();
+
+    return () => {
+      isMounted = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [docInfo, filePath, hasDataImage, isPdf]);
 
   const handleImageLoad = () => {
     if (imgRef.current) {
@@ -155,19 +291,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     setCurrentSelection(null);
   };
 
-  const getDocumentUrl = () => {
-    if (!document?.document?.[0]?.filepath) return null;
-
-    let url = document.document[0].filepath;
-
-    if (!url.startsWith('http') && !url.startsWith('/')) {
-      url = `/${url}`;
-    }
-
-    return url;
-  };
-
-  const documentUrl = getDocumentUrl();
+  const showLoadingState = (imageLoading && documentUrl) || pdfRendering;
 
   return (
     <div className="p-6">
@@ -193,12 +317,12 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       </div>
 
       <div className="bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 overflow-hidden">
-        {imageLoading && documentUrl && (
+        {showLoadingState && (
           <div className="flex items-center justify-center bg-gray-50 py-16">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin text-orange-500 mx-auto mb-3" />
               <p className="text-sm text-gray-600 font-medium">
-                Loading document...
+                {pdfRendering ? 'Preparing preview...' : 'Loading document...'}
               </p>
             </div>
           </div>

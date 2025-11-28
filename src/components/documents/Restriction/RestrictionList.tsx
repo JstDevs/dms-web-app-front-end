@@ -33,6 +33,16 @@ const formatDate = (dateString: string) => {
   });
 };
 
+const getRestrictionRoleId = (restriction: Restriction): number => {
+  const rawId = restriction.UserRole ?? restriction.UserID;
+  if (rawId === null || rawId === undefined) return 0;
+  if (typeof rawId === 'string') {
+    const parsed = Number(rawId);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  return Number(rawId);
+};
+
 const RestrictionList: React.FC<RestrictionListProps> = ({
   restrictions,
   expandedUser,
@@ -47,10 +57,9 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
 
   const extraRolesMap = new Map<number, string>();
   restrictions.forEach((restriction) => {
-    const roleId = restriction.UserRole ?? restriction.UserID;
+    const roleId = getRestrictionRoleId(restriction);
     if (
-      typeof roleId === 'number' &&
-      !Number.isNaN(roleId) &&
+      roleId > 0 &&
       !baseRoleIds.has(roleId) &&
       !extraRolesMap.has(roleId)
     ) {
@@ -70,10 +79,9 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
   ];
 
   const restrictionsByRole = roleEntries.reduce((acc, role) => {
-    acc[role.id] = restrictions.filter((restriction) => {
-      const roleId = restriction.UserRole ?? restriction.UserID;
-      return roleId === role.id;
-    });
+    acc[role.id] = restrictions.filter(
+      (restriction) => getRestrictionRoleId(restriction) === role.id
+    );
     return acc;
   }, {} as Record<number, Restriction[]>);
 
