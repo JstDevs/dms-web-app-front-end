@@ -342,76 +342,19 @@ export const AllocationPanel = () => {
       }
 
       try {
-        console.log('📋 [Allocation] Fetching role allocations for:', {
-          departmentId: selectedDept,
-          subDepartmentId: selectedSubDept,
-        });
-        
         // Fetch role allocations by department and subdepartment
         let roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
         
-        console.log('📋 [Allocation] Role allocations from fetchRoleAllocations:', {
-          count: roleAllocs?.length || 0,
-          allocations: roleAllocs?.map((a: any) => ({
-            id: a.id,
-            linkId: a.LinkID,
-            roleId: a.UserAccessID,
-            roleName: a.userAccess?.Description,
-            departmentId: a.DepartmentId,
-            View: a.View,
-            Add: a.Add,
-            Edit: a.Edit,
-          })),
-        });
-        
         // If empty, try by LinkID as fallback
         if (!roleAllocs || roleAllocs.length === 0) {
-          console.log('📋 [Allocation] No allocations found, trying by LinkID:', selectedSubDept);
           roleAllocs = await fetchRoleAllocationsByLink(selectedSubDept);
-          console.log('📋 [Allocation] Role allocations from fetchRoleAllocationsByLink:', {
-            count: roleAllocs?.length || 0,
-            allocations: roleAllocs?.map((a: any) => ({
-              id: a.id,
-              linkId: a.LinkID,
-              roleId: a.UserAccessID,
-              roleName: a.userAccess?.Description,
-              departmentId: a.DepartmentId,
-              View: a.View,
-              Add: a.Add,
-              Edit: a.Edit,
-            })),
-          });
         }
 
         // Map RoleDocumentAccess to RolePermission format and fetch affected users
-        console.log('📋 [Allocation] Fetching users for each role allocation...');
         const mappedRoles: RolePermission[] = await Promise.all(
           roleAllocs.map(async (alloc: RoleDocumentAccess) => {
             // Fetch affected users for this role
             const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
-            
-            console.log(`📋 [Allocation] Role "${alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`}" (ID: ${alloc.UserAccessID}):`, {
-              allocationId: alloc.id,
-              linkId: alloc.LinkID,
-              departmentId: alloc.DepartmentId,
-              permissions: {
-                View: toBool(alloc.View),
-                Add: toBool(alloc.Add),
-                Edit: toBool(alloc.Edit),
-                Delete: toBool(alloc.Delete),
-                Print: toBool(alloc.Print),
-                Confidential: toBool(alloc.Confidential),
-                Comment: toBool(alloc.Comment),
-                Collaborate: toBool(alloc.Collaborate),
-                Finalize: toBool(alloc.Finalize),
-                Masking: toBool(alloc.Masking),
-              },
-              affectedUsers: affectedUsersList.map(u => ({
-                id: u.ID,
-                name: u.UserName,
-              })),
-              affectedUsersCount: affectedUsersList.length,
-            });
             
             return {
               roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
@@ -433,26 +376,6 @@ export const AllocationPanel = () => {
             };
           })
         );
-
-        console.log('📋 [Allocation] Final mapped roles with users:', {
-          totalRoles: mappedRoles.length,
-          roles: mappedRoles.map(r => ({
-            roleName: r.roleName,
-            roleID: r.roleID,
-            allocationId: r.allocationId,
-            permissions: {
-              view: r.view,
-              add: r.add,
-              edit: r.edit,
-              delete: r.delete,
-            },
-            affectedUsers: r.affectedUsers?.map(u => ({
-              id: u.ID,
-              name: u.UserName,
-            })) || [],
-            affectedUsersCount: r.affectedUsersCount,
-          })),
-        });
 
         setRoleAllocations(mappedRoles);
         
