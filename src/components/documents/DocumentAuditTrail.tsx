@@ -458,17 +458,21 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
       
       // If we still don't have a user name but we have a user ID, try to get it from the users map
       if (!userName && userId && usersMap.size > 0) {
-        userName = usersMap.get(Number(userId)) || 'Unknown';
+        userName = usersMap.get(Number(userId)) || null;
       }
       
-      // Final fallback to Unknown
+      // Final fallback to Unknown - only show warning if usersMap is loaded and user still not found
       if (!userName) {
-        userName = 'Unknown';
-      }
-      
-      // Log if we're falling back to Unknown to help debug
-      if (userName === 'Unknown' && userId) {
-        console.warn('⚠️ User name not found for user ID:', userId, 'Entry data:', entry);
+        userName = userId ? `User ${userId}` : 'Unknown';
+        // Only log warning if usersMap has been populated (users loaded) and user ID exists
+        // This prevents warnings during initial load when users haven't been fetched yet
+        if (userId && usersMap.size > 0) {
+          // Use debug level instead of warn to reduce console noise
+          // These warnings typically indicate deleted users or data inconsistencies
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('User name not found for user ID:', userId, '(User may have been deleted)');
+          }
+        }
       }
       
       return {

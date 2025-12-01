@@ -76,3 +76,88 @@ export const fetchAvailableFields = async (
     return [];
   }
 };
+
+/**
+ * Fetch role-based permissions for a specific role, department and subdepartment
+ */
+export const fetchRoleBasedPermissions = async (
+  departmentId: number,
+  subDepartmentId: number,
+  roleId: number
+): Promise<FieldAllocationResponse | null> => {
+  try {
+    // Try to fetch role allocations first
+    const { fetchRoleAllocations, fetchRoleAllocationsByLink } = await import('../../Digitalization/utils/allocationServices');
+    
+    let roleAllocs = await fetchRoleAllocations(departmentId, subDepartmentId);
+    
+    // If empty, try by LinkID as fallback
+    if (!roleAllocs || roleAllocs.length === 0) {
+      roleAllocs = await fetchRoleAllocationsByLink(subDepartmentId);
+    }
+    
+    console.log('🔍 Searching for role allocation:', {
+      roleId,
+      totalRoleAllocs: roleAllocs?.length || 0,
+      availableRoleIds: roleAllocs?.map((a: any) => a.UserAccessID),
+    });
+    
+    // Find the allocation for the specific role
+    const roleAlloc = roleAllocs?.find(
+      (alloc: any) => Number(alloc.UserAccessID) === Number(roleId)
+    );
+    
+    if (!roleAlloc) {
+      console.log('⚠️ Role allocation not found for roleId:', roleId);
+      return null;
+    }
+    
+    console.log('✅ Found role allocation:', {
+      roleId: roleAlloc.UserAccessID,
+      rawPermissions: {
+        View: roleAlloc.View,
+        Add: roleAlloc.Add,
+        Edit: roleAlloc.Edit,
+        Delete: roleAlloc.Delete,
+        Print: roleAlloc.Print,
+        Confidential: roleAlloc.Confidential,
+        Comment: roleAlloc.Comment,
+        Collaborate: roleAlloc.Collaborate,
+        Finalize: roleAlloc.Finalize,
+        Masking: roleAlloc.Masking,
+      },
+    });
+    
+    // Helper function to convert any value to boolean
+    const toBool = (val: any): boolean => {
+      if (typeof val === 'boolean') return val;
+      if (typeof val === 'number') return val === 1;
+      if (typeof val === 'string') return val === '1' || val === 'true' || val === 'True';
+      return false;
+    };
+    
+    const permissions = {
+      View: toBool(roleAlloc.View),
+      Add: toBool(roleAlloc.Add),
+      Edit: toBool(roleAlloc.Edit),
+      Delete: toBool(roleAlloc.Delete),
+      Print: toBool(roleAlloc.Print),
+      Confidential: toBool(roleAlloc.Confidential),
+      Comment: toBool(roleAlloc.Comment),
+      Collaborate: toBool(roleAlloc.Collaborate),
+      Finalize: toBool(roleAlloc.Finalize),
+      Masking: toBool(roleAlloc.Masking),
+    };
+    
+    console.log('✅ Converted permissions:', permissions);
+    
+    // Convert role allocation to FieldAllocationResponse format
+    return {
+      fields: roleAlloc.fields || [],
+      userPermissions: permissions,
+    };
+  } catch (error) {
+    console.error('Failed to fetch role-based permissions:', error);
+    return null;
+  }
+};

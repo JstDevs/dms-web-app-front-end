@@ -341,12 +341,27 @@ export const AllocationPanel = () => {
     }
 
     try {
+      console.log('🔄 Refreshing role allocations for:', {
+        selectedDept,
+        selectedSubDept,
+      });
+
       // Fetch role allocations by department and subdepartment
       let roleAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
+      console.log('📥 Role allocations from fetchRoleAllocations:', roleAllocs);
       
       // If empty, try by LinkID as fallback
       if (!roleAllocs || roleAllocs.length === 0) {
+        console.log('⚠️ No role allocations found, trying by LinkID...');
         roleAllocs = await fetchRoleAllocationsByLink(selectedSubDept);
+        console.log('📥 Role allocations from fetchRoleAllocationsByLink:', roleAllocs);
+      }
+
+      if (!roleAllocs || roleAllocs.length === 0) {
+        console.log('ℹ️ No role allocations found in database');
+        setRoleAllocations([]);
+        setSavedFieldsData([]);
+        return;
       }
 
       // Map RoleDocumentAccess to RolePermission format and fetch affected users
@@ -355,10 +370,20 @@ export const AllocationPanel = () => {
           // Fetch affected users for this role
           const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
           
-          return {
+          // Backend may return ID (uppercase) or id (lowercase) - check both
+          const allocationId = alloc.id || (alloc as any).ID || (alloc as any).Id;
+          
+          console.log('🔍 Mapping role allocation:', {
+            roleID: alloc.UserAccessID,
+            roleName: alloc.userAccess?.Description,
+            allocationId,
+            rawAlloc: alloc,
+          });
+          
+          const mappedRole = {
             roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
             roleID: alloc.UserAccessID,
-            allocationId: alloc.id,
+            allocationId: allocationId,
             view: toBool(alloc.View),
             add: toBool(alloc.Add),
             edit: toBool(alloc.Edit),
@@ -373,9 +398,23 @@ export const AllocationPanel = () => {
             affectedUsersCount: affectedUsersList.length,
             affectedUsers: affectedUsersList,
           };
+
+          console.log('✅ Mapped role:', {
+            roleID: mappedRole.roleID,
+            roleName: mappedRole.roleName,
+            allocationId: mappedRole.allocationId,
+            permissions: {
+              view: mappedRole.view,
+              add: mappedRole.add,
+              edit: mappedRole.edit,
+            },
+          });
+
+          return mappedRole;
         })
       );
 
+      console.log('✅ Total mapped roles:', mappedRoles.length);
       setRoleAllocations(mappedRoles);
       
       // Set savedFieldsData from the first allocation's fields (they should be the same)
@@ -390,7 +429,12 @@ export const AllocationPanel = () => {
         setSavedFieldsData([]);
       }
     } catch (error) {
-      console.error('Failed to fetch role allocations:', error);
+      console.error('❌ Failed to fetch role allocations:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        selectedDept,
+        selectedSubDept,
+      });
       setRoleAllocations([]);
       setSavedFieldsData([]);
     }
@@ -499,11 +543,20 @@ export const AllocationPanel = () => {
     };
 
     try {
+      console.log('💾 Saving role allocation:', {
+        roleID,
+        roleName: role.roleName,
+        isNewRole,
+        payload,
+      });
+
+      let response;
       if (role.allocationId) {
-        await updateRoleAllocation(payload);
+        response = await updateRoleAllocation(payload);
+        console.log('✅ Update role allocation response:', response);
       } else {
         // If creating, need full payload with depid and subdepid
-        await addRoleAllocation({
+        response = await addRoleAllocation({
           depid: Number(selectedDept),
           subdepid: Number(selectedSubDept),
           useraccessid: roleID,
@@ -520,16 +573,36 @@ export const AllocationPanel = () => {
           Masking: payload.Masking,
           fields: payload.fields,
         });
+        console.log('✅ Add role allocation response:', response);
       }
 
-      // Reload role allocations to reflect saved changes
+      // Turn off editing mode immediately to provide immediate feedback
+      setRoleAllocations((prev) =>
+        prev.map((r) =>
+          r.roleID === roleID ? { ...r, isEditing: false } : r
+        )
+      );
+
+      // Small delay to ensure DB commit before refresh (helps with eventual consistency)
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Reload role allocations to reflect saved changes from DB
+      console.log('🔄 Refreshing role allocations after save...');
       await refreshRoleAllocations();
+      console.log('✅ Role allocations refreshed');
 
       toast.success(`Permissions saved for ${role.roleName}`);
     } catch (error: any) {
-      console.error('Save role failed:', error);
+      console.error('❌ Save role failed:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+      });
+      
+      // Keep editing mode on if save failed so user can retry
       toast.error(
-        `Failed to save: ${error?.response?.data?.error || 'Please try again.'}`
+        `Failed to save: ${error?.response?.data?.error || error?.message || 'Please try again.'}`
       );
     }
   };
