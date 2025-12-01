@@ -24,10 +24,10 @@ export function DeleteDialog({
                 </button>
               </Dialog.Close>
             </div>
-            <p className="text-sm text-gray-600">
+            <Dialog.DialogDescription className="text-sm text-gray-600">
               Are you sure you want to delete this?
               <br /> This action cannot be undone.
-            </p>
+            </Dialog.DialogDescription>
             <div className="flex justify-end gap-2">
               <Dialog.Close asChild>
                 <button className="text-sm px-3 py-1.5 bg-gray-100 rounded hover:bg-gray-200">

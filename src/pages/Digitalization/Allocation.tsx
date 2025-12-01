@@ -668,35 +668,109 @@ export const AllocationPanel = () => {
 
   const removeRoleAllocation = async (roleID: number) => {
     const role = roleAllocations.find((r) => r.roleID === roleID);
-    if (!role) return;
+    if (!role) {
+      console.error('❌ Role not found in allocations:', roleID);
+      toast.error('Role not found');
+      return;
+    }
 
-    if (role.allocationId) {
-      if (!ensureDeletePermission()) return;
+    console.log('🗑️ Attempting to delete role allocation:', {
+      roleID,
+      roleName: role.roleName,
+      allocationId: role.allocationId,
+      hasAllocationId: !!role.allocationId,
+      linkId: selectedSubDept,
+      departmentId: selectedDept,
+      fullRole: role,
+    });
 
-      try {
-        console.log('🗑️ Deleting role allocation:', {
-          roleID,
-          roleName: role.roleName,
-          allocationId: role.allocationId,
-          linkId: selectedSubDept,
-        });
-        
-        await deleteRoleAllocation(Number(selectedSubDept), roleID);
-        
-        // Refresh role allocations
-        await refreshRoleAllocations();
-        
+    // IMPORTANT: Even if allocationId is undefined, we should still try to delete
+    // because the backend might be able to delete using linkid + useraccessid
+    // The allocationId might just not be in the response from fetchRoleAllocations
+    if (!ensureDeletePermission()) return;
+
+    try {
+      console.log('🗑️ Calling delete API with:', {
+        linkId: Number(selectedSubDept),
+        userAccessId: roleID,
+        departmentId: Number(selectedDept),
+        allocationId: role.allocationId,
+      });
+      
+      const response = await deleteRoleAllocation(
+        Number(selectedSubDept), 
+        roleID,
+        Number(selectedDept), // Pass departmentId as well
+        role.allocationId // Pass allocationId if available (might be undefined)
+      );
+      console.log('✅ Delete API response:', response);
+      console.log('✅ Response status code should be 200/204');
+      
+      // Small delay to ensure DB commit before refresh
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      // Refresh role allocations to reflect deleted changes
+      console.log('🔄 Refreshing role allocations after delete...');
+      await refreshRoleAllocations();
+      console.log('✅ Role allocations refreshed after delete');
+      
+      // Wait a bit more and verify by checking the refreshed list
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      // Get fresh role allocations to verify deletion
+      let verifyAllocs = await fetchRoleAllocations(selectedDept, selectedSubDept);
+      if (!verifyAllocs || verifyAllocs.length === 0) {
+        const { fetchRoleAllocationsByLink } = await import('./utils/allocationServices');
+        verifyAllocs = await fetchRoleAllocationsByLink(selectedSubDept);
+      }
+      
+      console.log('🔍 Verifying deletion - checking if role still exists...');
+      console.log('🔍 Fresh allocations from DB:', verifyAllocs);
+      
+      const stillExists = verifyAllocs?.some((alloc: any) => 
+        Number(alloc.UserAccessID) === Number(roleID) &&
+        Number(alloc.LinkID) === Number(selectedSubDept)
+      );
+      
+      if (stillExists) {
+        const matchingAlloc = verifyAllocs?.find((alloc: any) => 
+          Number(alloc.UserAccessID) === Number(roleID) &&
+          Number(alloc.LinkID) === Number(selectedSubDept)
+        );
+        console.error('❌ DELETE FAILED: Role still exists in database after delete');
+        console.error('❌ Matching allocation still in DB:', matchingAlloc);
+        console.error('❌ All allocations:', verifyAllocs);
+        toast.error(
+          `Failed to delete role allocation. The role "${role.roleName}" still exists in the database. ` +
+          `Please check backend logs or try again.`
+        );
+      } else {
+        console.log('✅ VERIFIED: Role has been successfully deleted from database');
         toast.success(`Role allocation for "${role.roleName}" has been deleted successfully`);
-      } catch (error: any) {
-        console.error('❌ Failed to remove role allocation:', error);
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to remove role allocation:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        linkId: selectedSubDept,
+        userAccessId: roleID,
+        departmentId: selectedDept,
+        allocationId: role.allocationId,
+      });
+      
+      // Check if it's a 404 - means role doesn't exist (might have been deleted already)
+      if (error?.response?.status === 404) {
+        console.log('ℹ️ Backend returned 404 - role might not exist, refreshing anyway');
+        await refreshRoleAllocations();
+        toast.success(`Role allocation removed`);
+      } else {
         toast.error(
           `Failed to delete role allocation: ${error?.response?.data?.error || error?.message || 'Please try again.'}`
         );
       }
-    } else {
-      // Just remove from state if not saved yet
-      setRoleAllocations((prev) => prev.filter((r) => r.roleID !== roleID));
-      toast.success(`Role "${role.roleName}" removed from allocation`);
     }
   };
 

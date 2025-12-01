@@ -582,21 +582,95 @@ export const updateRoleAllocation = async (payload: {
 
 /**
  * Delete role allocation
+ * Backend might need parameters in request body or as query params
  */
 export const deleteRoleAllocation = async (
   linkId: number,
-  userAccessId: number
+  userAccessId: number,
+  departmentId?: number,
+  allocationId?: number
 ): Promise<any> => {
   try {
-    const response = await axios.delete(`/allocation/delete-role`, {
-      params: {
+    // Try with query params first (standard approach)
+    const params: any = {
+      linkid: linkId,
+      useraccessid: userAccessId,
+    };
+    
+    // Add departmentId if provided
+    if (departmentId !== undefined) {
+      params.departmentid = departmentId;
+    }
+    
+    // Add allocationId if provided
+    if (allocationId !== undefined && allocationId !== null) {
+      params.id = allocationId;
+      params.allocationid = allocationId;
+    }
+    
+    console.log('🗑️ Calling delete-role API with params:', params);
+    console.log('🗑️ API endpoint: DELETE /allocation/delete-role');
+    console.log('🗑️ Full URL will be:', `/allocation/delete-role?linkid=${linkId}&useraccessid=${userAccessId}${departmentId ? `&departmentid=${departmentId}` : ''}${allocationId ? `&id=${allocationId}&allocationid=${allocationId}` : ''}`);
+    
+    // Try DELETE with query params first
+    let response;
+    try {
+      response = await axios.delete(`/allocation/delete-role`, {
+        params,
+      });
+      console.log('✅ Delete API response (query params):', response?.data);
+      console.log('✅ Response status:', response?.status);
+    } catch (queryError: any) {
+      // If query params fail, try with request body (some backends prefer this for DELETE)
+      console.log('⚠️ Delete with query params failed, trying with request body...');
+      console.log('⚠️ Query error:', queryError?.response?.data || queryError?.message);
+      
+      const bodyData: any = {
         linkid: linkId,
         useraccessid: userAccessId,
+      };
+      
+      if (departmentId !== undefined) {
+        bodyData.departmentid = departmentId;
+      }
+      
+      if (allocationId !== undefined && allocationId !== null) {
+        bodyData.id = allocationId;
+        bodyData.allocationid = allocationId;
+      }
+      
+      console.log('🗑️ Trying DELETE with request body:', bodyData);
+      
+      // Some backends accept DELETE with body
+      response = await axios.delete(`/allocation/delete-role`, {
+        data: bodyData,
+      });
+      
+      console.log('✅ Delete API response (request body):', response?.data);
+      console.log('✅ Response status:', response?.status);
+    }
+    
+    return response?.data?.data ?? response?.data;
+  } catch (error: any) {
+    console.error('❌ Failed to delete role allocation:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      response: error?.response?.data,
+      status: error?.response?.status,
+      statusText: error?.response?.statusText,
+      requestConfig: {
+        linkid: linkId,
+        useraccessid: userAccessId,
+        departmentid: departmentId,
+        allocationid: allocationId,
       },
     });
-    return response?.data?.data ?? response?.data;
-  } catch (error) {
-    console.error('Failed to delete role allocation:', error);
+    
+    // Check if backend returned success but didn't actually delete
+    if (error?.response?.status === 200 || error?.response?.status === 204) {
+      console.warn('⚠️ Backend returned success (200/204) but delete might not have worked');
+    }
+    
     throw error;
   }
 };
