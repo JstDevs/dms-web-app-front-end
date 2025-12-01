@@ -1,4 +1,4 @@
-import { PlusCircle, Trash2, Pencil, Save, X, Settings, Users } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Save, X, Settings, Users, UserCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { FieldSettingsPanel } from '../FieldSetting';
 import { Button } from '@chakra-ui/react';
@@ -11,6 +11,7 @@ import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import { MODULE_IDS } from '@/constants/moduleIds';
 import { getAllUserAccess } from '@/pages/Users/Users Access/userAccessService';
+import { DeleteDialog } from '@/components/ui/DeleteDialog';
 type PermissionKey =
   | 'view'
   | 'add'
@@ -673,19 +674,29 @@ export const AllocationPanel = () => {
       if (!ensureDeletePermission()) return;
 
       try {
+        console.log('🗑️ Deleting role allocation:', {
+          roleID,
+          roleName: role.roleName,
+          allocationId: role.allocationId,
+          linkId: selectedSubDept,
+        });
+        
         await deleteRoleAllocation(Number(selectedSubDept), roleID);
         
         // Refresh role allocations
         await refreshRoleAllocations();
         
-        toast.success(`Role allocation removed`);
+        toast.success(`Role allocation for "${role.roleName}" has been deleted successfully`);
       } catch (error: any) {
-        console.error('Failed to remove role allocation:', error);
-        toast.error('Failed to remove role allocation');
+        console.error('❌ Failed to remove role allocation:', error);
+        toast.error(
+          `Failed to delete role allocation: ${error?.response?.data?.error || error?.message || 'Please try again.'}`
+        );
       }
     } else {
       // Just remove from state if not saved yet
       setRoleAllocations((prev) => prev.filter((r) => r.roleID !== roleID));
+      toast.success(`Role "${role.roleName}" removed from allocation`);
     }
   };
 
@@ -1182,7 +1193,7 @@ export const AllocationPanel = () => {
                               <Button
                                 onClick={() => setExpandedRoles(prev => ({ ...prev, [role.roleID]: !prev[role.roleID] }))}
                                 className="text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 p-2 rounded"
-                                title="View Users"
+                                title={showUsers ? "Hide Users" : "View Users"}
                               >
                                 <Users className="w-4 h-4" />
                               </Button>
@@ -1194,14 +1205,6 @@ export const AllocationPanel = () => {
                               >
                                 <Pencil className="w-4 h-4" />
                               </Button>
-                              <Button
-                                onClick={() => removeRoleAllocation(role.roleID)}
-                                className="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Delete"
-                                disabled={!canRemoveRole}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
                             </>
                           )}
                         </div>
@@ -1209,16 +1212,24 @@ export const AllocationPanel = () => {
 
                       {/* Affected Users List */}
                       {showUsers && role.affectedUsers && role.affectedUsers.length > 0 && (
-                        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <h4 className="text-xs font-semibold text-gray-600 mb-2">Affected Users:</h4>
+                        <div className="mb-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Users className="w-4 h-4 text-blue-600" />
+                            <h4 className="text-sm font-semibold text-blue-900">
+                              Affected Users ({role.affectedUsers.length})
+                            </h4>
+                          </div>
                           <div className="flex flex-wrap gap-2">
                             {role.affectedUsers.map((user) => (
-                              <span
+                              <div
                                 key={user.ID}
-                                className="px-2 py-1 bg-white border border-gray-300 rounded text-xs text-gray-700"
+                                className="flex items-center gap-2 px-3 py-2 bg-white border border-blue-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                               >
-                                {user.UserName}
-                              </span>
+                                <UserCircle className="w-4 h-4 text-blue-500" />
+                                <span className="text-sm font-medium text-gray-700">
+                                  {user.UserName}
+                                </span>
+                              </div>
                             ))}
                           </div>
                         </div>
@@ -1328,6 +1339,27 @@ export const AllocationPanel = () => {
                           </div>
                         </div>
                       </div>
+                      
+                      {/* Delete Role Button */}
+                      {!role.isEditing && (
+                        <div className="mt-6 pt-4 border-t border-gray-200">
+                          <DeleteDialog
+                            onConfirm={() => removeRoleAllocation(role.roleID)}
+                          >
+                            <Button
+                              disabled={!canRemoveRole}
+                              className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                                !canRemoveRole
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                  : 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 shadow-md hover:shadow-lg'
+                              }`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete Role Allocation
+                            </Button>
+                          </DeleteDialog>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
