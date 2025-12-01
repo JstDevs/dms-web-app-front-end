@@ -133,18 +133,20 @@ export const fetchDocumentRestrictions = async (
   success: boolean;
   data?: NewRestrictionResponse[];
   message?: string;
+  statusCode?: number;
 }> => {
   try {
     const response = await axios.get(
       `/documents/documents/${documentId}/restrictions`
     );
     console.log({ ddtata: response.data.data });
-    return { success: true, data: response.data.data };
+    return { success: true, data: response.data.data, statusCode: response.status };
   } catch (error: any) {
     console.error('Failed to fetch restrictions:', error);
     return {
       success: false,
       message: error.response?.data?.message || 'Failed to fetch restrictions',
+      statusCode: error.response?.status,
     };
   }
 };

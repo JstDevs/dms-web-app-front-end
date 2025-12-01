@@ -1,4 +1,5 @@
 import { CurrentDocument } from '@/types/Document';
+import { Restriction } from '@/types/Restriction';
 import Modal from '../ui/Modal';
 import {
   Clock,
@@ -25,6 +26,8 @@ import { toast } from 'react-hot-toast';
 import { editDocument } from '@/pages/Document/utils/uploadAPIs';
 import { buildDocumentFormData, type DocumentUploadProp } from '@/pages/Document/utils/documentHelpers';
 import { convertPdfToPdfA } from '@/utils/pdfConverter';
+import { fetchDocumentRestrictions } from './Restriction/Restriction';
+import MaskedDocumentViewer from './MaskedDocumentViewer';
 
 interface Field {
   LinkID: number;
@@ -107,6 +110,9 @@ const DocumentCurrentView = ({
   const [fieldsLoading, setFieldsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [viewerRestrictions, setViewerRestrictions] = useState<Restriction[]>([]);
+  const [restrictionsLoading, setRestrictionsLoading] = useState(false);
+  const [restrictionsError, setRestrictionsError] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<FormValues>({
     FileName: '',
     FileDescription: '',
@@ -121,10 +127,111 @@ const DocumentCurrentView = ({
   });
   const [dynamicFieldValues, setDynamicFieldValues] = useState<Record<string, string>>({});
   const { departmentOptions, subDepartmentOptions } = useDepartmentOptions();
-  const { user } = useAuth();
+  const { user, selectedRole } = useAuth();
   const { fetchDocument } = useDocument();
 
   const currentDocumentInfo = document?.document[0];
+
+  useEffect(() => {
+    const loadViewerRestrictions = async () => {
+      if (!currentDocumentInfo?.ID) {
+        setViewerRestrictions([]);
+        setRestrictionsError(null);
+        return;
+      }
+
+      if (!selectedRole?.ID && !user?.ID) {
+        setViewerRestrictions([]);
+        setRestrictionsError(null);
+        return;
+      }
+
+      setRestrictionsLoading(true);
+      setRestrictionsError(null);
+
+      try {
+        const response = await fetchDocumentRestrictions(
+          String(currentDocumentInfo.ID)
+        );
+
+        if (response.success && response.data) {
+          const normalizedRestrictions: Restriction[] = response.data.map(
+            (restriction: any) => {
+              const rawType =
+                restriction?.restrictedType ??
+                restriction?.RestrictedType ??
+                restriction?.Field;
+              const normalizedTypeString =
+                typeof rawType === 'string'
+                  ? rawType.toLowerCase()
+                  : String(rawType ?? '').toLowerCase();
+
+              const normalizedType: 'field' | 'open' =
+                normalizedTypeString === 'open' ||
+                normalizedTypeString === 'custom area'
+                  ? 'open'
+                  : 'field';
+
+              return {
+                ...restriction,
+                restrictedType: normalizedType,
+              } as Restriction;
+            }
+          );
+
+          const roleId = selectedRole?.ID ? Number(selectedRole.ID) : null;
+          const userId = user?.ID ?? null;
+
+          const filtered = normalizedRestrictions.filter((restriction) => {
+            const restrictionRoleId =
+              restriction.UserRole !== undefined &&
+              restriction.UserRole !== null &&
+              restriction.UserRole !== ''
+                ? Number(restriction.UserRole)
+                : null;
+            const restrictionUserId =
+              restriction.UserID !== undefined &&
+              restriction.UserID !== null &&
+              restriction.UserID !== ''
+                ? Number(restriction.UserID)
+                : null;
+
+            const matchesRole =
+              roleId !== null &&
+              restrictionRoleId !== null &&
+              restrictionRoleId === roleId;
+            const matchesUser =
+              userId !== null &&
+              restrictionUserId !== null &&
+              restrictionUserId === userId;
+
+            return matchesRole || matchesUser;
+          });
+
+          setViewerRestrictions(filtered);
+        } else if (response.statusCode === 404) {
+          setViewerRestrictions([]);
+          setRestrictionsError(null);
+        } else {
+          setViewerRestrictions([]);
+          setRestrictionsError(
+            response.message ||
+              'No masking details available for this document.'
+          );
+        }
+      } catch (error) {
+        console.error('Failed to load masking restrictions for viewer:', error);
+        setViewerRestrictions([]);
+        setRestrictionsError(
+          'Failed to load masking details. Please try again later.'
+        );
+      } finally {
+        setRestrictionsLoading(false);
+      }
+    };
+
+    loadViewerRestrictions();
+  }, [currentDocumentInfo?.ID, selectedRole?.ID, user?.ID]);
 
   const initializeForm = useCallback(() => {
     if (!currentDocumentInfo) return;
@@ -808,11 +915,36 @@ const DocumentCurrentView = ({
       : currentDocumentInfo.DataType;
   };
 
+  const areaRestrictions = viewerRestrictions.filter(
+    (restriction) => restriction.restrictedType === 'open'
+  );
+  const shouldApplyMasking = areaRestrictions.length > 0;
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
       {isViewerOpen && currentDocumentInfo?.filepath ? (
         <Modal isOpen={isViewerOpen} onClose={() => setIsViewerOpen(false)}>
-          {isPDF ? (
+          {restrictionsLoading ? (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <p className="text-sm text-gray-600">Loading masking details...</p>
+            </div>
+          ) : restrictionsError ? (
+            <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-3">
+              <FileText className="h-12 w-12 text-red-500" />
+              <p className="text-base font-semibold text-gray-900">
+                Masking information unavailable
+              </p>
+              <p className="text-sm text-gray-600 max-w-md">
+                {restrictionsError} Please try again later or contact an administrator.
+              </p>
+            </div>
+          ) : shouldApplyMasking ? (
+            <MaskedDocumentViewer
+              currentDocument={document}
+              restrictions={areaRestrictions}
+            />
+          ) : isPDF ? (
             <div className="w-full h-full flex items-center justify-center">
               <iframe
                 src={`${normalizeFilepathUrl(currentDocumentInfo.filepath)}#toolbar=1`}
