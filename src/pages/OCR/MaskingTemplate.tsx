@@ -747,12 +747,12 @@ export const TemplateOCR = () => {
                       </h3>
                       <div className="flex items-center gap-2">
                         {isImageFile(template.samplePdfPath) ? (
-                          <Badge className="bg-green-100 text-green-800 border-green-200">
+                          <Badge className="bg-violet-100 text-violet-800 border-violet-200">
                             <Image className="mr-1 w-4" />
                             Image
                           </Badge>
                         ) : (
-                          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                          <Badge className="bg-pink-100 text-pink-800 border-pink-200">
                             <FileText className="mr-1 w-4" />
                             PDF
                           </Badge>
