@@ -731,9 +731,10 @@ export const TemplateOCR = () => {
       ) : (
         <div className="grid gap-4 lg:gap-6">
           {filteredTemplates.map((template) => (
+            <div onClick={() => handleViewTemplate(template)}>
             <Card
               key={template.ID}
-              className="group hover:shadow-xl transition-all duration-300 border border-gray-200 shadow-sm hover:-translate-y-1 bg-white"
+              className="group hover:shadow-xl transition-all duration-300 border border-gray-200 shadow-sm hover:-translate-y-3 bg-white hover:bg-blue-50 hover:text-blue-600 transition-colors cursor-pointer"
             >
               <div className="p-4">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -763,14 +764,14 @@ export const TemplateOCR = () => {
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 shrink-0">
-                    <Button
+                    {/* <Button
                       onClick={() => handleViewTemplate(template)}
                       variant="ghost"
                       size="sm"
                       className="h-9 w-9 p-0 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                       <Eye size={16} />
-                    </Button>
+                    </Button> */}
                     {templatePermissions?.Edit && (
                       <Button
                         variant="ghost"
@@ -798,7 +799,7 @@ export const TemplateOCR = () => {
                 </div>
               </div>
 
-              <CardContent className="pt-0">
+              <CardContent className="pt-0" >
                 {/* Template Details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -870,6 +871,7 @@ export const TemplateOCR = () => {
                 </div>
               </CardContent>
             </Card>
+            </div>
           ))}
           
           {/* Empty Search Results */}
