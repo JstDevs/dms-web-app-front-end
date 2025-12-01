@@ -1030,12 +1030,12 @@ export const TemplateOCR = () => {
           {/* Header */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Header
+              Document Header
             </label>
             <input
               type="text"
               className="mt-1 border w-full px-2 py-1 rounded disabled:bg-slate-300 disabled:text-gray-500"
-              placeholder="e.g., CERTIFICATE OF LIVE BIRTH"
+              placeholder="Document Header"
               disabled={
                 Boolean(currentView === 'view') ||
                 Boolean(headerName && currentView !== 'edit')
@@ -1114,24 +1114,26 @@ export const TemplateOCR = () => {
                   </p>
                 )}
               </div>
-              <div className="flex-1 flex gap-2">
-                <Button
-                  className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm flex-initial px-4"
-                  disabled={!selectionArea || !selectedField}
-                  onClick={handleSaveField}
-                >
-                  Save Field
-                </Button>
-
-                <Button
-                  className="bg-red-600 hover:bg-red-700 text-white p-2 rounded text-sm flex-initial px-4"
-                  disabled={!selectedField}
-                  onClick={() => handleDeleteField(selectedField?.ID || 0)}
-                >
-                  Delete Field
-                </Button>
-              </div>
             </div>
+          )}
+          
+          {currentView !== 'view' && (
+            <div className="flex-1 flex gap-2 margin-right">
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm flex-initial px-4"
+                disabled={!selectionArea || !selectedField}
+                onClick={handleSaveField}
+              >
+                Save Field
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white p-2 rounded text-sm flex-initial px-4"
+                disabled={!selectedField}
+                onClick={() => handleDeleteField(selectedField?.ID || 0)}
+              >
+                Delete Field
+              </Button>
+            </div>          
           )}
         </div>
 
