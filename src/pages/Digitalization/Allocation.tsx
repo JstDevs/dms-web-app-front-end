@@ -1205,6 +1205,19 @@ export const AllocationPanel = () => {
                               >
                                 <Pencil className="w-4 h-4" />
                               </Button>
+                              {!role.isEditing && (
+                                <DeleteDialog
+                                  onConfirm={() => removeRoleAllocation(role.roleID)}
+                                >
+                                  <Button
+                                    className="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Delete Role"
+                                    disabled={!canRemoveRole}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </DeleteDialog>
+                              )}
                             </>
                           )}
                         </div>
@@ -1339,27 +1352,6 @@ export const AllocationPanel = () => {
                           </div>
                         </div>
                       </div>
-                      
-                      {/* Delete Role Button */}
-                      {!role.isEditing && (
-                        <div className="mt-6 pt-4 border-t border-gray-200">
-                          <DeleteDialog
-                            onConfirm={() => removeRoleAllocation(role.roleID)}
-                          >
-                            <Button
-                              disabled={!canRemoveRole}
-                              className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                                !canRemoveRole
-                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                  : 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 shadow-md hover:shadow-lg'
-                              }`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Delete Role Allocation
-                            </Button>
-                          </DeleteDialog>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
