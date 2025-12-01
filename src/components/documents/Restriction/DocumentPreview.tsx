@@ -15,10 +15,14 @@ interface Rect {
   height: number;
 }
 
+interface SelectionRect extends Rect {
+  pageNumber?: number;
+}
+
 interface DocumentPreviewProps {
   document: CurrentDocument | null;
-  onAreaSelect: (area: Rect) => void;
-  selectedArea: Rect | null;
+  onAreaSelect: (area: SelectionRect & { pageNumber: number }) => void;
+  selectedArea: SelectionRect | null;
   existingRestrictions: Array<{
     id: number;
     field: string;
@@ -27,6 +31,7 @@ interface DocumentPreviewProps {
     width: number;
     height: number;
     restrictedType: 'field' | 'open';
+    pageNumber?: number;
   }>;
 }
 
@@ -51,19 +56,75 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const [imageError, setImageError] = useState(false);
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [pdfRendering, setPdfRendering] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageCount, setPageCount] = useState(1);
+  const pdfDocRef = useRef<any>(null);
+  const restrictionsForCurrentPage = useMemo(
+    () =>
+      existingRestrictions.filter(
+        (restriction) => (restriction.pageNumber ?? 1) === currentPage
+      ),
+    [existingRestrictions, currentPage]
+  );
+  const selectedAreaForCurrentPage =
+    selectedArea && (selectedArea.pageNumber ?? 1) === currentPage
+      ? selectedArea
+      : null;
+  const canGoPrev = currentPage > 1 && !pdfRendering;
+  const canGoNext = currentPage < pageCount && !pdfRendering;
+
+  const handlePageNavigation = async (direction: 'prev' | 'next') => {
+    if (!pdfDocRef.current) return;
+    const delta = direction === 'prev' ? -1 : 1;
+    const target = currentPage + delta;
+    if (target < 1 || target > pageCount) return;
+    setImageLoading(true);
+    await renderPdfPageImage(target);
+  };
 
   const docInfo = currentDocument?.document?.[0];
   const filePath = docInfo?.filepath;
   const hasDataImage = Boolean(docInfo?.DataImage?.data?.length);
   const isPdf = filePath?.toLowerCase()?.endsWith('.pdf');
 
-  const renderPdfToImage = async (pdfUrl: string): Promise<string> => {
+  const renderPdfPageImage = async (pageNumber: number, pdfInstance?: any) => {
+    const pdf = pdfInstance || pdfDocRef.current;
+    if (!pdf) return;
     setPdfRendering(true);
+    try {
+      const clampedPage = Math.max(1, Math.min(pageNumber, pdf.numPages || 1));
+      const page = await pdf.getPage(clampedPage);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = window.document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: context!, viewport }).promise;
+      setDocumentUrl(canvas.toDataURL('image/png'));
+      setCurrentPage(clampedPage);
+      setImageLoading(false);
+      setImageError(false);
+    } finally {
+      setPdfRendering(false);
+    }
+  };
+
+  const loadPdfDocument = async (pdfUrl: string) => {
+    setImageLoading(true);
+    setImageError(false);
+    setCurrentPage(1);
+    setPageCount(1);
+    if (pdfDocRef.current?.destroy) {
+      try {
+        await pdfDocRef.current.destroy();
+      } catch {}
+    }
+    pdfDocRef.current = null;
+
     try {
       let pdfData: Uint8Array | undefined;
 
       try {
-        // Try fetching via Axios with credentials (handles CORS)
         const response = await axios.get<ArrayBuffer>(pdfUrl, {
           responseType: 'arraybuffer',
           withCredentials: false,
@@ -80,16 +141,11 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             withCredentials: false,
           });
       const pdf = await loadingTask.promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({ canvasContext: context!, viewport }).promise;
-      return canvas.toDataURL('image/png');
-    } finally {
-      setPdfRendering(false);
+      pdfDocRef.current = pdf;
+      setPageCount(pdf.numPages || 1);
+      await renderPdfPageImage(1, pdf);
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -134,10 +190,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
           if (isPdf) {
             try {
-              const pdfImage = await renderPdfToImage(normalizedPath);
-              if (isMounted) {
-                setDocumentUrl(pdfImage);
-              }
+              await loadPdfDocument(normalizedPath);
             } catch (error) {
               console.error('Failed to render PDF preview:', error);
               if (isMounted) {
@@ -151,6 +204,8 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
           if (isMounted) {
             setDocumentUrl(normalizedPath);
+            setPageCount(1);
+            setCurrentPage(1);
           }
           return;
         }
@@ -177,6 +232,12 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
       }
+      if (pdfDocRef.current?.destroy) {
+        try {
+          pdfDocRef.current.destroy();
+        } catch {}
+      }
+      pdfDocRef.current = null;
     };
   }, [docInfo, filePath, hasDataImage, isPdf]);
 
@@ -284,7 +345,10 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       currentSelection.height > 10
     ) {
       const naturalCoords = convertDisplayToNatural(currentSelection);
-      onAreaSelect(naturalCoords);
+      onAreaSelect({
+        ...naturalCoords,
+        pageNumber: currentPage,
+      });
     }
     setIsDragging(false);
     setStartPoint(null);
@@ -311,7 +375,8 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           <p className="text-sm text-orange-700">
             <strong>Instructions:</strong> Click and drag on the document to
             select the area you want to restrict. Minimum selection size is
-            10×10 pixels.
+            10×10 pixels. For multi-page PDFs, use the page controls below to
+            navigate before drawing your selection.
           </p>
         </div>
       </div>
@@ -324,6 +389,37 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               <p className="text-sm text-gray-600 font-medium">
                 {pdfRendering ? 'Preparing preview...' : 'Loading document...'}
               </p>
+            </div>
+          </div>
+        )}
+        {isPdf && pageCount > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+            <p className="text-sm font-medium text-gray-700">
+              Page {currentPage} of {pageCount}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageNavigation('prev')}
+                disabled={!canGoPrev}
+                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                  canGoPrev
+                    ? 'bg-white text-gray-800 hover:bg-gray-50'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => handlePageNavigation('next')}
+                disabled={!canGoNext}
+                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                  canGoNext
+                    ? 'bg-white text-gray-800 hover:bg-gray-50'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                Next
+              </button>
             </div>
           </div>
         )}
@@ -374,21 +470,21 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 )}
 
                 {/* Selected area (confirmed) */}
-                {selectedArea && imageDimensions.natural.width > 0 && (
+                {selectedAreaForCurrentPage && imageDimensions.natural.width > 0 && (
                   <div
                     className="absolute border-2 border-green-500 bg-green-200 bg-opacity-20 pointer-events-none z-15 shadow-lg"
                     style={{
-                      ...convertNaturalToDisplay(selectedArea),
+                      ...convertNaturalToDisplay(selectedAreaForCurrentPage),
                     }}
                   >
                     <div className="absolute -top-8 left-0 bg-green-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-sm">
-                      Selected: {selectedArea.width} × {selectedArea.height}px
+                      Selected: {selectedAreaForCurrentPage.width} × {selectedAreaForCurrentPage.height}px
                     </div>
                   </div>
                 )}
 
                 {/* Existing restrictions */}
-                {existingRestrictions.map((restriction) => {
+                {restrictionsForCurrentPage.map((restriction) => {
                   const displayCoords =
                     imageDimensions.natural.width > 0
                       ? convertNaturalToDisplay({
@@ -423,7 +519,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 })}
 
                 {/* Instruction overlay */}
-                {!isDragging && !selectedArea && (
+                {!isDragging && !selectedAreaForCurrentPage && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="bg-black bg-opacity-70 text-white text-sm px-6 py-3 rounded-lg shadow-lg">
                       <div className="flex items-center gap-2">
@@ -477,7 +573,10 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 )}
                 %
               </span>
-              <span>{existingRestrictions.length} existing restrictions</span>
+              <span>
+                Masks: {restrictionsForCurrentPage.length} on this page /{' '}
+                {existingRestrictions.length} total
+              </span>
             </div>
           </div>
         )}

@@ -243,7 +243,7 @@ interface RestrictionFormProps {
   onSubmit: () => void;
   isSubmitting: boolean;
   document: CurrentDocument | null;
-  selectedArea: { x: number; y: number; width: number; height: number } | null;
+  selectedArea: { x: number; y: number; width: number; height: number; pageNumber?: number } | null;
   onClearSelection: () => void;
   availableRoles: Array<{ id: number; name: string }>;
   rolesLoading: boolean;
@@ -457,7 +457,7 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
                         Clear Selection
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="grid grid-cols-3 gap-4 text-xs">
                       <div>
                         <span className="text-orange-600">Position:</span>
                         <div className="font-mono">
@@ -468,6 +468,12 @@ const RestrictionForm: React.FC<RestrictionFormProps> = ({
                         <span className="text-orange-600">Size:</span>
                         <div className="font-mono">
                           {selectedArea.width} × {selectedArea.height}px
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-orange-600">Page:</span>
+                        <div className="font-mono">
+                          {selectedArea.pageNumber ?? formData.pageNumber ?? 1}
                         </div>
                       </div>
                     </div>

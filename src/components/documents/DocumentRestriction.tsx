@@ -27,6 +27,7 @@ interface SelectionArea {
   y: number;
   width: number;
   height: number;
+  pageNumber: number;
 }
 
 const toBool = (val: any): boolean => {
@@ -53,6 +54,7 @@ const FieldRestrictions: React.FC<FieldRestrictionProps> = ({ document }) => {
     userId: null,
     userRole: null,
     restrictedType: 'field',
+    pageNumber: 1,
     coordinates: {
       xaxis: 0,
       yaxis: 0,
@@ -132,6 +134,7 @@ useEffect(() => {
           width: selectedArea.width,
           height: selectedArea.height,
         },
+        pageNumber: selectedArea.pageNumber ?? 1,
         restrictedType: 'open',
       }));
     }
@@ -223,6 +226,7 @@ useEffect(() => {
     setFormData((prev) => ({
       ...prev,
       coordinates: { xaxis: 0, yaxis: 0, width: 0, height: 0 },
+      pageNumber: 1,
     }));
   };
 
@@ -257,6 +261,7 @@ useEffect(() => {
         yaxis: formData.coordinates.yaxis,
         width: formData.coordinates.width,
         height: formData.coordinates.height,
+        pageNumber: formData.pageNumber ?? 1,
       };
 
       const response = await restrictFields(
@@ -304,6 +309,7 @@ useEffect(() => {
           userId: null,
           userRole: null,
           restrictedType: 'field',
+          pageNumber: 1,
           coordinates: { xaxis: 0, yaxis: 0, width: 0, height: 0 },
         });
         setSelectedArea(null);
@@ -371,6 +377,7 @@ useEffect(() => {
       width: restriction.width,
       height: restriction.height,
       restrictedType: restriction.restrictedType,
+      pageNumber: restriction.pageNumber ?? 1,
     }));
 
   const fieldRestrictions = restrictions.filter(

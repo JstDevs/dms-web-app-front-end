@@ -920,6 +920,19 @@ const DocumentCurrentView = ({
   );
   const shouldApplyMasking = areaRestrictions.length > 0;
 
+  const handleDownloadClick = () => {
+    if (shouldApplyMasking) {
+      toast.dismiss();
+      toast(
+        'Masked copy available inside the viewer. Click "View" to download it.',
+        { duration: 4000 }
+      );
+      setIsViewerOpen(true);
+      return;
+    }
+    handleDownload();
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
       {isViewerOpen && currentDocumentInfo?.filepath ? (
@@ -1164,7 +1177,7 @@ const DocumentCurrentView = ({
                   </button>
                   {permissions?.Print && (
                     <button
-                      onClick={handleDownload}
+                      onClick={handleDownloadClick}
                       disabled={!currentDocumentInfo?.filepath || isSaving}
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg shadow-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                     >

@@ -68,6 +68,7 @@ export interface NewRestrictionPayload {
   yaxis: number;
   width: number;
   height: number;
+  pageNumber?: number;
 }
 
 export interface NewRestrictionResponse {
@@ -82,6 +83,7 @@ export interface NewRestrictionResponse {
   yaxis: number;
   width: number;
   height: number;
+  pageNumber?: number;
   CreatedBy: string;
   CreatedDate: string;
 }

@@ -313,6 +313,14 @@ const RestrictionList: React.FC<RestrictionListProps> = ({
                                             {restriction.height}px
                                           </span>
                                         </div>
+                                        <div className="text-sm text-gray-600">
+                                          <span className="font-medium">
+                                            Page:
+                                          </span>
+                                          <span className="font-mono text-xs ml-1">
+                                            {restriction.pageNumber ?? 1}
+                                          </span>
+                                        </div>
                                       </div>
                                       {restriction.Reason && (
                                         <p className="text-sm text-gray-600 mb-2">

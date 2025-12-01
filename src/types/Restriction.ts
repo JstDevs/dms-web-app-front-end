@@ -10,6 +10,7 @@ export interface Restriction {
   yaxis: number;
   width: number;
   height: number;
+  pageNumber?: number;
   CreatedBy: string;
   CreatedDate: string;
   CollaboratorName?: string;
@@ -21,6 +22,7 @@ export interface RestrictionFormData {
   userId: number | null;
   userRole: number | null;
   restrictedType: 'field' | 'open';
+  pageNumber: number;
   coordinates: {
     xaxis: number;
     yaxis: number;

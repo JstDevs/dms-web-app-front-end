@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CurrentDocument } from '@/types/Document';
 import { Restriction } from '@/types/Restriction';
-import { AlertTriangle, EyeOff, Loader2 } from 'lucide-react';
+import { EyeOff, Loader2, Download } from 'lucide-react';
 import axios from '@/api/axios';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import PdfJsWorker from 'pdfjs-dist/build/pdf.worker?worker';
@@ -33,10 +33,14 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [pdfRendering, setPdfRendering] = useState(false);
+  const [downloadingMasked, setDownloadingMasked] = useState(false);
   const [imageDimensions, setImageDimensions] = useState({
     natural: { width: 0, height: 0 },
     display: { width: 0, height: 0 },
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageCount, setPageCount] = useState(1);
+  const pdfDocRef = useRef<any>(null);
 
   const filePath = docInfo?.filepath;
   const hasDataImage = Boolean(docInfo?.DataImage?.data?.length);
@@ -45,9 +49,55 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
   const areaRestrictions = restrictions.filter(
     (restriction) => restriction.restrictedType === 'open'
   );
+  const restrictionsForCurrentPage = areaRestrictions.filter(
+    (restriction) => (restriction.pageNumber ?? 1) === currentPage
+  );
+  const canGoPrev = currentPage > 1 && !pdfRendering;
+  const canGoNext = currentPage < pageCount && !pdfRendering;
 
-  const renderPdfToImage = async (pdfUrl: string): Promise<string> => {
+  const handlePageNavigation = async (direction: 'prev' | 'next') => {
+    if (!pdfDocRef.current) return;
+    const delta = direction === 'prev' ? -1 : 1;
+    const target = currentPage + delta;
+    if (target < 1 || target > pageCount) return;
+    setImageLoading(true);
+    await renderPdfPageImage(target);
+  };
+
+  const renderPdfPageImage = async (pageNumber: number, pdfInstance?: any) => {
+    const pdf = pdfInstance || pdfDocRef.current;
+    if (!pdf) return;
     setPdfRendering(true);
+    try {
+      const clampedPage = Math.max(1, Math.min(pageNumber, pdf.numPages || 1));
+      const page = await pdf.getPage(clampedPage);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = window.document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: context!, viewport }).promise;
+      setDocumentUrl(canvas.toDataURL('image/png'));
+      setCurrentPage(clampedPage);
+      setImageLoading(false);
+      setImageError(false);
+    } finally {
+      setPdfRendering(false);
+    }
+  };
+
+  const loadPdfDocument = async (pdfUrl: string) => {
+    setImageLoading(true);
+    setImageError(false);
+    setCurrentPage(1);
+    setPageCount(1);
+    if (pdfDocRef.current?.destroy) {
+      try {
+        await pdfDocRef.current.destroy();
+      } catch {}
+    }
+    pdfDocRef.current = null;
+
     try {
       let pdfData: Uint8Array | undefined;
 
@@ -71,16 +121,11 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
             withCredentials: false,
           });
       const pdf = await loadingTask.promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = window.document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({ canvasContext: context!, viewport }).promise;
-      return canvas.toDataURL('image/png');
-    } finally {
-      setPdfRendering(false);
+      pdfDocRef.current = pdf;
+      setPageCount(pdf.numPages || 1);
+      await renderPdfPageImage(1, pdf);
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -125,10 +170,7 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
 
           if (isPdf) {
             try {
-              const pdfImage = await renderPdfToImage(normalizedPath);
-              if (isMounted) {
-                setDocumentUrl(pdfImage);
-              }
+              await loadPdfDocument(normalizedPath);
             } catch (error) {
               console.error('Failed to render masked PDF preview:', error);
               if (isMounted) {
@@ -142,6 +184,8 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
 
           if (isMounted) {
             setDocumentUrl(normalizedPath);
+            setPageCount(1);
+            setCurrentPage(1);
           }
           return;
         }
@@ -168,6 +212,12 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
       }
+      if (pdfDocRef.current?.destroy) {
+        try {
+          pdfDocRef.current.destroy();
+        } catch {}
+      }
+      pdfDocRef.current = null;
     };
   }, [docInfo, filePath, hasDataImage, isPdf]);
 
@@ -218,6 +268,58 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
 
   const showLoadingState = (imageLoading && documentUrl) || pdfRendering;
 
+  const downloadMaskedImage = async () => {
+    if (!documentUrl || restrictionsForCurrentPage.length === 0) return;
+    setDownloadingMasked(true);
+    try {
+      const loadedImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = (err) => reject(err);
+        img.src = documentUrl;
+      });
+
+      const canvas = window.document.createElement('canvas');
+      const width = loadedImage.naturalWidth || loadedImage.width;
+      const height = loadedImage.naturalHeight || loadedImage.height;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Unable to access canvas context');
+      }
+      ctx.drawImage(loadedImage, 0, 0, width, height);
+
+      ctx.fillStyle = '#000';
+      restrictionsForCurrentPage.forEach((restriction) => {
+        ctx.fillRect(
+          restriction.xaxis,
+          restriction.yaxis,
+          restriction.width,
+          restriction.height
+        );
+      });
+
+      const maskedDataUrl = canvas.toDataURL('image/png', 1.0);
+      const downloadLink = window.document.createElement('a');
+      const baseName = docInfo?.FileName
+        ? docInfo.FileName.replace(/\.[^/.]+$/, '')
+        : 'masked-document';
+      downloadLink.href = maskedDataUrl;
+      const pageSuffix =
+        pageCount > 1 ? `_page-${currentPage.toString().padStart(2, '0')}` : '';
+      downloadLink.download = `${baseName}${pageSuffix}_masked.png`;
+      window.document.body.appendChild(downloadLink);
+      downloadLink.click();
+      window.document.body.removeChild(downloadLink);
+    } catch (error) {
+      console.error('Failed to download masked copy:', error);
+    } finally {
+      setDownloadingMasked(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -229,9 +331,11 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
             Sensitive areas hidden for your role
           </p>
           <p className="text-xs text-red-600 mt-1">
-            {areaRestrictions.length} custom area
-            {areaRestrictions.length === 1 ? '' : 's'} masked based on the
-            selected masking setup.
+            {areaRestrictions.length === 0
+              ? 'No custom masks configured for this document.'
+              : `${areaRestrictions.length} custom mask${
+                  areaRestrictions.length === 1 ? '' : 's'
+                } configured. Currently viewing page ${currentPage}.`}
           </p>
         </div>
       </div>
@@ -244,6 +348,37 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
               <p className="text-sm text-gray-600 font-medium">
                 {pdfRendering ? 'Preparing preview...' : 'Loading document...'}
               </p>
+            </div>
+          </div>
+        )}
+        {isPdf && pageCount > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+            <p className="text-sm font-medium text-gray-700">
+              Page {currentPage} of {pageCount}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageNavigation('prev')}
+                disabled={!canGoPrev}
+                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                  canGoPrev
+                    ? 'bg-white text-gray-800 hover:bg-gray-50'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => handlePageNavigation('next')}
+                disabled={!canGoNext}
+                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                  canGoNext
+                    ? 'bg-white text-gray-800 hover:bg-gray-50'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                Next
+              </button>
             </div>
           </div>
         )}
@@ -267,7 +402,7 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
                 />
 
                 {/* Mask overlays */}
-                {areaRestrictions.map((restriction) => {
+                {restrictionsForCurrentPage.map((restriction) => {
                   const coords =
                     imageDimensions.natural.width > 0
                       ? convertNaturalToDisplay({
@@ -286,29 +421,15 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
                   return (
                     <div
                       key={restriction.ID}
-                      className="absolute bg-gray-900 bg-opacity-90 backdrop-blur-sm text-white text-xs px-2 py-1 rounded shadow-lg border border-gray-700"
+                      className="absolute bg-black pointer-events-none"
                       style={{
+                        opacity: 0.92,
                         left: `${coords.x}px`,
                         top: `${coords.y}px`,
                         width: `${coords.width}px`,
                         height: `${coords.height}px`,
                       }}
-                    >
-                      <div className="flex items-center gap-1 text-[11px]">
-                        <AlertTriangle className="h-3 w-3 text-yellow-300" />
-                        Restricted Area
-                      </div>
-                      {restriction.Field && (
-                        <p className="mt-1 font-semibold truncate">
-                          {restriction.Field}
-                        </p>
-                      )}
-                      {restriction.Reason && (
-                        <p className="mt-0.5 text-[10px] text-gray-200 line-clamp-2">
-                          {restriction.Reason}
-                        </p>
-                      )}
-                    </div>
+                    />
                   );
                 })}
               </div>
@@ -327,6 +448,34 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
             )}
           </div>
         </div>
+      </div>
+      <div className="flex justify-end">
+        <button
+          onClick={downloadMaskedImage}
+          disabled={
+            downloadingMasked ||
+            !documentUrl ||
+            restrictionsForCurrentPage.length === 0 ||
+            pdfRendering ||
+            imageLoading
+          }
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            downloadingMasked ||
+            !documentUrl ||
+            restrictionsForCurrentPage.length === 0 ||
+            pdfRendering ||
+            imageLoading
+              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              : 'bg-black text-white hover:bg-gray-900'
+          }`}
+        >
+          {downloadingMasked ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          {downloadingMasked ? 'Preparing masked copy...' : 'Download Masked Copy'}
+        </button>
       </div>
     </div>
   );
