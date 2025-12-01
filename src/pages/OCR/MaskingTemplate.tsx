@@ -731,10 +731,12 @@ export const TemplateOCR = () => {
       ) : (
         <div className="grid gap-4 lg:gap-6">
           {filteredTemplates.map((template) => (
-            <div onClick={() => handleViewTemplate(template)}>
+            <div 
+              onClick={() => handleViewTemplate(template)}
+            >
             <Card
               key={template.ID}
-              className="group hover:shadow-xl transition-all duration-300 border border-gray-200 shadow-sm hover:-translate-y-3 bg-white hover:bg-blue-50 hover:text-blue-600 transition-colors cursor-pointer"
+              className="group hover:shadow-xl transition-all duration-300 border border-gray-200 shadow-sm hover:-translate-y-1 bg-white hover:bg-blue-50 hover:text-blue-600 transition-colors cursor-pointer"
             >
               <div className="p-4">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
