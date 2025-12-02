@@ -73,13 +73,19 @@ export const useAllocationPermissions = ({
         });
 
         // IMPORTANT: Permissions should be checked by ROLE, not by USER
-        // First, try to fetch permissions from role allocations (role-based)
+        // When checking role permissions, we MUST only use role-based allocations
+        // DO NOT fallback to user-based API as it may return permissions from other roles
         let data: any = null;
         
         if (selectedRole?.ID) {
           try {
             const { fetchRoleBasedPermissions } = await import('./fieldAllocationService');
-            console.log('🔍 Trying to fetch role-based permissions for role:', selectedRole.ID);
+            console.log('🔍 Trying to fetch role-based permissions for role:', {
+              roleId: selectedRole.ID,
+              roleName: selectedRole.Description,
+              departmentId,
+              subDepartmentId,
+            });
             data = await fetchRoleBasedPermissions(departmentId, subDepartmentId, selectedRole.ID);
             
             if (data) {
@@ -89,17 +95,69 @@ export const useAllocationPermissions = ({
                 permissions: data.userPermissions,
               });
             } else {
-              console.log('⚠️ No role-based permissions found, falling back to user-based API');
+              console.log('⚠️ No role-based permissions found for this role. Returning all false permissions.');
+              console.log('⚠️ This role has NO allocation for this document type. Permissions will be denied.');
+              // IMPORTANT: If role has no allocation, return all false permissions
+              // DO NOT fallback to user-based API as it may mix permissions from other roles
+              data = {
+                fields: [],
+                userPermissions: {
+                  View: false,
+                  Add: false,
+                  Edit: false,
+                  Delete: false,
+                  Print: false,
+                  Confidential: false,
+                  Comment: false,
+                  Collaborate: false,
+                  Finalize: false,
+                  Masking: false,
+                },
+              };
             }
           } catch (roleError) {
-            console.warn('Failed to fetch role-based permissions, falling back to user API:', roleError);
+            console.error('❌ Failed to fetch role-based permissions:', roleError);
+            console.log('⚠️ Error fetching role permissions. Returning all false permissions to prevent permission leakage.');
+            // On error, return all false permissions to prevent using wrong permissions
+            data = {
+              fields: [],
+              userPermissions: {
+                View: false,
+                Add: false,
+                Edit: false,
+                Delete: false,
+                Print: false,
+                Confidential: false,
+                Comment: false,
+                Collaborate: false,
+                Finalize: false,
+                Masking: false,
+              },
+            };
           }
-        }
-        
-        // Fallback to user-based API if role-based didn't work
-        if (!data) {
-          console.log('📥 Fetching permissions from user-based API...');
-          data = await fetchFieldAllocations(departmentId, subDepartmentId, userId);
+        } else {
+          // No role selected - fallback to user-based API only if no role is selected
+          console.log('⚠️ No role selected, falling back to user-based API');
+          try {
+            data = await fetchFieldAllocations(departmentId, subDepartmentId, userId);
+          } catch (userError) {
+            console.error('Failed to fetch user-based permissions:', userError);
+            data = {
+              fields: [],
+              userPermissions: {
+                View: false,
+                Add: false,
+                Edit: false,
+                Delete: false,
+                Print: false,
+                Confidential: false,
+                Comment: false,
+                Collaborate: false,
+                Finalize: false,
+                Masking: false,
+              },
+            };
+          }
         }
         
         console.log('📥 Final permissions data:', {

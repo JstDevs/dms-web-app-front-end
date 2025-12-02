@@ -100,15 +100,40 @@ export const fetchRoleBasedPermissions = async (
       roleId,
       totalRoleAllocs: roleAllocs?.length || 0,
       availableRoleIds: roleAllocs?.map((a: any) => a.UserAccessID),
+      linkId: subDepartmentId,
     });
     
-    // Find the allocation for the specific role
+    // CRITICAL: Find the allocation for the specific role
+    // Must match BOTH LinkID and UserAccessID to ensure correct isolation
     const roleAlloc = roleAllocs?.find(
-      (alloc: any) => Number(alloc.UserAccessID) === Number(roleId)
+      (alloc: any) => {
+        const matchesRole = Number(alloc.UserAccessID) === Number(roleId);
+        const matchesLink = Number(alloc.LinkID) === Number(subDepartmentId);
+        const match = matchesRole && matchesLink;
+        
+        if (match) {
+          console.log('✅ Found matching allocation:', {
+            UserAccessID: alloc.UserAccessID,
+            LinkID: alloc.LinkID,
+            roleId,
+            linkId: subDepartmentId,
+          });
+        }
+        
+        return match;
+      }
     );
     
     if (!roleAlloc) {
-      console.log('⚠️ Role allocation not found for roleId:', roleId);
+      console.log('⚠️ Role allocation not found for roleId:', {
+        roleId,
+        linkId: subDepartmentId,
+        availableRoleIds: roleAllocs?.map((a: any) => ({
+          UserAccessID: a.UserAccessID,
+          LinkID: a.LinkID,
+        })),
+        message: 'This role has no allocation for this document type. Permissions will be denied.',
+      });
       return null;
     }
     

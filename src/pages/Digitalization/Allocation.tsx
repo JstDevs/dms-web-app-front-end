@@ -365,9 +365,67 @@ export const AllocationPanel = () => {
         return;
       }
 
+      // CRITICAL: Filter allocations to ensure they match the selected LinkID
+      // This prevents permissions from other document types from being displayed
+      const filteredRoleAllocs = roleAllocs.filter((alloc: RoleDocumentAccess) => {
+        const allocLinkID = Number(alloc.LinkID);
+        const selectedLinkID = Number(selectedSubDept);
+        const matches = allocLinkID === selectedLinkID;
+        
+        if (!matches) {
+          console.warn('⚠️ Filtering out allocation with mismatched LinkID:', {
+            allocLinkID,
+            selectedLinkID,
+            roleID: alloc.UserAccessID,
+            roleName: alloc.userAccess?.Description,
+            message: 'This allocation belongs to a different document type and will be excluded.',
+          });
+        }
+        
+        return matches;
+      });
+      
+      console.log('🔍 Filtered role allocations:', {
+        before: roleAllocs.length,
+        after: filteredRoleAllocs.length,
+        selectedLinkID: Number(selectedSubDept),
+      });
+
       // Map RoleDocumentAccess to RolePermission format and fetch affected users
       const mappedRoles: RolePermission[] = await Promise.all(
-        roleAllocs.map(async (alloc: RoleDocumentAccess) => {
+        filteredRoleAllocs.map(async (alloc: RoleDocumentAccess) => {
+          // CRITICAL: Validate that LinkID matches before processing
+          const allocLinkID = Number(alloc.LinkID);
+          const selectedLinkID = Number(selectedSubDept);
+          
+          if (allocLinkID !== selectedLinkID) {
+            console.error('❌ CRITICAL: LinkID mismatch detected!', {
+              allocLinkID,
+              selectedLinkID,
+              roleID: alloc.UserAccessID,
+              message: 'This should have been filtered out earlier. Skipping this allocation.',
+            });
+            // Return a role with no permissions to prevent permission leakage
+            return {
+              roleName: alloc.userAccess?.Description || `Role ${alloc.UserAccessID}`,
+              roleID: alloc.UserAccessID,
+              allocationId: alloc.id || (alloc as any).ID || (alloc as any).Id,
+              view: false,
+              add: false,
+              edit: false,
+              delete: false,
+              print: false,
+              confidential: false,
+              comment: false,
+              collaborate: false,
+              finalize: false,
+              masking: false,
+              isEditing: false,
+              affectedUsersCount: 0,
+              affectedUsers: [],
+            };
+          }
+          
           // Fetch affected users for this role
           const affectedUsersList = await fetchUsersByRole(alloc.UserAccessID);
           
@@ -378,6 +436,8 @@ export const AllocationPanel = () => {
             roleID: alloc.UserAccessID,
             roleName: alloc.userAccess?.Description,
             allocationId,
+            linkID: alloc.LinkID,
+            selectedLinkID: selectedSubDept,
             rawAlloc: alloc,
           });
           
@@ -404,6 +464,7 @@ export const AllocationPanel = () => {
             roleID: mappedRole.roleID,
             roleName: mappedRole.roleName,
             allocationId: mappedRole.allocationId,
+            linkID: alloc.LinkID,
             permissions: {
               view: mappedRole.view,
               add: mappedRole.add,
