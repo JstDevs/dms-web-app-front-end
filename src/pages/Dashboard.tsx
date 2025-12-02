@@ -386,8 +386,8 @@ const Dashboard: React.FC = () => {
     setIsFilterLoading(true);
     
     try {
-      // Fetch documents, analytics, and total page count in parallel
-      const [documentsResult, analyticsResult, countsResult] = await Promise.allSettled([
+      // Fetch documents, analytics, total page count, and all users in parallel
+      const [documentsResult, analyticsResult, countsResult, usersResult] = await Promise.allSettled([
         // Documents API call (first page only for display) - but we need the total count
         (async () => {
           // Fetch documents directly to get pagination info
@@ -576,7 +576,18 @@ const Dashboard: React.FC = () => {
           selectedSubDepartment || undefined,
           startDate || undefined,
           endDate || undefined
-        )
+        ),
+        // Fetch all users from the system
+        (async () => {
+          try {
+            const { data } = await axios.get('/users');
+            const users = data?.users || [];
+            return { totalUsers: users.length };
+          } catch (error) {
+            console.error('Error fetching users:', error);
+            return { totalUsers: 0 };
+          }
+        })()
       ]);
 
       // Handle results
@@ -640,9 +651,17 @@ const Dashboard: React.FC = () => {
         setConfidentialDocsCount(0);
       }
 
-      // Combine active users from both sources
-      const allActiveUsers = new Set([...documentCreatedByUsers, ...activitiesActiveUsers]);
-      setActiveUsersCount(allActiveUsers.size);
+      // Handle users result - fetch total users count
+      if (usersResult.status === 'fulfilled') {
+        const { totalUsers } = usersResult.value;
+        setActiveUsersCount(totalUsers || 0);
+        console.log('✅ Total users updated:', totalUsers);
+      } else if (usersResult.status === 'rejected') {
+        console.error('Failed to fetch users:', usersResult.reason);
+        // Fallback: combine active users from both sources if users fetch fails
+        const allActiveUsers = new Set([...documentCreatedByUsers, ...activitiesActiveUsers]);
+        setActiveUsersCount(allActiveUsers.size);
+      }
       
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -1182,7 +1201,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="flex justify-between items-center pb-3 border-b border-gray-100 transition-all duration-200 hover:bg-blue-50 rounded-lg px-3 py-2">
-        <span className="text-gray-700 font-medium">Active Users</span>
+        <span className="text-gray-700 font-medium">Total Users</span>
         <span className="text-2xl font-bold text-purple-600">{activeUsersCount}</span>
       </div>
 
