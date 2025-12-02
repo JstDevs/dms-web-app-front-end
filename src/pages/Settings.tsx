@@ -1,11 +1,12 @@
 import React, {useState} from 'react';
-import { UserCircle, Bell, Lock, Shield, User, ChevronDown, LogOut } from 'lucide-react';
+import { UserCircle, Bell, Lock, Shield, User, ChevronDown, LogOut, File, Book } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import toast from 'react-hot-toast';
 
 const Settings: React.FC = () => {
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const { logout, user, selectedRole, setSelectedRole } = useAuth();
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const navigate = useNavigate();
@@ -114,6 +115,28 @@ const Settings: React.FC = () => {
                       </p>
                       <p className="text-xs text-gray-500">
                         Update your password regularly
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* View Guide Button */}
+                <button
+                  // onClick={() => {toast.error('Guide is currently unavailable.')}}
+                  onClick={() => {setIsViewerOpen(true)}}
+
+                  // {setIsViewerOpen(true)}
+                  // {toast.error('Guide is currently unavailable.')}
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100"
+                >
+                  <div className="flex items-center">
+                    <Book className="h-5 w-5 text-gray-400 mr-3" />
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-gray-900 w-80">
+                        View Guide
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        See the guide for the entire system
                       </p>
                     </div>
                   </div>

@@ -715,49 +715,6 @@ const DocumentCurrentView = ({
       }
     }
   };
-
-  const handleBrownload = async () => {
-    toast.success("Brownload successful!")
-    // if (currentDocumentInfo?.filepath) {
-    //   try {
-    //     const response = await fetch(currentDocumentInfo.filepath);
-    //     const blob = await response.blob();
-    //     const url = window.URL.createObjectURL(blob);
-
-    //     const link = window.document.createElement('a');
-    //     link.href = url;
-    //     link.download = currentDocumentInfo?.FileName || 'document';
-    //     window.document.body.appendChild(link);
-    //     link.click();
-    //     window.document.body.removeChild(link);
-
-    //     // Clean up the blob URL
-    //     window.URL.revokeObjectURL(url);
-        
-    //     // Log document download activity
-    //     try {
-    //       await logDocumentActivity(
-    //         'DOWNLOADED',
-    //         user!.ID,
-    //         user!.UserName,
-    //         currentDocumentInfo.ID,
-    //         currentDocumentInfo.FileName,
-    //         `Downloaded by ${user!.UserName}`
-    //       );
-          
-    //       // Refresh document data to show the new audit trail entry
-    //       if (document?.document?.[0]?.ID) {
-    //         await fetchDocument(String(document.document[0].ID));
-    //       }
-    //     } catch (logError) {
-    //       console.warn('Failed to log document download activity:', logError);
-    //     }
-    //   } catch (error) {
-    //     console.error('Download failed:', error);
-    //   }
-    // }
-  };
-
   
   // Show loading state if document is not yet loaded
   if (!document || !currentDocumentInfo) {
