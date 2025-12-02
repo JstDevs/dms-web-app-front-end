@@ -224,7 +224,14 @@ const Dashboard: React.FC = () => {
     subDepartment?: string,
     startDate?: string,
     endDate?: string
-  ): Promise<{ totalDocuments: number; totalPages: number; fileTypes: Record<string, number> }> => {
+  ): Promise<{ 
+    totalDocuments: number; 
+    totalPages: number; 
+    fileTypes: Record<string, number>;
+    uploads: number;
+    confidentialDocs: number;
+    createdByUsers: Set<string>;
+  }> => {
     try {
       let totalFilteredDocuments = 0;
       let totalFilteredPages = 0;
@@ -233,6 +240,9 @@ const Dashboard: React.FC = () => {
       const startBound = startDate ? new Date(`${startDate}T00:00:00`) : null;
       const endBound = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
       const typeCounter: Record<string, number> = {};
+      let uploadsCount = 0;
+      const confidentialDocIds = new Set<number>();
+      const createdByUsers = new Set<string>();
 
       while (hasMorePages) {
         const response = await fetchDocuments(
@@ -272,8 +282,40 @@ const Dashboard: React.FC = () => {
         totalFilteredDocuments += filteredDocs.length;
 
         filteredDocs.forEach((doc: any) => {
-          const rawType = doc?.newdoc?.DataType || doc?.DataType || '';
-          const fileName = doc?.newdoc?.FileName || doc?.FileName;
+          const docData = doc?.newdoc || doc;
+          
+          // Count uploads (documents created in the date range)
+          if (startBound || endBound) {
+            const docDateStr = docData?.CreatedDate || docData?.FileDate;
+            if (docDateStr) {
+              const docDate = new Date(docDateStr);
+              if (!Number.isNaN(docDate.getTime())) {
+                const isInRange = (!startBound || docDate >= startBound) && (!endBound || docDate <= endBound);
+                if (isInRange) {
+                  uploadsCount++;
+                  // Track who created the document
+                  const createdBy = docData?.Createdby || docData?.CreatedBy || '';
+                  if (createdBy) createdByUsers.add(createdBy);
+                }
+              }
+            }
+          } else {
+            // If no date filter, count all documents as uploads
+            uploadsCount++;
+            const createdBy = docData?.Createdby || docData?.CreatedBy || '';
+            if (createdBy) createdByUsers.add(createdBy);
+          }
+
+          // Count confidential documents
+          const isConfidential = toBool(docData?.Confidential);
+          if (isConfidential) {
+            const docId = docData?.ID || doc?.ID;
+            if (docId) confidentialDocIds.add(Number(docId));
+          }
+
+          // File type counting
+          const rawType = docData?.DataType || '';
+          const fileName = docData?.FileName;
           const typeKey = normalizeFileType(rawType, fileName);
           const pretty = formatFileTypeLabel(typeKey);
           typeCounter[pretty] = (typeCounter[pretty] || 0) + 1;
@@ -295,23 +337,35 @@ const Dashboard: React.FC = () => {
         }
       }
 
-      // When no filters are provided, fall back to pagination counts for efficiency
-      if (!department && !subDepartment && !startDate && !endDate) {
+        console.log('📊 Documents stats:', {
+          totalDocuments: totalFilteredDocuments,
+          totalPages: totalFilteredPages,
+          uploads: uploadsCount,
+          confidentialDocs: confidentialDocIds.size,
+          createdByUsers: createdByUsers.size,
+          hasDateFilter: !!(startBound || endBound),
+          hasDeptFilter: !!department,
+          hasSubDeptFilter: !!subDepartment
+        });
+
         return {
           totalDocuments: totalFilteredDocuments,
           totalPages: totalFilteredPages,
           fileTypes: typeCounter,
+          uploads: uploadsCount,
+          confidentialDocs: confidentialDocIds.size,
+          createdByUsers,
         };
-      }
-
-      return {
-        totalDocuments: totalFilteredDocuments,
-        totalPages: totalFilteredPages,
-        fileTypes: typeCounter,
-      };
     } catch (error) {
       console.error('Error fetching all pages for count:', error);
-      return { totalDocuments: 0, totalPages: 0, fileTypes: {} };
+      return { 
+        totalDocuments: 0, 
+        totalPages: 0, 
+        fileTypes: {},
+        uploads: 0,
+        confidentialDocs: 0,
+        createdByUsers: new Set<string>(),
+      };
     }
   }, []);
 
@@ -401,7 +455,7 @@ const Dashboard: React.FC = () => {
           
           return { totalDocuments: pagination?.totalItems ?? docs.length };
         })(),
-        // Analytics API call
+        // Analytics API call - for downloads and active users
         (async () => {
           const hasRange = Boolean(startDate && endDate);
           const startAt = startDate ? new Date(startDate + 'T00:00:00.000Z').toISOString() : undefined;
@@ -426,59 +480,94 @@ const Dashboard: React.FC = () => {
                 ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
               };
 
-          const { data } = await axios.get(`/documents/activities-dashboard`, {
-            params: paramsWhenRange,
-          });
-          
-          if (!data?.success) throw new Error('Failed to fetch activities');
+          try {
+            const { data } = await axios.get(`/documents/activities-dashboard`, {
+              params: paramsWhenRange,
+            });
+            
+            if (!data?.success) {
+              console.warn('Activities API returned unsuccessful response');
+              return { downloads: 0, activeUsers: new Set<string>() };
+            }
 
-          const auditTrails = data?.data?.auditTrails || [];
-          const startBound = startDate ? new Date(startDate + 'T00:00:00') : null;
-          const endBound = endDate ? new Date(endDate + 'T23:59:59.999') : null;
-          const withinRange = (d: string) => {
-            const ts = new Date(d);
-            if (startBound && ts < startBound) return false;
-            if (endBound && ts > endBound) return false;
-            return true;
-          };
-          const filteredActivities = startBound || endBound
-            ? auditTrails.filter((a: any) => withinRange(a.ActionDate))
-            : auditTrails;
+            const auditTrails = data?.data?.auditTrails || [];
+            const startBound = startDate ? new Date(startDate + 'T00:00:00') : null;
+            const endBound = endDate ? new Date(endDate + 'T23:59:59.999') : null;
+            
+            // Filter activities by date, department, and sub-department
+            const filteredActivities = auditTrails.filter((a: any) => {
+              // Date filtering - check ActionDate
+              if (startBound || endBound) {
+                const actionDateStr = a.ActionDate || a.actionDate || a.CreatedDate || a.createdDate;
+                if (!actionDateStr) return false;
+                const actionDate = new Date(actionDateStr);
+                if (isNaN(actionDate.getTime())) return false;
+                if (startBound && actionDate < startBound) return false;
+                if (endBound && actionDate > endBound) return false;
+              }
 
-          const allActivities = filteredActivities as any[];
+              // Department filtering - check document's department
+              if (selectedDepartment) {
+                const docDeptId = Number(
+                  a.documentNew?.DepartmentId || 
+                  a.document?.DepartmentId || 
+                  a.documentNew?.departmentId ||
+                  a.document?.departmentId ||
+                  a.DepartmentId || 
+                  a.departmentId ||
+                  0
+                );
+                if (docDeptId === 0 || docDeptId !== Number(selectedDepartment)) return false;
+              }
 
-          const typeCounter: Record<string, number> = {};
-          for (const act of allActivities) {
-            const rawType = act.documentNew?.DataType || '';
-            const fileName = act.documentNew?.FileName;
-            const typeKey = normalizeFileType(rawType, fileName);
-            const pretty = formatFileTypeLabel(typeKey);
-            typeCounter[pretty] = (typeCounter[pretty] || 0) + 1;
+              // Sub-department filtering - check document's sub-department
+              if (selectedSubDepartment) {
+                const docSubDeptId = Number(
+                  a.documentNew?.SubDepartmentId || 
+                  a.document?.SubDepartmentId || 
+                  a.documentNew?.subDepartmentId ||
+                  a.document?.subDepartmentId ||
+                  a.SubDepartmentId || 
+                  a.subDepartmentId ||
+                  0
+                );
+                if (docSubDeptId === 0 || docSubDeptId !== Number(selectedSubDepartment)) return false;
+              }
+
+              return true;
+            });
+
+            // Calculate downloads from filtered activities
+            const downloads = filteredActivities.filter((a: any) => {
+              const action = (a.Action || a.action || '').toUpperCase();
+              return action === 'DOWNLOADED' || action === 'DOWNLOAD';
+            }).length;
+
+            // Calculate active users from all filtered activities (not just downloads)
+            const activeUsers = new Set<string>();
+            filteredActivities.forEach((a: any) => {
+              const userName = a.actor?.userName || a.actor?.user_name || a.userName || a.user_name || a.actor?.name;
+              const userId = a.actor?.id || a.actor?.ID || a.ActionBy || a.actionBy;
+              if (userName && userName !== 'Unknown' && userName !== '') {
+                activeUsers.add(userName);
+              } else if (userId) {
+                activeUsers.add(String(userId));
+              }
+            });
+
+            console.log('📊 Activities stats:', {
+              totalActivities: auditTrails.length,
+              filteredActivities: filteredActivities.length,
+              downloads,
+              activeUsers: activeUsers.size,
+              sampleActivity: filteredActivities[0]
+            });
+
+            return { downloads, activeUsers };
+          } catch (error) {
+            console.error('Error fetching activities:', error);
+            return { downloads: 0, activeUsers: new Set<string>() };
           }
-          const typeData = Object.entries(typeCounter)
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 8);
-
-          if (!hasFilters) {
-            setDocumentTypeData(typeData);
-          }
-
-          // Stats
-          const uploads = allActivities.filter(a => a.Action === 'CREATED').length;
-          const downloads = allActivities.filter(a => a.Action === 'DOWNLOADED').length;
-          setUploadsCount(uploads);
-          setDownloadsCount(downloads);
-
-          const uniqueUsers = new Set(allActivities.map(a => a.actor?.userName || a.actor?.id));
-          setActiveUsersCount(uniqueUsers.size);
-
-          const confidentialSet = new Set(
-            allActivities
-              .filter(a => a.documentNew?.Confidential)
-              .map(a => a.documentNew?.ID)
-          );
-          setConfidentialDocsCount(confidentialSet.size);
         })(),
         // Fetch all pages to calculate total page count
         fetchAllPagesForCount(
@@ -500,13 +589,35 @@ const Dashboard: React.FC = () => {
         console.error('Failed to fetch documents:', documentsResult.reason);
         setTotalDocumentsCount(0);
       }
-      if (analyticsResult.status === 'rejected') {
+
+      // Handle analytics results (downloads and active users from activities)
+      let activitiesActiveUsers = new Set<string>();
+      if (analyticsResult.status === 'fulfilled') {
+        const { downloads, activeUsers } = analyticsResult.value;
+        setDownloadsCount(downloads || 0);
+        activitiesActiveUsers = activeUsers || new Set<string>();
+        console.log('✅ Quick Stats (activities):', { downloads, activeUsers: activitiesActiveUsers.size });
+      } else if (analyticsResult.status === 'rejected') {
         console.error('Failed to fetch analytics:', analyticsResult.reason);
+        setDownloadsCount(0);
       }
+
+      // Handle counts results (uploads and confidential docs from documents)
+      let documentCreatedByUsers = new Set<string>();
       if (countsResult.status === 'fulfilled') {
-        const { totalDocuments, totalPages, fileTypes } = countsResult.value;
+        const { totalDocuments, totalPages, fileTypes, uploads, confidentialDocs, createdByUsers } = countsResult.value;
         setTotalDocumentsCount(totalDocuments);
         setTotalPagesCount(totalPages);
+        
+        // Set uploads from documents (more accurate)
+        setUploadsCount(uploads || 0);
+        
+        // Set confidential docs from documents (more accurate)
+        setConfidentialDocsCount(confidentialDocs || 0);
+        
+        // Store createdByUsers for combining with activities
+        documentCreatedByUsers = createdByUsers || new Set<string>();
+        
         if (fileTypes) {
           const typeData = Object.entries(fileTypes)
             .map(([name, value]) => ({ name, value }))
@@ -514,12 +625,24 @@ const Dashboard: React.FC = () => {
             .slice(0, 8);
           setDocumentTypeData(typeData);
         }
-        console.log('✅ Filtered totals updated:', { totalDocuments, totalPages });
+        console.log('✅ Filtered totals updated:', { 
+          totalDocuments, 
+          totalPages, 
+          uploads, 
+          confidentialDocs,
+          createdByUsers: documentCreatedByUsers.size 
+        });
       } else if (countsResult.status === 'rejected') {
         console.error('Failed to fetch filtered totals:', countsResult.reason);
         setTotalDocumentsCount(0);
         setTotalPagesCount(0);
+        setUploadsCount(0);
+        setConfidentialDocsCount(0);
       }
+
+      // Combine active users from both sources
+      const allActiveUsers = new Set([...documentCreatedByUsers, ...activitiesActiveUsers]);
+      setActiveUsersCount(allActiveUsers.size);
       
     } catch (error) {
       console.error('Failed to fetch data:', error);
