@@ -353,7 +353,10 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
               )}
             </h3>
           </div>
-          {/* {!selectedVersion.IsCurrentVersion && (
+
+          {/*
+
+          {!selectedVersion.IsCurrentVersion && (
             <button
               onClick={handleRestore}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
@@ -361,7 +364,10 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
               <RefreshCw size={16} />
               Restore this Version
             </button>
-          )} */}
+          )} 
+           
+           */}
+           
         </div>
 
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-2 md:p-6 border border-blue-100">
