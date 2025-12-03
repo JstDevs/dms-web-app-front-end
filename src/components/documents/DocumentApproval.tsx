@@ -176,6 +176,10 @@ const DocumentApproval: React.FC<DocumentApprovalProps> = ({
 
     setLoading(true);
 
+    // Clear the approval matrix cache to ensure we get fresh data
+    // This ensures that when the approval matrix is updated, the Approvals tab shows the latest approvers
+    approverMatrixCacheRef.current.clear();
+
     const deptId = document?.document?.[0]?.DepartmentId ?? null;
     const subDeptId = document?.document?.[0]?.SubDepartmentId ?? null;
 
