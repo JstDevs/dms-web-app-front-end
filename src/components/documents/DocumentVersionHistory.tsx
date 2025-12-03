@@ -344,7 +344,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-bold text-blue-900 mb-2">
               {selectedVersion.VersionNumber}
               {selectedVersion.IsCurrentVersion && (
                 <span className="ml-3 px-3 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
