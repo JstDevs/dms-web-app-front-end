@@ -41,21 +41,69 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
   const pdfDocRef = useRef<any>(null);
+  const [templateDimensions, setTemplateDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   const filePath = docInfo?.filepath;
   const hasDataImage = Boolean(docInfo?.DataImage?.data?.length);
   const isPdf = filePath?.toLowerCase()?.endsWith('.pdf');
 
-  const areaRestrictions = restrictions.filter(
-    (restriction) => restriction.restrictedType === 'open'
+  // Fetch template dimensions to scale field restriction coordinates
+  useEffect(() => {
+    const fetchTemplateDimensions = async () => {
+      // Get template_id from OCRDocumentReadFields (all fields should have same template_id)
+      const templateId = currentDocument?.OCRDocumentReadFields?.[0]?.template_id;
+      if (!templateId) {
+        setTemplateDimensions(null);
+        return;
+      }
+
+      try {
+        const response = await axios.get(`/templates/${templateId}`);
+        const template = response.data?.data || response.data;
+        if (template?.imageWidth && template?.imageHeight) {
+          setTemplateDimensions({
+            width: Number(template.imageWidth),
+            height: Number(template.imageHeight),
+          });
+          console.log('📏 Template dimensions loaded:', {
+            templateId,
+            templateWidth: template.imageWidth,
+            templateHeight: template.imageHeight,
+          });
+        } else {
+          setTemplateDimensions(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch template dimensions:', error);
+        setTemplateDimensions(null);
+      }
+    };
+
+    if (currentDocument?.OCRDocumentReadFields?.length > 0) {
+      fetchTemplateDimensions();
+    } else {
+      setTemplateDimensions(null);
+    }
+  }, [currentDocument?.OCRDocumentReadFields]);
+
+  // Include both field restrictions and custom area restrictions (both need masking)
+  const allRestrictions = restrictions.filter(
+    (restriction) => 
+      restriction.restrictedType === 'open' || 
+      restriction.restrictedType === 'field'
   );
-  const restrictionsForCurrentPage = areaRestrictions.filter(
+  
+  const restrictionsForCurrentPage = allRestrictions.filter(
     (restriction) => {
       const restrictionPage = Number(restriction.pageNumber ?? 1);
       const matches = restrictionPage === currentPage;
       if (!matches && restrictionPage !== 1) {
         console.log('Restriction filtered out:', {
           restrictionID: restriction.ID,
+          restrictionType: restriction.restrictedType,
           restrictionPageNumber: restriction.pageNumber,
           restrictionPageParsed: restrictionPage,
           currentPage,
@@ -67,13 +115,17 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
   );
   
   // Debug logging
-  if (areaRestrictions.length > 0) {
+  if (allRestrictions.length > 0) {
     console.log('MaskedDocumentViewer - Page filtering:', {
       currentPage,
-      totalAreaRestrictions: areaRestrictions.length,
+      totalRestrictions: allRestrictions.length,
+      fieldRestrictions: allRestrictions.filter(r => r.restrictedType === 'field').length,
+      areaRestrictions: allRestrictions.filter(r => r.restrictedType === 'open').length,
       restrictionsForCurrentPage: restrictionsForCurrentPage.length,
-      allRestrictions: areaRestrictions.map(r => ({
+      allRestrictions: allRestrictions.map(r => ({
         id: r.ID,
+        type: r.restrictedType,
+        field: r.Field,
         pageNumber: r.pageNumber,
         pageNumberParsed: Number(r.pageNumber ?? 1)
       }))
@@ -251,7 +303,7 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
   const handleImageLoad = () => {
     if (imgRef.current) {
       const img = imgRef.current;
-      setImageDimensions({
+      const dimensions = {
         natural: {
           width: img.naturalWidth,
           height: img.naturalHeight,
@@ -260,6 +312,20 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
           width: img.clientWidth,
           height: img.clientHeight,
         },
+      };
+      setImageDimensions(dimensions);
+      console.log('📐 Image loaded - Dimensions:', {
+        natural: dimensions.natural,
+        display: dimensions.display,
+        scaleX: dimensions.natural.width > 0 ? (dimensions.display.width / dimensions.natural.width).toFixed(4) : 'N/A',
+        scaleY: dimensions.natural.height > 0 ? (dimensions.display.height / dimensions.natural.height).toFixed(4) : 'N/A',
+        imageElement: {
+          offsetLeft: img.offsetLeft,
+          offsetTop: img.offsetTop,
+          offsetWidth: img.offsetWidth,
+          offsetHeight: img.offsetHeight,
+          getBoundingClientRect: img.getBoundingClientRect()
+        }
       });
       setImageLoading(false);
       setImageError(false);
@@ -358,11 +424,11 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
             Sensitive areas hidden for your role
           </p>
           <p className="text-xs text-red-600 mt-1">
-            {areaRestrictions.length === 0
-              ? 'No custom masks configured for this document.'
-              : `${areaRestrictions.length} custom mask${
-                  areaRestrictions.length === 1 ? '' : 's'
-                } configured. Currently viewing page ${currentPage}.`}
+            {allRestrictions.length === 0
+              ? 'No masks configured for this document.'
+              : `${allRestrictions.length} mask${
+                  allRestrictions.length === 1 ? '' : 's'
+                } configured (${allRestrictions.filter(r => r.restrictedType === 'field').length} field, ${allRestrictions.filter(r => r.restrictedType === 'open').length} area). Currently viewing page ${currentPage}.`}
           </p>
         </div>
       </div>
@@ -429,21 +495,117 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
                 />
 
                 {/* Mask overlays */}
-                {restrictionsForCurrentPage.map((restriction) => {
+                {restrictionsForCurrentPage
+                  .filter((restriction) => {
+                    // Filter out restrictions with invalid coordinates (0,0,0,0)
+                    const hasValidCoordinates = 
+                      restriction.xaxis > 0 || 
+                      restriction.yaxis > 0 || 
+                      restriction.width > 0 || 
+                      restriction.height > 0;
+                    
+                    if (!hasValidCoordinates) {
+                      console.warn('Restriction has invalid coordinates (0,0,0,0), skipping mask:', {
+                        id: restriction.ID,
+                        field: restriction.Field,
+                        type: restriction.restrictedType,
+                        coordinates: {
+                          x: restriction.xaxis,
+                          y: restriction.yaxis,
+                          width: restriction.width,
+                          height: restriction.height
+                        }
+                      });
+                    }
+                    
+                    return hasValidCoordinates;
+                  })
+                  .map((restriction) => {
+                  // Ensure coordinates are numbers
+                  let naturalCoords = {
+                    x: Number(restriction.xaxis) || 0,
+                    y: Number(restriction.yaxis) || 0,
+                    width: Number(restriction.width) || 0,
+                    height: Number(restriction.height) || 0,
+                  };
+
+                  // Scale field restriction coordinates if template dimensions differ from document dimensions
+                  if (
+                    restriction.restrictedType === 'field' &&
+                    templateDimensions &&
+                    imageDimensions.natural.width > 0 &&
+                    imageDimensions.natural.height > 0
+                  ) {
+                    const scaleX = imageDimensions.natural.width / templateDimensions.width;
+                    const scaleY = imageDimensions.natural.height / templateDimensions.height;
+                    
+                    console.log('🔧 Scaling field restriction coordinates:', {
+                      restrictionId: restriction.ID,
+                      field: restriction.Field,
+                      templateDimensions,
+                      documentDimensions: {
+                        width: imageDimensions.natural.width,
+                        height: imageDimensions.natural.height,
+                      },
+                      scaleX: scaleX.toFixed(4),
+                      scaleY: scaleY.toFixed(4),
+                      beforeScaling: naturalCoords,
+                    });
+
+                    naturalCoords = {
+                      x: naturalCoords.x * scaleX,
+                      y: naturalCoords.y * scaleY,
+                      width: naturalCoords.width * scaleX,
+                      height: naturalCoords.height * scaleY,
+                    };
+
+                    console.log('✅ After scaling:', naturalCoords);
+                  }
+                  
                   const coords =
                     imageDimensions.natural.width > 0
-                      ? convertNaturalToDisplay({
-                          x: restriction.xaxis,
-                          y: restriction.yaxis,
-                          width: restriction.width,
-                          height: restriction.height,
-                        })
-                      : {
-                          x: restriction.xaxis,
-                          y: restriction.yaxis,
-                          width: restriction.width,
-                          height: restriction.height,
-                        };
+                      ? convertNaturalToDisplay(naturalCoords)
+                      : naturalCoords;
+
+                  console.log('🎯 Rendering mask - DETAILED:', {
+                    restrictionId: restriction.ID,
+                    field: restriction.Field,
+                    type: restriction.restrictedType,
+                    naturalCoords: {
+                      x: naturalCoords.x,
+                      y: naturalCoords.y,
+                      width: naturalCoords.width,
+                      height: naturalCoords.height
+                    },
+                    displayCoords: {
+                      x: coords.x,
+                      y: coords.y,
+                      width: coords.width,
+                      height: coords.height
+                    },
+                    imageDimensions: {
+                      natural: {
+                        width: imageDimensions.natural.width,
+                        height: imageDimensions.natural.height
+                      },
+                      display: {
+                        width: imageDimensions.display.width,
+                        height: imageDimensions.display.height
+                      }
+                    },
+                    scaleX: imageDimensions.natural.width > 0 
+                      ? (imageDimensions.display.width / imageDimensions.natural.width).toFixed(4)
+                      : '1',
+                    scaleY: imageDimensions.natural.height > 0 
+                      ? (imageDimensions.display.height / imageDimensions.natural.height).toFixed(4)
+                      : '1',
+                    rawRestrictionData: {
+                      xaxis: restriction.xaxis,
+                      yaxis: restriction.yaxis,
+                      width: restriction.width,
+                      height: restriction.height
+                    }
+                  });
 
                   return (
                     <div

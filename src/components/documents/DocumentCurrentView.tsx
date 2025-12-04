@@ -872,10 +872,13 @@ const DocumentCurrentView = ({
       : currentDocumentInfo.DataType;
   };
 
-  const areaRestrictions = viewerRestrictions.filter(
-    (restriction) => restriction.restrictedType === 'open'
+  // Include both field restrictions and custom area restrictions (both need masking)
+  const allRestrictionsForMasking = viewerRestrictions.filter(
+    (restriction) => 
+      restriction.restrictedType === 'open' || 
+      restriction.restrictedType === 'field'
   );
-  const shouldApplyMasking = areaRestrictions.length > 0;
+  const shouldApplyMasking = allRestrictionsForMasking.length > 0;
 
   const handleDownloadClick = () => {
     if (shouldApplyMasking) {
@@ -912,7 +915,7 @@ const DocumentCurrentView = ({
           ) : shouldApplyMasking ? (
             <MaskedDocumentViewer
               currentDocument={document}
-              restrictions={areaRestrictions}
+              restrictions={allRestrictionsForMasking}
             />
           ) : isPDF ? (
             <div className="w-full h-full flex items-center justify-center">

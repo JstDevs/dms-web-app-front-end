@@ -17,6 +17,7 @@ import {
   fetchRoleAllocations,
   fetchRoleAllocationsByLink,
 } from '@/pages/Digitalization/utils/allocationServices';
+import axios from '@/api/axios';
 
 interface FieldRestrictionProps {
   document: CurrentDocument | null;
@@ -140,6 +141,94 @@ useEffect(() => {
     }
   }, [selectedArea]);
 
+  // Fetch template fields coordinates when a field is selected
+  useEffect(() => {
+    const fetchFieldCoordinates = async () => {
+      // Only fetch if it's a field restriction (not custom_area) and field is selected
+      if (formData.field === 'custom_area' || !formData.field || formData.field === 'field_restriction') {
+        return;
+      }
+
+      // Get template_id from OCRDocumentReadFields
+      const ocrField = document?.OCRDocumentReadFields?.find(
+        (f) => f.Field === formData.field
+      );
+      
+      if (!ocrField?.template_id) {
+        console.warn('No template_id found for field:', formData.field);
+        return;
+      }
+
+      try {
+        // Fetch template to get field coordinates
+        const response = await axios.get(`/templates/${ocrField.template_id}`);
+        const template = response.data?.data || response.data;
+        
+        console.log('Template data:', {
+          templateId: ocrField.template_id,
+          template: template,
+          templateImageWidth: template?.imageWidth,
+          templateImageHeight: template?.imageHeight,
+          fields: template?.fields
+        });
+        
+        if (template?.fields && Array.isArray(template.fields)) {
+          // Find the matching field by name
+          const templateField = template.fields.find(
+            (f: any) => f.fieldName === formData.field || f.Field === formData.field
+          );
+          
+          if (templateField) {
+            // Get document dimensions (if available from document image)
+            // For now, use template coordinates as-is since they should match
+            // If document dimensions differ, we'll need to scale
+            const templateWidth = template.imageWidth || 800; // Default fallback
+            const templateHeight = template.imageHeight || 1035; // Default fallback
+            
+            console.log('Found template field coordinates:', {
+              field: formData.field,
+              templateField: templateField,
+              templateDimensions: {
+                width: templateWidth,
+                height: templateHeight
+              },
+              rawCoordinates: {
+                x: templateField.x,
+                y: templateField.y,
+                width: templateField.width,
+                height: templateField.height
+              }
+            });
+            
+            // Update formData with coordinates from template
+            // Note: Coordinates are already in natural/document coordinates from template
+            setFormData((prev) => ({
+              ...prev,
+              coordinates: {
+                xaxis: Number(templateField.x) || 0,
+                yaxis: Number(templateField.y) || 0,
+                width: Number(templateField.width) || 0,
+                height: Number(templateField.height) || 0,
+              },
+              pageNumber: templateField.pageNumber || 1,
+            }));
+          } else {
+            console.warn('Template field not found for:', {
+              field: formData.field,
+              availableFields: template.fields.map((f: any) => f.fieldName || f.Field)
+            });
+          }
+        } else {
+          console.warn('Template has no fields array:', template);
+        }
+      } catch (error) {
+        console.error('Failed to fetch template field coordinates:', error);
+      }
+    };
+
+    fetchFieldCoordinates();
+  }, [formData.field, document?.OCRDocumentReadFields]);
+
   // Update restriction type when field changes
   useEffect(() => {
     setFormData((prev) => ({
@@ -212,6 +301,11 @@ useEffect(() => {
             restrictedType: normalizedType,
             // Ensure pageNumber is a number
             pageNumber: normalizedPageNumber,
+            // Ensure coordinates are numbers (they might be strings from database)
+            xaxis: Number(restriction.xaxis) || 0,
+            yaxis: Number(restriction.yaxis) || 0,
+            width: Number(restriction.width) || 0,
+            height: Number(restriction.height) || 0,
             CollaboratorName:
               document?.collaborations?.find(
                 (collab) => collab.CollaboratorID === restriction.UserID
