@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CurrentDocument } from '@/types/Document';
 import { Restriction } from '@/types/Restriction';
 import { EyeOff, Loader2, Download } from 'lucide-react';
+import toast from 'react-hot-toast';
 import axios from '@/api/axios';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import PdfJsWorker from 'pdfjs-dist/build/pdf.worker?worker';
+import { PDFDocument, rgb } from 'pdf-lib';
 
 // Ensure pdf.js knows about the worker (same setup used by DocumentPreview)
 // @ts-ignore
@@ -21,6 +23,8 @@ interface MaskedDocumentViewerProps {
   currentDocument: CurrentDocument | null;
   restrictions: Restriction[];
 }
+
+const PDF_RENDER_SCALE = 1.5; // Keep in sync with DocumentPreview render scale
 
 const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
   currentDocument,
@@ -45,10 +49,95 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
     width: number;
     height: number;
   } | null>(null);
+  const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
 
   const filePath = docInfo?.filepath;
   const hasDataImage = Boolean(docInfo?.DataImage?.data?.length);
   const isPdf = filePath?.toLowerCase()?.endsWith('.pdf');
+
+  const toNumber = (value: unknown): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const getImageNaturalCoords = (
+    restriction: Restriction,
+    targetDimensions?: { width: number; height: number }
+  ): Rect => {
+    const base = {
+      x: toNumber(restriction.xaxis),
+      y: toNumber(restriction.yaxis),
+      width: toNumber(restriction.width),
+      height: toNumber(restriction.height),
+    };
+
+    if (
+      restriction.restrictedType === 'field' &&
+      templateDimensions?.width &&
+      templateDimensions.height &&
+      targetDimensions &&
+      targetDimensions.width > 0 &&
+      targetDimensions.height > 0
+    ) {
+      const scaleX = targetDimensions.width / templateDimensions.width;
+      const scaleY = targetDimensions.height / templateDimensions.height;
+      return {
+        x: base.x * scaleX,
+        y: base.y * scaleY,
+        width: base.width * scaleX,
+        height: base.height * scaleY,
+      };
+    }
+
+    return base;
+  };
+
+  const getPdfCoords = (
+    restriction: Restriction,
+    pageWidth: number,
+    pageHeight: number
+  ): Rect => {
+    const base = {
+      x: toNumber(restriction.xaxis),
+      y: toNumber(restriction.yaxis),
+      width: toNumber(restriction.width),
+      height: toNumber(restriction.height),
+    };
+
+    if (pageWidth <= 0 || pageHeight <= 0) {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
+
+    if (
+      restriction.restrictedType === 'field' &&
+      templateDimensions?.width &&
+      templateDimensions.height
+    ) {
+      const scaleX = pageWidth / templateDimensions.width;
+      const scaleY = pageHeight / templateDimensions.height;
+      const scaledWidth = base.width * scaleX;
+      const scaledHeight = base.height * scaleY;
+      const scaledX = base.x * scaleX;
+      const yFromTop = base.y * scaleY;
+      return {
+        x: scaledX,
+        y: pageHeight - yFromTop - scaledHeight,
+        width: scaledWidth,
+        height: scaledHeight,
+      };
+    }
+
+    const scaledWidth = base.width / PDF_RENDER_SCALE;
+    const scaledHeight = base.height / PDF_RENDER_SCALE;
+    const scaledX = base.x / PDF_RENDER_SCALE;
+    const yFromTop = base.y / PDF_RENDER_SCALE;
+    return {
+      x: scaledX,
+      y: pageHeight - yFromTop - scaledHeight,
+      width: scaledWidth,
+      height: scaledHeight,
+    };
+  };
 
   // Fetch template dimensions to scale field restriction coordinates
   useEffect(() => {
@@ -133,6 +222,9 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
   }
   const canGoPrev = currentPage > 1 && !pdfRendering;
   const canGoNext = currentPage < pageCount && !pdfRendering;
+  const hasMasksAvailable = isPdf
+    ? allRestrictions.length > 0
+    : restrictionsForCurrentPage.length > 0;
 
   const handlePageNavigation = async (direction: 'prev' | 'next') => {
     if (!pdfDocRef.current) return;
@@ -180,18 +272,37 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
     try {
       let pdfData: Uint8Array | undefined;
 
-      try {
-        const response = await axios.get<ArrayBuffer>(pdfUrl, {
-          responseType: 'arraybuffer',
-          withCredentials: false,
-        });
-        pdfData = new Uint8Array(response.data);
-      } catch (fetchError) {
-        console.warn(
-          'Axios fetch for masked PDF preview failed, trying fallback URL:',
-          fetchError
-        );
-      }
+      const fetchPdfBytes = async (): Promise<Uint8Array | undefined> => {
+        try {
+          const response = await axios.get<ArrayBuffer>(pdfUrl, {
+            responseType: 'arraybuffer',
+            withCredentials: false,
+          });
+          return new Uint8Array(response.data);
+        } catch (fetchError) {
+          console.warn(
+            'Axios fetch for masked PDF preview failed, trying fetch fallback:',
+            fetchError
+          );
+          try {
+            const res = await fetch(pdfUrl);
+            if (!res.ok) {
+              throw new Error(`Fetch fallback failed with status ${res.status}`);
+            }
+            const buffer = await res.arrayBuffer();
+            return new Uint8Array(buffer);
+          } catch (fallbackError) {
+            console.error(
+              'Failed to fetch PDF bytes for masking:',
+              fallbackError
+            );
+            return undefined;
+          }
+        }
+      };
+
+      pdfData = await fetchPdfBytes();
+      setPdfBytes(pdfData ?? null);
 
       const loadingTask = pdfData
         ? getDocument({ data: pdfData })
@@ -215,6 +326,7 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
     const buildDocumentUrl = async () => {
       setImageLoading(true);
       setImageError(false);
+      setPdfBytes(null);
 
       if (!docInfo) {
         if (isMounted) {
@@ -362,7 +474,14 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
   const showLoadingState = (imageLoading && documentUrl) || pdfRendering;
 
   const downloadMaskedImage = async () => {
-    if (!documentUrl || restrictionsForCurrentPage.length === 0) return;
+    if (!documentUrl) {
+      toast.error('Document preview is still loading. Please try again in a moment.');
+      return;
+    }
+    if (restrictionsForCurrentPage.length === 0) {
+      toast.error('No masks are configured for this page.');
+      return;
+    }
     setDownloadingMasked(true);
     try {
       const loadedImage = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -385,13 +504,17 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
       ctx.drawImage(loadedImage, 0, 0, width, height);
 
       ctx.fillStyle = '#000';
+      const targetDimensions = { width, height };
       restrictionsForCurrentPage.forEach((restriction) => {
-        ctx.fillRect(
-          restriction.xaxis,
-          restriction.yaxis,
-          restriction.width,
-          restriction.height
-        );
+        const rect = getImageNaturalCoords(restriction, targetDimensions);
+        if (rect.width <= 0 || rect.height <= 0) {
+          console.warn('Skipping mask with invalid rect while downloading PNG:', {
+            restrictionId: restriction.ID,
+            rect,
+          });
+          return;
+        }
+        ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
       });
 
       const maskedDataUrl = canvas.toDataURL('image/png', 1.0);
@@ -406,10 +529,98 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
       window.document.body.appendChild(downloadLink);
       downloadLink.click();
       window.document.body.removeChild(downloadLink);
+      toast.success('Masked image downloaded.');
     } catch (error) {
       console.error('Failed to download masked copy:', error);
+      toast.error('Failed to download masked image. Please try again.');
     } finally {
       setDownloadingMasked(false);
+    }
+  };
+
+  const downloadMaskedPdf = async () => {
+    if (!isPdf) return;
+    if (!pdfBytes) {
+      toast.error('Original PDF is not available yet. Reopen the viewer or try again.');
+      return;
+    }
+    if (allRestrictions.length === 0) {
+      toast.error('No masks are configured for this document.');
+      return;
+    }
+
+    setDownloadingMasked(true);
+    try {
+      const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+      const pages = pdfDoc.getPages();
+      let appliedMasks = 0;
+
+      allRestrictions.forEach((restriction) => {
+        const pageIndex = Math.max(0, Number(restriction.pageNumber ?? 1) - 1);
+        const page = pages[pageIndex];
+        if (!page) {
+          console.warn('Skipping restriction for non-existent page', {
+            restrictionId: restriction.ID,
+            pageIndex,
+            totalPages: pages.length,
+          });
+          return;
+        }
+
+        const rect = getPdfCoords(restriction, page.getWidth(), page.getHeight());
+        if (rect.width <= 0 || rect.height <= 0) {
+          console.warn('Skipping mask with invalid rect while generating PDF:', {
+            restrictionId: restriction.ID,
+            rect,
+          });
+          return;
+        }
+
+        page.drawRectangle({
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+          color: rgb(0, 0, 0),
+          borderColor: rgb(0, 0, 0),
+          borderWidth: 0,
+        });
+        appliedMasks += 1;
+      });
+
+      if (appliedMasks === 0) {
+        toast.error('No valid masks could be applied to the PDF.');
+        setDownloadingMasked(false);
+        return;
+      }
+
+      const maskedBytes = await pdfDoc.save();
+      const blob = new Blob([maskedBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const downloadLink = window.document.createElement('a');
+      const baseName = docInfo?.FileName
+        ? docInfo.FileName.replace(/\.[^/.]+$/, '')
+        : 'masked-document';
+      downloadLink.href = url;
+      downloadLink.download = `${baseName}_masked.pdf`;
+      window.document.body.appendChild(downloadLink);
+      downloadLink.click();
+      window.document.body.removeChild(downloadLink);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success('Masked PDF downloaded.');
+    } catch (error) {
+      console.error('Failed to download masked PDF:', error);
+      toast.error('Failed to download masked PDF. Please try again.');
+    } finally {
+      setDownloadingMasked(false);
+    }
+  };
+
+  const downloadMaskedCopy = async () => {
+    if (isPdf) {
+      await downloadMaskedPdf();
+    } else {
+      await downloadMaskedImage();
     }
   };
 
@@ -498,129 +709,81 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
                 {restrictionsForCurrentPage
                   .filter((restriction) => {
                     // Filter out restrictions with invalid coordinates (0,0,0,0)
-                    const hasValidCoordinates = 
-                      restriction.xaxis > 0 || 
-                      restriction.yaxis > 0 || 
-                      restriction.width > 0 || 
+                    const hasValidCoordinates =
+                      restriction.xaxis > 0 ||
+                      restriction.yaxis > 0 ||
+                      restriction.width > 0 ||
                       restriction.height > 0;
-                    
+
                     if (!hasValidCoordinates) {
-                      console.warn('Restriction has invalid coordinates (0,0,0,0), skipping mask:', {
-                        id: restriction.ID,
-                        field: restriction.Field,
-                        type: restriction.restrictedType,
-                        coordinates: {
-                          x: restriction.xaxis,
-                          y: restriction.yaxis,
-                          width: restriction.width,
-                          height: restriction.height
+                      console.warn(
+                        'Restriction has invalid coordinates (0,0,0,0), skipping mask:',
+                        {
+                          id: restriction.ID,
+                          field: restriction.Field,
+                          type: restriction.restrictedType,
+                          coordinates: {
+                            x: restriction.xaxis,
+                            y: restriction.yaxis,
+                            width: restriction.width,
+                            height: restriction.height,
+                          },
                         }
-                      });
+                      );
                     }
-                    
+
                     return hasValidCoordinates;
                   })
                   .map((restriction) => {
-                  // Ensure coordinates are numbers
-                  let naturalCoords = {
-                    x: Number(restriction.xaxis) || 0,
-                    y: Number(restriction.yaxis) || 0,
-                    width: Number(restriction.width) || 0,
-                    height: Number(restriction.height) || 0,
-                  };
+                    const naturalCoords = getImageNaturalCoords(
+                      restriction,
+                      imageDimensions.natural
+                    );
 
-                  // Scale field restriction coordinates if template dimensions differ from document dimensions
-                  if (
-                    restriction.restrictedType === 'field' &&
-                    templateDimensions &&
-                    imageDimensions.natural.width > 0 &&
-                    imageDimensions.natural.height > 0
-                  ) {
-                    const scaleX = imageDimensions.natural.width / templateDimensions.width;
-                    const scaleY = imageDimensions.natural.height / templateDimensions.height;
-                    
-                    console.log('🔧 Scaling field restriction coordinates:', {
+                    const coords =
+                      imageDimensions.natural.width > 0
+                        ? convertNaturalToDisplay(naturalCoords)
+                        : naturalCoords;
+
+                    console.log('🎯 Rendering mask - DETAILED:', {
                       restrictionId: restriction.ID,
                       field: restriction.Field,
-                      templateDimensions,
-                      documentDimensions: {
-                        width: imageDimensions.natural.width,
-                        height: imageDimensions.natural.height,
+                      type: restriction.restrictedType,
+                      naturalCoords,
+                      displayCoords: coords,
+                      imageDimensions: {
+                        natural: {
+                          width: imageDimensions.natural.width,
+                          height: imageDimensions.natural.height,
+                        },
+                        display: {
+                          width: imageDimensions.display.width,
+                          height: imageDimensions.display.height,
+                        },
                       },
-                      scaleX: scaleX.toFixed(4),
-                      scaleY: scaleY.toFixed(4),
-                      beforeScaling: naturalCoords,
+                      templateDimensions,
+                      rawRestrictionData: {
+                        xaxis: restriction.xaxis,
+                        yaxis: restriction.yaxis,
+                        width: restriction.width,
+                        height: restriction.height,
+                      },
                     });
 
-                    naturalCoords = {
-                      x: naturalCoords.x * scaleX,
-                      y: naturalCoords.y * scaleY,
-                      width: naturalCoords.width * scaleX,
-                      height: naturalCoords.height * scaleY,
-                    };
-
-                    console.log('✅ After scaling:', naturalCoords);
-                  }
-                  
-                  const coords =
-                    imageDimensions.natural.width > 0
-                      ? convertNaturalToDisplay(naturalCoords)
-                      : naturalCoords;
-
-                  console.log('🎯 Rendering mask - DETAILED:', {
-                    restrictionId: restriction.ID,
-                    field: restriction.Field,
-                    type: restriction.restrictedType,
-                    naturalCoords: {
-                      x: naturalCoords.x,
-                      y: naturalCoords.y,
-                      width: naturalCoords.width,
-                      height: naturalCoords.height
-                    },
-                    displayCoords: {
-                      x: coords.x,
-                      y: coords.y,
-                      width: coords.width,
-                      height: coords.height
-                    },
-                    imageDimensions: {
-                      natural: {
-                        width: imageDimensions.natural.width,
-                        height: imageDimensions.natural.height
-                      },
-                      display: {
-                        width: imageDimensions.display.width,
-                        height: imageDimensions.display.height
-                      }
-                    },
-                    scaleX: imageDimensions.natural.width > 0 
-                      ? (imageDimensions.display.width / imageDimensions.natural.width).toFixed(4)
-                      : '1',
-                    scaleY: imageDimensions.natural.height > 0 
-                      ? (imageDimensions.display.height / imageDimensions.natural.height).toFixed(4)
-                      : '1',
-                    rawRestrictionData: {
-                      xaxis: restriction.xaxis,
-                      yaxis: restriction.yaxis,
-                      width: restriction.width,
-                      height: restriction.height
-                    }
-                  });
-
-                  return (
-                    <div
-                      key={restriction.ID}
-                      className="absolute bg-black pointer-events-none"
-                      style={{
-                        opacity: 1.0,
-                        left: `${coords.x}px`,
-                        top: `${coords.y}px`,
-                        width: `${coords.width}px`,
-                        height: `${coords.height}px`,
-                      }}
-                    />
-                  );
-                })}
+                    return (
+                      <div
+                        key={restriction.ID}
+                        className="absolute bg-black pointer-events-none"
+                        style={{
+                          opacity: 1.0,
+                          left: `${coords.x}px`,
+                          top: `${coords.y}px`,
+                          width: `${coords.width}px`,
+                          height: `${coords.height}px`,
+                        }}
+                      />
+                    );
+                  })}
               </div>
             ) : (
               <div className="w-full h-96 flex flex-col items-center justify-center text-gray-500 bg-white rounded-lg border border-gray-200 px-6 text-center">
@@ -639,19 +802,19 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
         </div>
       </div>
       <div className="flex justify-end">
-        <button
-          onClick={downloadMaskedImage}
+            <button
+              onClick={downloadMaskedCopy}
           disabled={
             downloadingMasked ||
             !documentUrl ||
-            restrictionsForCurrentPage.length === 0 ||
+            !hasMasksAvailable ||
             pdfRendering ||
             imageLoading
           }
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             downloadingMasked ||
             !documentUrl ||
-            restrictionsForCurrentPage.length === 0 ||
+            !hasMasksAvailable ||
             pdfRendering ||
             imageLoading
               ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
