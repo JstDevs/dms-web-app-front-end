@@ -50,8 +50,35 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
     (restriction) => restriction.restrictedType === 'open'
   );
   const restrictionsForCurrentPage = areaRestrictions.filter(
-    (restriction) => (restriction.pageNumber ?? 1) === currentPage
+    (restriction) => {
+      const restrictionPage = Number(restriction.pageNumber ?? 1);
+      const matches = restrictionPage === currentPage;
+      if (!matches && restrictionPage !== 1) {
+        console.log('Restriction filtered out:', {
+          restrictionID: restriction.ID,
+          restrictionPageNumber: restriction.pageNumber,
+          restrictionPageParsed: restrictionPage,
+          currentPage,
+          matches
+        });
+      }
+      return matches;
+    }
   );
+  
+  // Debug logging
+  if (areaRestrictions.length > 0) {
+    console.log('MaskedDocumentViewer - Page filtering:', {
+      currentPage,
+      totalAreaRestrictions: areaRestrictions.length,
+      restrictionsForCurrentPage: restrictionsForCurrentPage.length,
+      allRestrictions: areaRestrictions.map(r => ({
+        id: r.ID,
+        pageNumber: r.pageNumber,
+        pageNumberParsed: Number(r.pageNumber ?? 1)
+      }))
+    });
+  }
   const canGoPrev = currentPage > 1 && !pdfRendering;
   const canGoNext = currentPage < pageCount && !pdfRendering;
 

@@ -159,16 +159,59 @@ useEffect(() => {
         String(document?.document[0].ID)
       );
       if (response.success && response.data) {
-        const restrictionsWithNames = response.data.map((restriction) => {
+        console.log('Raw restrictions from API:', response.data);
+        if (response.data && response.data.length > 0) {
+          console.log('First restriction full structure:', JSON.stringify(response.data[0], null, 2));
+          console.log('All field names in first restriction:', Object.keys(response.data[0]));
+          const firstRestriction = response.data[0] as any;
+          console.log('Checking for pageNumber in various formats:', {
+            pageNumber: firstRestriction.pageNumber,
+            PageNumber: firstRestriction.PageNumber,
+            page_number: firstRestriction.page_number,
+            Page_Number: firstRestriction.Page_Number,
+            Page: firstRestriction.Page,
+            page: firstRestriction.page
+          });
+        }
+        const restrictionsWithNames = response.data.map((restriction: any) => {
           const rawType = (restriction.restrictedType || '').toString().toLowerCase();
           const normalizedType: 'open' | 'field' =
             rawType === 'open' || rawType === 'field'
               ? (rawType as 'open' | 'field')
               : (restriction.Field === 'Custom Area' ? 'open' : 'field');
 
+          // Handle different possible field names for pageNumber (case-insensitive)
+          const rawPageNumber = restriction.pageNumber ?? restriction.PageNumber ?? restriction.page_number ?? restriction.Page_Number;
+          const normalizedPageNumber = rawPageNumber !== undefined && rawPageNumber !== null
+            ? Number(rawPageNumber)
+            : 1;
+
+          console.log('Processing restriction:', {
+            id: restriction.ID,
+            rawPageNumber: rawPageNumber,
+            normalizedPageNumber,
+            allPageNumberFields: {
+              pageNumber: restriction.pageNumber,
+              PageNumber: restriction.PageNumber,
+              page_number: restriction.page_number,
+              Page_Number: restriction.Page_Number
+            },
+            allRestrictionFields: Object.keys(restriction),
+            fullRestrictionData: JSON.stringify(restriction, null, 2),
+            field: restriction.Field,
+            coordinates: {
+              x: restriction.xaxis,
+              y: restriction.yaxis,
+              w: restriction.width,
+              h: restriction.height
+            }
+          });
+
         return {
             ...restriction,
             restrictedType: normalizedType,
+            // Ensure pageNumber is a number
+            pageNumber: normalizedPageNumber,
             CollaboratorName:
               document?.collaborations?.find(
                 (collab) => collab.CollaboratorID === restriction.UserID
@@ -250,6 +293,18 @@ useEffect(() => {
 
     setProcessingRestriction(-1);
     try {
+      // Use selectedArea.pageNumber if available (most accurate), otherwise fall back to formData.pageNumber
+      const finalPageNumber = formData.field === 'custom_area' && selectedArea?.pageNumber
+        ? selectedArea.pageNumber
+        : (formData.pageNumber ?? 1);
+      
+      console.log('Adding restriction with pageNumber:', {
+        selectedAreaPageNumber: selectedArea?.pageNumber,
+        formDataPageNumber: formData.pageNumber,
+        finalPageNumber,
+        coordinates: formData.coordinates
+      });
+
       const payload = {
         Field:
           formData.field === 'custom_area' ? 'Custom Area' : formData.field,
@@ -261,7 +316,7 @@ useEffect(() => {
         yaxis: formData.coordinates.yaxis,
         width: formData.coordinates.width,
         height: formData.coordinates.height,
-        pageNumber: formData.pageNumber ?? 1,
+        pageNumber: finalPageNumber,
       };
 
       const response = await restrictFields(
@@ -270,6 +325,16 @@ useEffect(() => {
       );
 
       if (response.success) {
+        // Check if pageNumber was saved correctly (backend issue detection)
+        const responseData = response.data as any;
+        const savedPageNumber = responseData?.pageNumber ?? responseData?.PageNumber ?? responseData?.page_number;
+        if (formData.field === 'custom_area' && finalPageNumber > 1 && !savedPageNumber) {
+          console.warn('⚠️ WARNING: pageNumber was sent but not returned by backend!', {
+            sentPageNumber: finalPageNumber,
+            responseData: response.data
+          });
+        }
+
         // Log restriction addition activity (optional - silent fail)
         try {
           await logSecurityActivity(
@@ -290,7 +355,10 @@ useEffect(() => {
           formData.field === 'custom_area'
             ? 'Custom area restriction'
             : `Field "${formData.field}" restriction`;
-        showMessage(`${action} added successfully!`);
+        const pageInfo = formData.field === 'custom_area' && finalPageNumber > 1 
+          ? ` (Page ${finalPageNumber})` 
+          : '';
+        showMessage(`${action} added successfully!${pageInfo}`);
         try {
           const toastModule = await import('react-hot-toast');
           toastModule.default.success('Restriction added successfully');
@@ -321,7 +389,11 @@ useEffect(() => {
       }
     } catch (error: any) {
       console.error('Failed to add restriction:', error);
-      showMessage('Failed to add restriction. Please try again.', true);
+      const errorMessage = error?.response?.data?.message 
+        || error?.response?.data?.error 
+        || error?.message 
+        || 'Failed to add restriction. Please try again.';
+      showMessage(errorMessage, true);
     } finally {
       setProcessingRestriction(null);
     }

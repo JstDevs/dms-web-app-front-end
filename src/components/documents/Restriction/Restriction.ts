@@ -97,16 +97,38 @@ export const restrictFields = async (
   message?: string;
 }> => {
   try {
+    console.log('Sending restriction payload to API:', {
+      documentId,
+      payload,
+      pageNumber: payload.pageNumber,
+      pageNumberType: typeof payload.pageNumber
+    });
     const response = await axios.post(
       `/documents/documents/${documentId}/restrictions_new`,
       payload
     );
+    console.log('API response after saving restriction:', {
+      responseData: response.data,
+      pageNumberInResponse: response.data?.pageNumber ?? response.data?.PageNumber ?? response.data?.page_number,
+      allFields: Object.keys(response.data || {}),
+      fullResponseData: JSON.stringify(response.data, null, 2)
+    });
     return { success: true, data: response.data };
   } catch (error: any) {
     console.error('Failed to add restriction:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      fullError: JSON.stringify(error.response?.data || error.message, null, 2)
+    });
     return {
       success: false,
-      message: error.response?.data?.message || 'Failed to add restriction',
+      message: error.response?.data?.message 
+        || error.response?.data?.error 
+        || error.response?.data?.Error
+        || `Failed to add restriction: ${error.response?.statusText || error.message}`,
     };
   }
 };
