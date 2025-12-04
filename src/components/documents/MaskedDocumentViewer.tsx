@@ -595,7 +595,9 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
       }
 
       const maskedBytes = await pdfDoc.save();
-      const blob = new Blob([maskedBytes], { type: 'application/pdf' });
+      const blob = new Blob([maskedBytes.buffer as ArrayBuffer], {
+        type: 'application/pdf',
+      });
       const url = URL.createObjectURL(blob);
       const downloadLink = window.document.createElement('a');
       const baseName = docInfo?.FileName
