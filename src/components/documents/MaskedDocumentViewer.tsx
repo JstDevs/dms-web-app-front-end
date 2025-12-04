@@ -423,7 +423,7 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
                       key={restriction.ID}
                       className="absolute bg-black pointer-events-none"
                       style={{
-                        opacity: 0.92,
+                        opacity: 1.0,
                         left: `${coords.x}px`,
                         top: `${coords.y}px`,
                         width: `${coords.width}px`,
