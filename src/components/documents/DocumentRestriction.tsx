@@ -332,9 +332,14 @@ useEffect(() => {
 
     setProcessingRestriction(restrictionId);
     try {
+      const departmentId = document.document[0]?.DepartmentId;
+      const subDepartmentId = document.document[0]?.SubDepartmentId;
+      
       const response = await removeRestrictedFields(
         String(document.document[0].ID),
-        String(restrictionId)
+        String(restrictionId),
+        departmentId,
+        subDepartmentId
       );
 
       if (response.success) {

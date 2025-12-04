@@ -113,11 +113,30 @@ export const restrictFields = async (
 
 export const removeRestrictedFields = async (
   documentId: string,
-  restrictionId: string
+  restrictionId: string,
+  departmentId?: number | null,
+  subDepartmentId?: number | null
 ): Promise<{ success: boolean; message?: string }> => {
   try {
+    const params: Record<string, string> = {};
+    
+    // Add query parameters if provided
+    if (departmentId !== undefined && departmentId !== null) {
+      params.department = String(departmentId);
+      params.appliedDepartment = String(departmentId);
+    }
+    
+    if (subDepartmentId !== undefined && subDepartmentId !== null) {
+      params.subDepartment = String(subDepartmentId);
+      params.appliedSubDepartment = String(subDepartmentId);
+    }
+    
+    const queryString = Object.keys(params).length > 0
+      ? '?' + new URLSearchParams(params).toString()
+      : '';
+    
     await axios.delete(
-      `/documents/documents/${documentId}/restrictions/${restrictionId}`
+      `/documents/documents/${documentId}/restrictions/${restrictionId}${queryString}`
     );
     return { success: true };
   } catch (error: any) {
