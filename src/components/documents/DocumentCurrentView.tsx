@@ -186,13 +186,13 @@ const DocumentCurrentView = ({
             const restrictionRoleId =
               restriction.UserRole !== undefined &&
               restriction.UserRole !== null &&
-              restriction.UserRole !== ''
+              String(restriction.UserRole) !== ''
                 ? Number(restriction.UserRole)
                 : null;
             const restrictionUserId =
               restriction.UserID !== undefined &&
               restriction.UserID !== null &&
-              restriction.UserID !== ''
+              String(restriction.UserID) !== ''
                 ? Number(restriction.UserID)
                 : null;
 

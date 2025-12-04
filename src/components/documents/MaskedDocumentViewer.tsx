@@ -82,7 +82,7 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
       }
     };
 
-    if (currentDocument?.OCRDocumentReadFields?.length > 0) {
+    if (currentDocument?.OCRDocumentReadFields && currentDocument.OCRDocumentReadFields.length > 0) {
       fetchTemplateDimensions();
     } else {
       setTemplateDimensions(null);
