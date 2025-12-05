@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { AuditTrail, CurrentDocument } from '@/types/Document';
 import { format } from 'date-fns';
 import {
@@ -48,8 +48,166 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [usersMap, setUsersMap] = useState<Map<number, string>>(new Map());
+  const [auditTrails, setAuditTrails] = useState<AuditTrail[]>([]);
+  const [loading, setLoading] = useState(false);
 
   if (!document) return null;
+
+  // Fetch audit trails for the document
+  const fetchAuditTrails = useCallback(async () => {
+    if (!document?.document?.[0]?.ID) {
+      setAuditTrails([]);
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Try to fetch audit trails specifically for this document
+      const documentId = document.document[0].ID;
+      console.log('🔍 Fetching audit trails for document ID:', documentId);
+      
+      // First, use the audit trails from the document prop (from analytics endpoint)
+      let trails = document.auditTrails || [];
+      console.log('📋 Initial trails from document prop:', trails.length);
+      
+      // Also check localStorage for recent activities that might not be in backend yet
+      try {
+        const localActivities = JSON.parse(localStorage.getItem('userActivities') || '[]');
+        const recentDocumentActivities = localActivities
+          .filter((activity: any) => 
+            activity.documentId === documentId && 
+            activity.action === 'DOWNLOADED' &&
+            // Only include activities from the last 5 minutes
+            new Date(activity.timestamp).getTime() > Date.now() - 5 * 60 * 1000
+          )
+          .map((activity: any) => ({
+            ID: activity.id || Date.now(),
+            DocumentID: documentId,
+            LinkID: '',
+            Action: activity.action,
+            ActionBy: activity.userId,
+            ActionDate: activity.timestamp,
+            IPAddress: activity.ipAddress || '',
+            UserAgent: activity.userAgent || '',
+            SessionID: null,
+            Description: activity.details || activity.description || null,
+            actor: {
+              id: activity.userId,
+              userName: activity.userName
+            },
+            OldValues: null,
+            NewValues: null,
+            ChangedFields: null,
+            AdditionalData: activity.metadata || null
+          }));
+        
+        if (recentDocumentActivities.length > 0) {
+          console.log('💾 Found recent activities in localStorage:', recentDocumentActivities.length);
+          // Merge with existing trails, avoiding duplicates
+          const existingIds = new Set(trails.map((t: AuditTrail) => t.ID));
+          const newLocalTrails = recentDocumentActivities.filter((t: any) => !existingIds.has(t.ID));
+          trails = [...newLocalTrails, ...trails]; // Put local activities first (most recent)
+        }
+      } catch (error) {
+        console.debug('Could not check localStorage for activities:', error);
+      }
+      
+      // Also try to fetch from activities-dashboard endpoint
+      // Try with documentId parameter first
+      try {
+        const response = await axios.get('/documents/activities-dashboard', {
+          params: {
+            documentId: documentId,
+            page: 1,
+            pageSize: 1000, // Get all audit trails for this document
+          }
+        });
+        
+        if (response.data?.success && response.data?.data?.auditTrails) {
+          const fetchedTrails = response.data.data.auditTrails;
+          console.log('📥 Fetched trails from activities-dashboard:', fetchedTrails.length);
+          
+          // Filter to only include trails for this document
+          const documentTrails = fetchedTrails.filter((t: any) => 
+            t.DocumentID === documentId || 
+            t.documentId === documentId || 
+            t.document?.ID === documentId ||
+            t.documentID === documentId
+          );
+          
+          console.log('✅ Filtered trails for this document:', documentTrails.length);
+          
+          // Merge with existing trails, avoiding duplicates by ID
+          const existingIds = new Set(trails.map((t: AuditTrail) => t.ID));
+          const newTrails = documentTrails.filter((t: any) => !existingIds.has(t.ID));
+          console.log('🆕 New trails to add:', newTrails.length);
+          
+          trails = [...trails, ...newTrails];
+        }
+      } catch (error: any) {
+        // If the endpoint doesn't support documentId filter, try without it
+        console.debug('⚠️ Could not fetch with documentId filter, trying without filter:', error?.message);
+        
+        try {
+          // Try fetching all activities and filter client-side
+          const response = await axios.get('/documents/activities-dashboard', {
+            params: {
+              page: 1,
+              pageSize: 1000,
+            }
+          });
+          
+          if (response.data?.success && response.data?.data?.auditTrails) {
+            const allTrails = response.data.data.auditTrails;
+            const documentTrails = allTrails.filter((t: any) => 
+              t.DocumentID === documentId || 
+              t.documentId === documentId || 
+              t.document?.ID === documentId ||
+              t.documentID === documentId
+            );
+            
+            const existingIds = new Set(trails.map((t: AuditTrail) => t.ID));
+            const newTrails = documentTrails.filter((t: any) => !existingIds.has(t.ID));
+            trails = [...trails, ...newTrails];
+            console.log('✅ Added trails from unfiltered fetch:', newTrails.length);
+          }
+        } catch (error2) {
+          console.debug('⚠️ Could not fetch audit trails from activities-dashboard:', error2);
+        }
+      }
+      
+      console.log('📊 Total audit trails after merge:', trails.length);
+      setAuditTrails(trails);
+    } catch (error) {
+      console.error('❌ Failed to fetch audit trails:', error);
+      // Fallback to document.auditTrails
+      setAuditTrails(document.auditTrails || []);
+    } finally {
+      setLoading(false);
+    }
+  }, [document?.document?.[0]?.ID, document?.auditTrails]);
+
+  // Fetch audit trails when document changes
+  useEffect(() => {
+    fetchAuditTrails();
+    
+    // Also refresh after delays to catch any newly logged activities
+    // (e.g., download activities that were just logged)
+    const timeout1 = setTimeout(() => {
+      console.log('🔄 Auto-refreshing audit trail (first attempt)...');
+      fetchAuditTrails();
+    }, 1500); // 1.5 second delay
+    
+    const timeout2 = setTimeout(() => {
+      console.log('🔄 Auto-refreshing audit trail (second attempt)...');
+      fetchAuditTrails();
+    }, 3000); // 3 second delay
+    
+    return () => {
+      clearTimeout(timeout1);
+      clearTimeout(timeout2);
+    };
+  }, [fetchAuditTrails]);
 
   // Fetch users to resolve user names if needed
   useEffect(() => {
@@ -426,9 +584,10 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
     );
   };
 
-  // Use embedded auditTrails from document context
+  // Use auditTrails from state (which includes fetched trails)
   const sourceEntries = useMemo<AuditTrail[]>(() => {
-    const base = document.auditTrails || [];
+    // Use auditTrails from state if available, otherwise fallback to document.auditTrails
+    const base = auditTrails.length > 0 ? auditTrails : (document.auditTrails || []);
     console.log('🔍 Audit trail source entries:', base.length, base);
     
     // Normalize audit trail entries to ensure they have the correct structure
@@ -485,7 +644,7 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
     });
     
     return normalized.sort((a, b) => new Date(b.ActionDate).getTime() - new Date(a.ActionDate).getTime());
-  }, [document.auditTrails, usersMap]);
+  }, [auditTrails, document.auditTrails, usersMap]);
 
   // Set total items based on source entries
   useEffect(() => {
@@ -630,10 +789,23 @@ const DocumentAuditTrail: React.FC<DocumentAuditTrailProps> = ({
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-gray-200">
-        <h2 className="text-xl font-medium text-gray-900">Audit Trail</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          View the complete history of changes to this document
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-medium text-gray-900">Audit Trail</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              View the complete history of changes to this document
+            </p>
+          </div>
+          <Button
+            onClick={fetchAuditTrails}
+            disabled={loading}
+            className="flex items-center gap-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 px-4 py-2 border border-gray-300 rounded-md shadow-sm"
+            title="Refresh audit trail"
+          >
+            <RotateCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
       </div>
 
       {/* Search and filters */}

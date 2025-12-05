@@ -677,6 +677,25 @@ const DocumentCurrentView = ({
             }
         }
         
+        // Log document download activity FIRST (before download)
+        // This ensures the activity is logged even if download fails
+        try {
+          console.log('📥 Logging download activity for document:', currentDocumentInfo.ID);
+          await logDocumentActivity(
+            'DOWNLOADED',
+            user!.ID,
+            user!.UserName,
+            currentDocumentInfo.ID,
+            currentDocumentInfo.FileName,
+            `Downloaded by ${user!.UserName}`
+          );
+          console.log('✅ Download activity logged successfully');
+        } catch (logError) {
+          console.error('❌ Failed to log document download activity:', logError);
+          // Don't block the download if logging fails, but show a warning
+          toast.error('Download will proceed, but activity logging failed. Please refresh the audit trail manually.');
+        }
+        
         // Create a new blob with the correct MIME type
         const correctedBlob = new Blob([finalBlob], { type: mimeType });
         const url = window.URL.createObjectURL(correctedBlob);
@@ -691,24 +710,19 @@ const DocumentCurrentView = ({
         // Clean up the blob URL
         window.URL.revokeObjectURL(url);
         
-        // Log document download activity
-        try {
-          await logDocumentActivity(
-            'DOWNLOADED',
-            user!.ID,
-            user!.UserName,
-            currentDocumentInfo.ID,
-            currentDocumentInfo.FileName,
-            `Downloaded by ${user!.UserName}`
-          );
-          
-          // Refresh document data to show the new audit trail entry
-          if (document?.document?.[0]?.ID) {
-            await fetchDocument(String(document.document[0].ID));
+        // Refresh document data to show the new audit trail entry
+        // Add a small delay to allow backend to process the audit log
+        setTimeout(async () => {
+          try {
+            console.log('🔄 Refreshing document data to update audit trail...');
+            if (document?.document?.[0]?.ID) {
+              await fetchDocument(String(document.document[0].ID));
+              console.log('✅ Document data refreshed');
+            }
+          } catch (refreshError) {
+            console.error('❌ Failed to refresh document data:', refreshError);
           }
-        } catch (logError) {
-          console.warn('Failed to log document download activity:', logError);
-        }
+        }, 1000); // 1 second delay to allow backend processing
       } catch (error) {
         console.error('Download failed:', error);
         toast.error('Failed to download document. Please try again.');
