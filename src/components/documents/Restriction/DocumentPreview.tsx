@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, Loader2, Image as ImageIcon, Move, Square } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Move, Square } from 'lucide-react';
 import { CurrentDocument } from '@/types/Document';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import PdfJsWorker from 'pdfjs-dist/build/pdf.worker?worker';
@@ -86,6 +86,46 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const filePath = docInfo?.filepath;
   const hasDataImage = Boolean(docInfo?.DataImage?.data?.length);
   const isPdf = filePath?.toLowerCase()?.endsWith('.pdf');
+
+  const getApiBaseOrigin = () => {
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
+      return apiBase ? new URL(apiBase).origin : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const normalizeFileUrl = (rawPath: string) => {
+    let normalized = rawPath;
+
+    // If backend sent a relative path, prefix with API base (if available) so it is reachable from other machines
+    if (!/^https?:\/\//i.test(normalized)) {
+      const apiOrigin = getApiBaseOrigin();
+      if (apiOrigin) {
+        normalized = `${apiOrigin}${normalized.startsWith('/') ? '' : '/'}${normalized}`;
+      }
+      return normalized;
+    }
+
+    // If the URL uses localhost/127.0.0.1, swap the origin to the configured API base or to the current page origin
+    const isLocalHost =
+      normalized.includes('://localhost') || normalized.includes('://127.0.0.1');
+    if (isLocalHost) {
+      try {
+        const apiOrigin = getApiBaseOrigin() || window.location.origin;
+        const url = new URL(normalized);
+        const target = new URL(apiOrigin);
+        url.protocol = target.protocol;
+        url.host = target.host;
+        normalized = url.toString();
+      } catch {
+        // Fall back to the original URL if parsing fails
+      }
+    }
+
+    return normalized;
+  };
 
   const renderPdfPageImage = async (pageNumber: number, pdfInstance?: any) => {
     const pdf = pdfInstance || pdfDocRef.current;
@@ -180,13 +220,11 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
         }
 
         if (filePath) {
-          let normalizedPath = filePath;
-          if (
-            !normalizedPath.startsWith('http') &&
-            !normalizedPath.startsWith('/')
-          ) {
-            normalizedPath = `/${normalizedPath}`;
-          }
+          const normalizedPath = normalizeFileUrl(
+            filePath.startsWith('http') || filePath.startsWith('/')
+              ? filePath
+              : `/${filePath}`
+          );
 
           if (isPdf) {
             try {

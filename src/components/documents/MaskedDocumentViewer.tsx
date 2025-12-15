@@ -55,6 +55,46 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
   const hasDataImage = Boolean(docInfo?.DataImage?.data?.length);
   const isPdf = filePath?.toLowerCase()?.endsWith('.pdf');
 
+  const getApiBaseOrigin = () => {
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
+      return apiBase ? new URL(apiBase).origin : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const normalizeFileUrl = (rawPath: string) => {
+    let normalized = rawPath;
+
+    // If backend sent a relative path, prefix with API base so other machines can reach it
+    if (!/^https?:\/\//i.test(normalized)) {
+      const apiOrigin = getApiBaseOrigin();
+      if (apiOrigin) {
+        normalized = `${apiOrigin}${normalized.startsWith('/') ? '' : '/'}${normalized}`;
+      }
+      return normalized;
+    }
+
+    // If URL uses localhost/127.0.0.1, swap to API base or current page origin
+    const isLocalHost =
+      normalized.includes('://localhost') || normalized.includes('://127.0.0.1');
+    if (isLocalHost) {
+      try {
+        const apiOrigin = getApiBaseOrigin() || window.location.origin;
+        const url = new URL(normalized);
+        const target = new URL(apiOrigin);
+        url.protocol = target.protocol;
+        url.host = target.host;
+        normalized = url.toString();
+      } catch {
+        // keep original if parsing fails
+      }
+    }
+
+    return normalized;
+  };
+
   const toNumber = (value: unknown): number => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -272,9 +312,9 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
     try {
       let pdfData: Uint8Array | undefined;
 
-      const fetchPdfBytes = async (): Promise<Uint8Array | undefined> => {
+      const fetchPdfBytes = async (resolvedUrl: string): Promise<Uint8Array | undefined> => {
         try {
-          const response = await axios.get<ArrayBuffer>(pdfUrl, {
+          const response = await axios.get<ArrayBuffer>(resolvedUrl, {
             responseType: 'arraybuffer',
             withCredentials: false,
           });
@@ -285,7 +325,7 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
             fetchError
           );
           try {
-            const res = await fetch(pdfUrl);
+            const res = await fetch(resolvedUrl);
             if (!res.ok) {
               throw new Error(`Fetch fallback failed with status ${res.status}`);
             }
@@ -301,7 +341,7 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
         }
       };
 
-      pdfData = await fetchPdfBytes();
+      pdfData = await fetchPdfBytes(pdfUrl);
       setPdfBytes(pdfData ?? null);
 
       const loadingTask = pdfData
@@ -351,13 +391,11 @@ const MaskedDocumentViewer: React.FC<MaskedDocumentViewerProps> = ({
         }
 
         if (filePath) {
-          let normalizedPath = filePath;
-          if (
-            !normalizedPath.startsWith('http') &&
-            !normalizedPath.startsWith('/')
-          ) {
-            normalizedPath = `/${normalizedPath}`;
-          }
+          const normalizedPath = normalizeFileUrl(
+            filePath.startsWith('http') || filePath.startsWith('/')
+              ? filePath
+              : `/${filePath}`
+          );
 
           if (isPdf) {
             try {
