@@ -458,6 +458,12 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
             document.document[0].FileName,
             `New version uploaded: ${selectedFile.name}`
           );
+          
+          // Add a small delay to ensure backend has finished processing the new version
+          // This ensures the filepath is updated correctly
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Refresh document to get updated version and filepath
           await fetchDocument(String(document.document[0].ID));
         } catch (logError) {
           console.warn('Failed to log version creation activity:', logError);

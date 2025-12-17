@@ -131,6 +131,11 @@ const DocumentCurrentView = ({
   const { fetchDocument } = useDocument();
 
   const currentDocumentInfo = document?.document[0];
+  
+  // Get current version's filepath if available (prioritize over document[0].filepath)
+  // This ensures we always show the latest version's file
+  const currentVersion = document?.versions?.find(v => v.IsCurrentVersion) || document?.versions?.[0];
+  const effectiveFilepath = currentVersion?.filepath || currentDocumentInfo?.filepath;
 
   useEffect(() => {
     const loadViewerRestrictions = async () => {
@@ -570,10 +575,10 @@ const DocumentCurrentView = ({
   };
 
   const handleDownload = async () => {
-    if (currentDocumentInfo?.filepath) {
+    if (effectiveFilepath) {
       try {
         // Normalize filepath to use correct base URL (fixes localhost issue)
-        const normalizedFilepath = normalizeFilepathUrl(currentDocumentInfo.filepath);
+        const normalizedFilepath = normalizeFilepathUrl(effectiveFilepath);
         const response = await fetch(normalizedFilepath);
         const blob = await response.blob();
         
@@ -744,9 +749,9 @@ const DocumentCurrentView = ({
 
   // Helper function to detect file type
   const getFileType = () => {
-    if (!currentDocumentInfo) return 'unknown';
+    if (!effectiveFilepath) return 'unknown';
     
-    const filepath = currentDocumentInfo.filepath?.toLowerCase() || '';
+    const filepath = effectiveFilepath.toLowerCase();
     const filename = currentDocumentInfo.FileName?.toLowerCase() || '';
     const dataType = currentDocumentInfo.DataType?.toLowerCase() || '';
     
@@ -909,7 +914,7 @@ const DocumentCurrentView = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
-      {isViewerOpen && currentDocumentInfo?.filepath ? (
+      {isViewerOpen && effectiveFilepath ? (
         <Modal isOpen={isViewerOpen} onClose={() => setIsViewerOpen(false)}>
           {restrictionsLoading ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6">
@@ -934,7 +939,7 @@ const DocumentCurrentView = ({
           ) : isPDF ? (
             <div className="w-full h-full flex items-center justify-center">
               <iframe
-                src={`${normalizeFilepathUrl(currentDocumentInfo.filepath)}#toolbar=1`}
+                src={`${normalizeFilepathUrl(effectiveFilepath)}#toolbar=1`}
                 title="PDF Viewer"
                 className="w-full border-0 rounded-lg"
                 style={{ 
@@ -971,7 +976,7 @@ const DocumentCurrentView = ({
                   <div className="text-center">
                     <p className="text-xs text-gray-500 mb-2">Or try viewing online:</p>
                     <a
-                      href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(normalizeFilepathUrl(currentDocumentInfo.filepath))}`}
+                      href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(normalizeFilepathUrl(effectiveFilepath))}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-700 text-sm font-medium underline"
@@ -1006,7 +1011,7 @@ const DocumentCurrentView = ({
                   <div className="text-center">
                     <p className="text-xs text-gray-500 mb-2">Or try viewing online:</p>
                     <a
-                      href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(normalizeFilepathUrl(currentDocumentInfo.filepath))}`}
+                      href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(normalizeFilepathUrl(effectiveFilepath))}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-4 py-2 text-green-600 hover:text-green-700 text-sm font-medium underline"
@@ -1021,7 +1026,7 @@ const DocumentCurrentView = ({
           ) : isImage ? (
             <div className="w-full h-full flex items-center justify-center p-4">
               <img 
-                src={normalizeFilepathUrl(currentDocumentInfo.filepath)} 
+                src={normalizeFilepathUrl(effectiveFilepath)} 
                 alt={currentDocumentInfo?.FileName || 'Document'} 
                 className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-lg"
                 onError={(e) => {
@@ -1143,7 +1148,7 @@ const DocumentCurrentView = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setIsViewerOpen(true)}
-                    disabled={!currentDocumentInfo?.filepath || isSaving}
+                    disabled={!effectiveFilepath || isSaving}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                   >
                     <Eye className="h-4 w-4" />
@@ -1152,7 +1157,7 @@ const DocumentCurrentView = ({
                   {permissions?.Print && (
                     <button
                       onClick={handleDownloadClick}
-                      disabled={!currentDocumentInfo?.filepath || isSaving}
+                      disabled={!effectiveFilepath || isSaving}
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg shadow-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                     >
                       <Download className="h-4 w-4" />

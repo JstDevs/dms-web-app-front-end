@@ -177,13 +177,14 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
       }
 
       // Create download link
+      // Use window.document to avoid conflict with prop name 'document'
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = window.document.createElement('a');
       link.href = url;
       link.download = fileName;
-      document.body.appendChild(link);
+      window.document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      window.document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
       toast.success(`Version ${version.VersionNumber} downloaded successfully`);
