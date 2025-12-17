@@ -545,8 +545,12 @@ export default function DocumentUpload() {
         </div>
       </header>
 
-      {/* Form Section */}
-      <Card className="shadow-lg border-0 overflow-hidden">
+      {/* Main Content: Side-by-Side Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Form Fields */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Form Section */}
+          <Card className="shadow-lg border-0 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-600 rounded-lg">
@@ -703,7 +707,7 @@ export default function DocumentUpload() {
                 ></textarea>
               </div>
 
-              {/* Attachment */}
+              {/* Attachment - Simplified for side-by-side layout */}
               {!editId && (
                 <div className="col-span-1 sm:col-span-2 space-y-2">
                   <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
@@ -803,7 +807,7 @@ export default function DocumentUpload() {
                       />
                     </div>
                   ) : (
-                    // Enhanced File Preview UI
+                    // File Info Card (Preview moved to right column)
                     <div className="flex flex-col gap-4 mt-2 border-2 border-blue-200 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md">
                       <div className="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm">
                         <div className="flex items-center gap-3">
@@ -827,30 +831,9 @@ export default function DocumentUpload() {
                         </button>
                       </div>
 
-                      {/* Conditional Preview */}
-                      {selectedFile.type.startsWith('image/') && (
-                        <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 shadow-lg bg-white">
-                          <img
-                            src={URL.createObjectURL(selectedFile)}
-                            alt="Preview"
-                            className="w-full max-h-96 object-contain"
-                          />
-                        </div>
-                      )}
-
-                      {selectedFile.type === 'application/pdf' && (
-                        <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 shadow-lg bg-white">
-                          <iframe
-                            src={URL.createObjectURL(selectedFile)}
-                            title="PDF Preview"
-                            className="w-full h-[90vh]"
-                          />
-                        </div>
-                      )}
-
                       {/* OCR Button */}
                       {isOcrCompatible(selectedFile) && (
-                        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="p-2 bg-blue-600 rounded-lg">
@@ -954,19 +937,6 @@ export default function DocumentUpload() {
           </div>
         </CardContent>
       </Card>
-
-      {/* OCR Modal */}
-      {selectedFile && (
-        <OCRModal
-          isOpen={isOcrModalOpen}
-          onClose={handleCloseOcrModal}
-          file={selectedFile}
-          fields={getActiveFields().filter(f => f.Type !== 'date' && f.Type !== 'Date')}
-          onApplyToField={handleOcrApplyToField}
-          preselectedFieldId={preselectedFieldForOcr}
-          usedSelections={ocrAppliedFields}
-        />
-      )}
 
       {/* Dynamic Fields Section - Shows only active fields from allocation */}
       {newDoc.DepartmentId && newDoc.SubDepartmentId && (
@@ -1131,6 +1101,95 @@ export default function DocumentUpload() {
           </div>
         </CardContent>
       </Card>
+        </div>
+
+        {/* Right Column: Document Preview - Sticky on desktop, normal on mobile */}
+        <div className="lg:col-span-1">
+          <Card className="shadow-lg border-0 lg:sticky lg:top-6 h-fit">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-600 rounded-lg">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl text-gray-800">Document Preview</CardTitle>
+                  <p className="text-sm text-gray-600 mt-1">View your document while filling the form</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {selectedFile ? (
+                <div className="space-y-4">
+                  {/* File Info */}
+                  <div className="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm border border-gray-200">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                        <FileIcon className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{selectedFile.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Document Preview */}
+                  <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 shadow-lg bg-white">
+                    {selectedFile.type.startsWith('image/') ? (
+                      <div className="relative w-full">
+                        <img
+                          src={URL.createObjectURL(selectedFile)}
+                          alt="Preview"
+                          className="w-full h-auto max-h-[70vh] object-contain"
+                        />
+                      </div>
+                    ) : selectedFile.type === 'application/pdf' ? (
+                      <div className="relative w-full" style={{ height: '70vh' }}>
+                        <iframe
+                          src={URL.createObjectURL(selectedFile)}
+                          title="PDF Preview"
+                          className="w-full h-full border-0"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-12 bg-gray-50">
+                        <FileText className="w-16 h-16 text-gray-400 mb-4" />
+                        <p className="text-gray-600 font-medium">Preview not available</p>
+                        <p className="text-sm text-gray-500 mt-1">File type: {selectedFile.type}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 px-6 text-center bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <div className="p-4 bg-blue-100 rounded-full mb-4">
+                    <FileText className="w-12 h-12 text-blue-600" />
+                  </div>
+                  <p className="text-gray-700 font-semibold mb-2">No Document Selected</p>
+                  <p className="text-sm text-gray-500">
+                    Upload a file to see the preview here
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* OCR Modal */}
+      {selectedFile && (
+        <OCRModal
+          isOpen={isOcrModalOpen}
+          onClose={handleCloseOcrModal}
+          file={selectedFile}
+          fields={getActiveFields().filter(f => f.Type !== 'date' && f.Type !== 'Date')}
+          onApplyToField={handleOcrApplyToField}
+          preselectedFieldId={preselectedFieldForOcr}
+          usedSelections={ocrAppliedFields}
+        />
+      )}
 
       {/* Document List Section */}
       {/* <div className="space-y-4"> */}
