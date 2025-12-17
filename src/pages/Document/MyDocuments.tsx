@@ -83,7 +83,7 @@ const MyDocuments: React.FC = () => {
   const [filterLoading, setFilterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("")
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const ITEMS_PER_PAGE = 10;
+  const ITEMS_PER_PAGE = 15;
   
   // Fetch allocation permissions for applied department/subdepartment
   const { permissions: allocationPermissions, loading: loadingPermissions } = useAllocationPermissions({
@@ -1090,7 +1090,7 @@ const MyDocuments: React.FC = () => {
           </div>
         </div>
       ) : filteredDocs.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-3 gap-6">
           {documentCards}
         </div>
       ) : error ? (
