@@ -24,7 +24,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import {
   editDocument,
@@ -523,6 +523,21 @@ export default function DocumentUpload() {
     const ocrTypes = ['image/png', 'image/jpeg', 'application/pdf'];
     return ocrTypes.includes(file.type);
   };
+
+  // Memoize file URL to prevent preview refresh on every render
+  const filePreviewUrl = useMemo(() => {
+    if (!selectedFile) return null;
+    return URL.createObjectURL(selectedFile);
+  }, [selectedFile]);
+
+  // Cleanup object URL when component unmounts or file changes
+  useEffect(() => {
+    return () => {
+      if (filePreviewUrl) {
+        URL.revokeObjectURL(filePreviewUrl);
+      }
+    };
+  }, [filePreviewUrl]);
 
   return (
     <div className="flex flex-col space-y-6 animate-fade-in">
@@ -1138,17 +1153,17 @@ export default function DocumentUpload() {
 
                   {/* Document Preview - Takes up remaining space, made larger */}
                   <div className="relative flex-1 rounded-lg overflow-hidden border-2 border-gray-200 shadow-lg bg-gray-50 min-h-0">
-                    {selectedFile.type.startsWith('image/') ? (
+                    {selectedFile.type.startsWith('image/') && filePreviewUrl ? (
                       <div className="w-full h-full flex items-center justify-center p-2 bg-white">
                         <img
-                          src={URL.createObjectURL(selectedFile)}
+                          src={filePreviewUrl}
                           alt="Preview"
                           className="max-w-full max-h-full object-contain"
                         />
                       </div>
-                    ) : selectedFile.type === 'application/pdf' ? (
+                    ) : selectedFile.type === 'application/pdf' && filePreviewUrl ? (
                       <iframe
-                        src={URL.createObjectURL(selectedFile)}
+                        src={filePreviewUrl}
                         title="PDF Preview"
                         className="w-full h-full border-0"
                         style={{ height: '100%', minHeight: '100%' }}
