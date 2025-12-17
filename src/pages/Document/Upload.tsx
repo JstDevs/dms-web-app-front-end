@@ -522,6 +522,24 @@ export default function DocumentUpload() {
 
   // Check if file is OCR-compatible
   const isOcrCompatible = (file: File | null): boolean => {
+    // Auto-grow textareas
+    useEffect(() => {
+      const adjustTextareaHeight = (textarea: HTMLTextAreaElement) => {
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+      };
+
+      if (fileDescriptionRef.current) {
+        adjustTextareaHeight(fileDescriptionRef.current);
+      }
+      if (descriptionRef.current) {
+        adjustTextareaHeight(descriptionRef.current);
+      }
+      if (remarksRef.current) {
+        adjustTextareaHeight(remarksRef.current);
+      }
+    }, [newDoc.FileDescription, newDoc.Description, newDoc.Remarks]);
+    
     if (!file) return false;
     const ocrTypes = ['image/png', 'image/jpeg', 'application/pdf'];
     return ocrTypes.includes(file.type);
@@ -541,24 +559,6 @@ export default function DocumentUpload() {
       }
     };
   }, [filePreviewUrl]);
-
-  // Auto-grow textareas
-  useEffect(() => {
-    const adjustTextareaHeight = (textarea: HTMLTextAreaElement) => {
-      textarea.style.height = 'auto';
-      textarea.style.height = `${textarea.scrollHeight}px`;
-    };
-
-    if (fileDescriptionRef.current) {
-      adjustTextareaHeight(fileDescriptionRef.current);
-    }
-    if (descriptionRef.current) {
-      adjustTextareaHeight(descriptionRef.current);
-    }
-    if (remarksRef.current) {
-      adjustTextareaHeight(remarksRef.current);
-    }
-  }, [newDoc.FileDescription, newDoc.Description, newDoc.Remarks]);
 
   return (
     <div className="flex flex-col space-y-6 animate-fade-in">
@@ -659,17 +659,16 @@ export default function DocumentUpload() {
                   <FileText className="w-4 h-4 text-blue-600" />
                   File Description <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                  ref={fileDescriptionRef}
-                  className="w-full border border-gray-300 rounded-lg p-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
-                  rows={1}
+                <Input
+                  className="w-full"
                   value={newDoc.FileDescription || ''}
                   onChange={(e) =>
                     setNewDoc({ ...newDoc, FileDescription: e.target.value })
                   }
                   required
                   placeholder="Enter file description"
-                ></textarea>
+                  icon={<FileText className="w-4 h-4" />}
+                />
               </div>
 
               {/* File Date */}
@@ -716,16 +715,15 @@ export default function DocumentUpload() {
                   <MessageSquare className="w-4 h-4 text-blue-600" />
                   Description
                 </label>
-                <textarea
-                  ref={descriptionRef}
-                  className="w-full border border-gray-300 rounded-lg p-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
-                  rows={1}
+                <Input
+                  className="w-full"
                   value={newDoc.Description || ''}
                   onChange={(e) =>
                     setNewDoc({ ...newDoc, Description: e.target.value })
                   }
                   placeholder="Enter description"
-                ></textarea>
+                  icon={<MessageSquare className="w-4 h-4" />}
+                />
               </div>
               
               {/* Remarks */}
@@ -735,9 +733,8 @@ export default function DocumentUpload() {
                   Remarks
                 </label>
                 <textarea
-                  ref={remarksRef}
                   className="w-full border border-gray-300 rounded-lg p-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
-                  rows={1}
+                  rows={3}
                   value={newDoc.Remarks || ''}
                   onChange={(e) =>
                     setNewDoc({ ...newDoc, Remarks: e.target.value })

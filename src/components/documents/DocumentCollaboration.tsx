@@ -432,42 +432,55 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
         false   // finalize: false
       );
 
-      // Simulate progress for UX
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
+      // Use real upload progress tracking - provides accurate progress without artificial delays
+      const response = await axios.post('/documents/edit', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            setUploadProgress(percentCompleted);
+          } else {
+            // If total is unknown, show incremental progress up to 95%
+            setUploadProgress((prev) => Math.min(prev + 5, 95));
           }
-          return prev + 10;
-        });
-      }, 200);
+        },
+      });
 
-      const response = await editDocument(formData);
-
-      clearInterval(progressInterval);
+      const responseData = response.data;
       setUploadProgress(100);
 
-      if (response.status) {
-        try {
-          await logCollaborationActivity(
+      if (responseData.status) {
+        // Run post-upload operations in parallel (non-blocking) for faster completion
+        // Don't wait for these - let them run in background
+        Promise.all([
+          // Log activity (fire and forget)
+          logCollaborationActivity(
             'VERSION_CREATED',
             loggedUser!.ID,
             loggedUser!.UserName,
             document.document[0].ID,
             document.document[0].FileName,
             `New version uploaded: ${selectedFile.name}`
-          );
-          
-          // Add a small delay to ensure backend has finished processing the new version
-          // This ensures the filepath is updated correctly
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          // Refresh document to get updated version and filepath
-          await fetchDocument(String(document.document[0].ID));
-        } catch (logError) {
-          console.warn('Failed to log version creation activity:', logError);
-        }
+          ).catch((logError) => {
+            console.warn('Failed to log version creation activity:', logError);
+          }),
+          // Refresh document immediately (no delay - backend should be ready)
+          fetchDocument(String(document.document[0].ID)).catch((fetchError) => {
+            console.warn('Failed to refresh document:', fetchError);
+            // Retry once after a short delay if first attempt fails
+            setTimeout(() => {
+              fetchDocument(String(document.document[0].ID)).catch(() => {
+                // Silent fail on retry
+              });
+            }, 300);
+          }),
+        ]).catch((err) => {
+          console.warn('Some post-upload operations failed:', err);
+        });
 
         showMessage('New version uploaded successfully!');
         setSelectedFile(null);
@@ -475,7 +488,9 @@ const DocumentCollaboration: React.FC<DocumentCollaborationProps> = ({
         setUploadProgress(0);
         if (fileInputRef.current) fileInputRef.current.value = '';
       } else {
-        showMessage(response.message || 'Failed to upload new version', true);
+        showMessage(responseData.message || 'Failed to upload new version', true);
+        setUploadProgress(0);
+        setUploadProgress(0);
       }
     } catch (error) {
       console.error('Failed to upload new version:', error);
