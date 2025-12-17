@@ -14,16 +14,49 @@ import {
   File,
   Send,
   AlignLeft,
+  Eye,
+  Download,
+  Loader2,
 } from "lucide-react";
 import {
   CurrentDocument,
   DocumentVersion,
   DocumentVersionChanges,
 } from "@/types/Document";
+import toast from "react-hot-toast";
+import axios from "@/api/axios";
+import Modal from "../ui/Modal";
+import { getToken } from "@/utils/token";
 
 interface DocumentVersionHistoryProps {
   document: CurrentDocument | null;
 }
+
+// Normalize filepath URL to use correct base URL
+const normalizeFilepathUrl = (filepath: string | null | undefined): string => {
+  if (!filepath) return '';
+  
+  // If already a full URL, check if it's localhost and replace with API base URL
+  if (filepath.startsWith('http://') || filepath.startsWith('https://')) {
+    // Check if it contains localhost
+    if (filepath.includes('localhost') || filepath.includes('127.0.0.1')) {
+      // Extract the path from the URL
+      const url = new URL(filepath);
+      const path = url.pathname + url.search + url.hash;
+      // Use API base URL instead
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+      return `${apiBaseUrl}${path}`;
+    }
+    // Already a valid full URL, return as is
+    return filepath;
+  }
+  
+  // If it's a relative path, prepend API base URL
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  // Ensure path starts with /
+  const normalizedPath = filepath.startsWith('/') ? filepath : `/${filepath}`;
+  return `${apiBaseUrl}${normalizedPath}`;
+};
 
 const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
   document,
@@ -34,6 +67,8 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
     null
   );
   const [showComparison, setShowComparison] = useState(false);
+  const [viewingVersion, setViewingVersion] = useState<DocumentVersion | null>(null);
+  const [isDownloading, setIsDownloading] = useState<number | null>(null);
 
   const allVersions = document?.versions || [];
   const currentVersion =
@@ -57,6 +92,120 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
 
     // Show success message
     alert(`Version ${selectedVersion.VersionNumber} will be restored`);
+  };
+
+  const handleViewVersion = (version: DocumentVersion, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    
+    if (!version.filepath && !document?.document[0]?.ID) {
+      toast.error('File not available for this version');
+      return;
+    }
+    
+    setViewingVersion(version);
+  };
+
+  const handleDownloadVersion = async (version: DocumentVersion, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+
+    if (!document?.document[0]?.ID) {
+      toast.error('Document ID not available');
+      return;
+    }
+
+    const documentId = document.document[0].ID;
+    setIsDownloading(version.ID);
+
+    try {
+      let fileUrl: string;
+      let fileName: string;
+
+      // Option 1: Use filepath if available
+      if (version.filepath) {
+        fileUrl = normalizeFilepathUrl(version.filepath);
+        // Extract filename from filepath or use version number
+        const pathParts = version.filepath.split('/');
+        fileName = pathParts[pathParts.length - 1] || `document_v${version.VersionNumber}`;
+      } else {
+        // Option 2: Use version file endpoint as fallback
+        fileUrl = `${import.meta.env.VITE_API_BASE_URL || ''}/documents/documents/${documentId}/versions/${version.ID}/file`;
+        fileName = `document_v${version.VersionNumber}`;
+      }
+
+      // Fetch the file with authentication
+      const token = getToken();
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(fileUrl, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      
+      // Determine file extension from blob type or filename
+      let extension = '';
+      if (blob.type) {
+        if (blob.type.includes('pdf')) extension = '.pdf';
+        else if (blob.type.includes('word')) extension = '.docx';
+        else if (blob.type.includes('excel') || blob.type.includes('spreadsheet')) extension = '.xlsx';
+        else if (blob.type.includes('image')) {
+          if (blob.type.includes('png')) extension = '.png';
+          else if (blob.type.includes('jpeg') || blob.type.includes('jpg')) extension = '.jpg';
+        }
+      }
+      
+      // If no extension from blob, try to get from filename
+      if (!extension && fileName.includes('.')) {
+        extension = fileName.substring(fileName.lastIndexOf('.'));
+      }
+      
+      // Ensure filename has extension
+      if (!fileName.includes('.')) {
+        fileName = `${fileName}${extension || '.pdf'}`;
+      }
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`Version ${version.VersionNumber} downloaded successfully`);
+    } catch (error: any) {
+      console.error('Failed to download version:', error);
+      toast.error(error?.message || 'Failed to download version file');
+    } finally {
+      setIsDownloading(null);
+    }
+  };
+
+  const getFileType = (filepath?: string): string => {
+    if (!filepath) return 'unknown';
+    
+    const lowerPath = filepath.toLowerCase();
+    if (lowerPath.endsWith('.pdf')) return 'pdf';
+    if (lowerPath.endsWith('.docx')) return 'docx';
+    if (lowerPath.endsWith('.doc')) return 'doc';
+    if (lowerPath.endsWith('.xlsx')) return 'xlsx';
+    if (lowerPath.endsWith('.xls')) return 'xls';
+    if (lowerPath.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) return 'image';
+    return 'unknown';
   };
 
   const formatDate = (dateString: string) => {
@@ -354,19 +503,36 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
             </h3>
           </div>
 
-          {/*
-
-          {!selectedVersion.IsCurrentVersion && (
-            <button
-              onClick={handleRestore}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
-            >
-              <RefreshCw size={16} />
-              Restore this Version
-            </button>
-          )} 
-           
-           */}
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            {selectedVersion.filepath || document?.document[0]?.ID ? (
+              <>
+                <button
+                  onClick={() => handleViewVersion(selectedVersion)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
+                >
+                  <Eye size={16} />
+                  View File
+                </button>
+                <button
+                  onClick={() => handleDownloadVersion(selectedVersion)}
+                  disabled={isDownloading === selectedVersion.ID}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm hover:shadow-md"
+                >
+                  {isDownloading === selectedVersion.ID ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Download size={16} />
+                  )}
+                  {isDownloading === selectedVersion.ID ? 'Downloading...' : 'Download'}
+                </button>
+              </>
+            ) : (
+              <div className="text-sm text-gray-500 italic">
+                File not available for this version
+              </div>
+            )}
+          </div>
            
         </div>
 
@@ -507,18 +673,34 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
 
                 {selectedVersion?.ID === version.ID && !compareVersion && (
                   <div className="mt-3 space-y-2">
-                    {/* {!version.IsCurrentVersion && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRestore();
-                        }}
-                        className="w-full text-xs bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
-                      >
-                        <RefreshCw size={12} />
-                        Restore
-                      </button>
-                    )} */}
+                    {/* View and Download buttons */}
+                    {version.filepath || document?.document[0]?.ID ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => handleViewVersion(version, e)}
+                          className="flex-1 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Eye size={12} />
+                          View
+                        </button>
+                        <button
+                          onClick={(e) => handleDownloadVersion(version, e)}
+                          disabled={isDownloading === version.ID}
+                          className="flex-1 text-xs bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
+                        >
+                          {isDownloading === version.ID ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Download size={12} />
+                          )}
+                          {isDownloading === version.ID ? 'Downloading...' : 'Download'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-500 text-center py-1">
+                        File not available
+                      </div>
+                    )}
 
                     {allVersions.length > 1 && (
                       <button
@@ -581,6 +763,90 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
           )}
         </div>
       </div>
+
+      {/* Version File Viewer Modal */}
+      {viewingVersion && (
+        <Modal isOpen={!!viewingVersion} onClose={() => setViewingVersion(null)}>
+          <div className="w-full h-full">
+            {(() => {
+              const fileType = getFileType(viewingVersion.filepath);
+              let fileUrl: string;
+
+              if (viewingVersion.filepath) {
+                fileUrl = normalizeFilepathUrl(viewingVersion.filepath);
+              } else if (document?.document[0]?.ID) {
+                fileUrl = `${import.meta.env.VITE_API_BASE_URL || ''}/documents/documents/${document.document[0].ID}/versions/${viewingVersion.ID}/file`;
+              } else {
+                return (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
+                    <FileText className="h-16 w-16 text-gray-400 mb-4" />
+                    <p className="text-lg font-semibold text-gray-900 mb-2">
+                      File Not Available
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      The file for version {viewingVersion.VersionNumber} is not available.
+                    </p>
+                  </div>
+                );
+              }
+
+              if (fileType === 'pdf') {
+                return (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <iframe
+                      src={`${fileUrl}#toolbar=1`}
+                      title={`Version ${viewingVersion.VersionNumber} Viewer`}
+                      className="w-full border-0 rounded-lg"
+                      style={{
+                        height: '85vh',
+                        minHeight: '600px',
+                        maxHeight: '85vh'
+                      }}
+                      onError={(e) => {
+                        console.error('PDF loading error:', e);
+                        toast.error('Failed to load PDF. Please try downloading the file instead.');
+                      }}
+                    />
+                  </div>
+                );
+              } else if (fileType === 'image') {
+                return (
+                  <div className="w-full h-full flex items-center justify-center p-4">
+                    <img
+                      src={fileUrl}
+                      alt={`Version ${viewingVersion.VersionNumber}`}
+                      className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-lg"
+                      onError={(e) => {
+                        console.error('Image loading error:', e);
+                        toast.error('Failed to load image.');
+                      }}
+                    />
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
+                    <FileText className="h-16 w-16 text-gray-400 mb-4" />
+                    <p className="text-lg font-semibold text-gray-900 mb-2">
+                      Preview Not Available
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      This file type cannot be previewed in the browser. Please download the file to view it.
+                    </p>
+                    <button
+                      onClick={() => handleDownloadVersion(viewingVersion)}
+                      className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Version {viewingVersion.VersionNumber}
+                    </button>
+                  </div>
+                );
+              }
+            })()}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

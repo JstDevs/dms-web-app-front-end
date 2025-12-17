@@ -87,6 +87,7 @@ export interface DocumentVersion {
   ModifiedBy: string;
   IsCurrentVersion: boolean;
   Active: boolean;
+  filepath?: string; // File path for this version (optional for backward compatibility)
 }
 
 export interface Collaborator {
