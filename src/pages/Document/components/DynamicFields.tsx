@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/Input';
 import { FieldAllocation } from '../utils/fieldAllocationService';
 import { Calendar, FileText, AlertCircle, Scan } from 'lucide-react';
@@ -19,13 +19,24 @@ export const DynamicField: React.FC<DynamicFieldProps> = ({
   required = false,
   onScanField,
 }) => {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onChange(e.target.value);
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
   };
+
+  // Auto-grow textarea for text fields
+  useEffect(() => {
+    if (field.Type !== 'date' && textareaRef.current) {
+      const textarea = textareaRef.current;
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [value, field.Type]);
 
   if (field.Type === 'date') {
     return (
@@ -69,15 +80,15 @@ export const DynamicField: React.FC<DynamicFieldProps> = ({
       </label>
       <div className="relative w-full flex gap-2">
         <div className="relative flex-1">
-          <Input
-            type="text"
-            className="w-full pl-12 pr-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+          <textarea
+            ref={textareaRef}
+            className="w-full pl-4 pr-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+            rows={1}
             value={value || ''}
             onChange={handleChange}
             required={required}
             placeholder={`Enter ${field.Field.toLowerCase()}`}
           />
-          <FileText className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
         </div>
         {onScanField && (
           <Button
