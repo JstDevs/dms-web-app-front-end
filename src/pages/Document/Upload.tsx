@@ -545,8 +545,8 @@ export default function DocumentUpload() {
         </div>
       </header>
 
-      {/* Main Content: Side-by-Side Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Main Content: Side-by-Side Layout - Preview takes more space for better visibility */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left Column: Form Fields */}
         <div className="lg:col-span-2 space-y-6">
           {/* Form Section */}
@@ -1103,31 +1103,32 @@ export default function DocumentUpload() {
       </Card>
         </div>
 
-        {/* Right Column: Document Preview - Sticky on desktop, normal on mobile */}
-        <div className="lg:col-span-1">
-          <Card className="shadow-lg border-0 lg:sticky lg:top-6 h-fit">
-            <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-600 rounded-lg">
-                  <FileText className="w-5 h-5 text-white" />
+        {/* Right Column: Document Preview - Sticky on desktop, normal on mobile - Made larger for better visibility */}
+        <div className="lg:col-span-3">
+          <div className="lg:sticky lg:top-6" style={{ height: 'calc(100vh - 3rem)', maxHeight: 'calc(100vh - 3rem)' }}>
+            <Card className="shadow-lg border-0 flex flex-col h-full">
+              <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-600 rounded-lg">
+                    <FileText className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-800">Document Preview</CardTitle>
+                    <p className="text-sm text-gray-600 mt-1">View your document while filling the form</p>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-xl text-gray-800">Document Preview</CardTitle>
-                  <p className="text-sm text-gray-600 mt-1">View your document while filling the form</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
+              </CardHeader>
+              <div className="p-4 flex flex-col flex-1 min-h-0" style={{ minHeight: '600px' }}>
               {selectedFile ? (
-                <div className="space-y-4">
-                  {/* File Info */}
-                  <div className="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm border border-gray-200">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                        <FileIcon className="w-5 h-5 text-blue-600" />
+                <div className="flex flex-col h-full space-y-3">
+                  {/* File Info - Compact */}
+                  <div className="flex items-center justify-between bg-white rounded-lg p-2 shadow-sm border border-gray-200 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="p-1.5 bg-blue-100 rounded-lg flex-shrink-0">
+                        <FileIcon className="w-4 h-4 text-blue-600" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{selectedFile.name}</p>
+                        <p className="text-xs font-semibold text-gray-800 truncate">{selectedFile.name}</p>
                         <p className="text-xs text-gray-500">
                           {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                         </p>
@@ -1135,26 +1136,25 @@ export default function DocumentUpload() {
                     </div>
                   </div>
 
-                  {/* Document Preview */}
-                  <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 shadow-lg bg-white">
+                  {/* Document Preview - Takes up remaining space, made larger */}
+                  <div className="relative flex-1 rounded-lg overflow-hidden border-2 border-gray-200 shadow-lg bg-gray-50 min-h-0">
                     {selectedFile.type.startsWith('image/') ? (
-                      <div className="relative w-full">
+                      <div className="w-full h-full flex items-center justify-center p-2 bg-white">
                         <img
                           src={URL.createObjectURL(selectedFile)}
                           alt="Preview"
-                          className="w-full h-auto max-h-[70vh] object-contain"
+                          className="max-w-full max-h-full object-contain"
                         />
                       </div>
                     ) : selectedFile.type === 'application/pdf' ? (
-                      <div className="relative w-full" style={{ height: '70vh' }}>
-                        <iframe
-                          src={URL.createObjectURL(selectedFile)}
-                          title="PDF Preview"
-                          className="w-full h-full border-0"
-                        />
-                      </div>
+                      <iframe
+                        src={URL.createObjectURL(selectedFile)}
+                        title="PDF Preview"
+                        className="w-full h-full border-0"
+                        style={{ height: '100%', minHeight: '100%' }}
+                      />
                     ) : (
-                      <div className="flex flex-col items-center justify-center p-12 bg-gray-50">
+                      <div className="flex flex-col items-center justify-center h-full p-12 bg-white">
                         <FileText className="w-16 h-16 text-gray-400 mb-4" />
                         <p className="text-gray-600 font-medium">Preview not available</p>
                         <p className="text-sm text-gray-500 mt-1">File type: {selectedFile.type}</p>
@@ -1163,7 +1163,7 @@ export default function DocumentUpload() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-16 px-6 text-center bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="flex flex-col items-center justify-center h-full px-6 text-center bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg border-2 border-dashed border-gray-300">
                   <div className="p-4 bg-blue-100 rounded-full mb-4">
                     <FileText className="w-12 h-12 text-blue-600" />
                   </div>
@@ -1173,8 +1173,9 @@ export default function DocumentUpload() {
                   </p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
 
