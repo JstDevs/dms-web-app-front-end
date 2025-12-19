@@ -46,6 +46,8 @@ export async function editDocument(payload: FormData) {
 }
 
 export async function deleteDocument(id: number) {
-  const response = await axios.delete(`/documents/delete/${id}`);
+  const response = await axios.delete(`/documents/delete/${id}`, {
+    timeout: 30000, // 30 second timeout to prevent hanging
+  });
   return response.data;
 }

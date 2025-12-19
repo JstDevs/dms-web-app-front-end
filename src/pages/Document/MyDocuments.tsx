@@ -83,6 +83,7 @@ const MyDocuments: React.FC = () => {
   const [filterLoading, setFilterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("")
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const ITEMS_PER_PAGE = 15;
   
   // Fetch allocation permissions for applied department/subdepartment
@@ -663,6 +664,14 @@ const MyDocuments: React.FC = () => {
 
   // Delete handler - must be defined before documentCards useMemo
   const handleDelete = useCallback(async (documentId: string) => {
+    // Prevent multiple simultaneous deletions
+    if (deletingDocumentId) {
+      return;
+    }
+
+    setDeletingDocumentId(documentId);
+    const deleteToastId = toast.loading('Deleting document...');
+
     try {
       const documentToDelete = filteredDocs.find(
         (doc: any) => doc.newdoc?.ID?.toString() === documentId.toString()
@@ -686,17 +695,33 @@ const MyDocuments: React.FC = () => {
         }
       }
 
-      toast.success('Document deleted successfully');
+      toast.success('Document deleted successfully', { id: deleteToastId });
       
       // Refresh document list
       await loadDocuments();
     } catch (error: any) {
       console.error('Failed to delete document:', error);
-      toast.error(
-        error?.response?.data?.error || 'Failed to delete document. Please try again.'
-      );
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to delete document. Please try again.';
+      
+      if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+        errorMessage = 'Delete request timed out. The server may be slow. Please try again.';
+      } else if (error?.response?.status === 500) {
+        errorMessage = error?.response?.data?.error || 'Server error occurred. Please contact support if the problem persists.';
+      } else if (error?.response?.status === 404) {
+        errorMessage = 'Document not found. It may have already been deleted.';
+      } else if (error?.response?.status === 403) {
+        errorMessage = 'You do not have permission to delete this document.';
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
+      toast.error(errorMessage, { id: deleteToastId });
+    } finally {
+      setDeletingDocumentId(null);
     }
-  }, [filteredDocs, user, loadDocuments]);
+  }, [filteredDocs, user, loadDocuments, deletingDocumentId]);
 
   // Calculate pagination based on filtered documents
   const totalFilteredItems = filteredDocs.length;
