@@ -520,26 +520,26 @@ export default function DocumentUpload() {
     setPreselectedFieldForOcr(null);
   };
 
-  // Check if file is OCR-compatible
-  const isOcrCompatible = (file: File | null): boolean => {
-    // Auto-grow textareas
-    useEffect(() => {
-      const adjustTextareaHeight = (textarea: HTMLTextAreaElement) => {
-        textarea.style.height = 'auto';
-        textarea.style.height = `${textarea.scrollHeight}px`;
-      };
+  // Auto-grow textareas - moved to top level to follow Rules of Hooks
+  useEffect(() => {
+    const adjustTextareaHeight = (textarea: HTMLTextAreaElement) => {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    };
 
-      if (fileDescriptionRef.current) {
-        adjustTextareaHeight(fileDescriptionRef.current);
-      }
-      if (descriptionRef.current) {
-        adjustTextareaHeight(descriptionRef.current);
-      }
-      if (remarksRef.current) {
-        adjustTextareaHeight(remarksRef.current);
-      }
-    }, [newDoc.FileDescription, newDoc.Description, newDoc.Remarks]);
-    
+    if (fileDescriptionRef.current) {
+      adjustTextareaHeight(fileDescriptionRef.current);
+    }
+    if (descriptionRef.current) {
+      adjustTextareaHeight(descriptionRef.current);
+    }
+    if (remarksRef.current) {
+      adjustTextareaHeight(remarksRef.current);
+    }
+  }, [newDoc.FileDescription, newDoc.Description, newDoc.Remarks]);
+
+  // Check if file is OCR-compatible - simple utility function without hooks
+  const isOcrCompatible = (file: File | null): boolean => {
     if (!file) return false;
     const ocrTypes = ['image/png', 'image/jpeg', 'application/pdf'];
     return ocrTypes.includes(file.type);
