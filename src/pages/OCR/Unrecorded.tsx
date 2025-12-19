@@ -62,8 +62,12 @@ const OCRUnrecordedUI = () => {
     isPreviewing: false,
     searchTerm: '',
   });
-  
+
   const imgRef = useRef<HTMLImageElement>(null);
+
+  // Local preview state for selected document (supports image/PDF + DataImage buffers)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPdfPreview, setIsPdfPreview] = useState(false);
 
   const {
     departmentOptions,
@@ -265,20 +269,27 @@ const OCRUnrecordedUI = () => {
       toast.error('Please select a document to preview');
       return;
     }
-    
-    setProcessingState(prev => ({ ...prev, isPreviewing: true }));
-    
+
+    setProcessingState((prev) => ({ ...prev, isPreviewing: true }));
+
     try {
       const res = await fetchDocument(formData.selectedDoc.ID.toString());
       console.log(res, 'handlePreviewDoc');
+      if (!res) {
+        toast.error('Unable to load document details for preview');
+        return;
+      }
       setCurrentUnrecordedDocument(res);
       toast.success('Document preview loaded');
     } catch (error: any) {
       console.error('Failed to preview document:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to load document preview';
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to load document preview';
       toast.error(`Failed to preview document: ${errorMessage}`);
     } finally {
-      setProcessingState(prev => ({ ...prev, isPreviewing: false }));
+      setProcessingState((prev) => ({ ...prev, isPreviewing: false }));
     }
   };
 
@@ -286,6 +297,118 @@ const OCRUnrecordedUI = () => {
     formData.department === formData.lastFetchedValues?.department &&
     formData.subdepartment === formData.lastFetchedValues?.subdepartment &&
     formData.template === formData.lastFetchedValues?.template;
+
+  /**
+   * Helpers to normalize backend file paths to a URL that is reachable
+   * from the frontend (similar logic as Restriction `DocumentPreview`).
+   * This fixes cases where the API returns a relative path or localhost URL.
+   */
+  const getApiBaseOrigin = () => {
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
+      return apiBase ? new URL(apiBase).origin : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const normalizeFileUrl = (rawPath: string) => {
+    let normalized = rawPath;
+
+    // If backend sent a relative path, prefix with API base (if available)
+    if (!/^https?:\/\//i.test(normalized)) {
+      const apiOrigin = getApiBaseOrigin();
+      if (apiOrigin) {
+        normalized = `${apiOrigin}${normalized.startsWith('/') ? '' : '/'}${normalized}`;
+      }
+      return normalized;
+    }
+
+    // If URL uses localhost/127.0.0.1, swap origin to API base or current page origin
+    const isLocalHost =
+      normalized.includes('://localhost') || normalized.includes('://127.0.0.1');
+    if (isLocalHost) {
+      try {
+        const apiOrigin = getApiBaseOrigin() || window.location.origin;
+        const url = new URL(normalized);
+        const target = new URL(apiOrigin);
+        url.protocol = target.protocol;
+        url.host = target.host;
+        normalized = url.toString();
+      } catch {
+        // keep original if parsing fails
+      }
+    }
+
+    return normalized;
+  };
+
+  /**
+   * Build a local preview URL whenever the analytics document changes.
+   * Supports:
+   * - In-memory image buffers via `DataImage`
+   * - File paths for images and PDFs (normalized for API host)
+   */
+  useEffect(() => {
+    let objectUrl: string | null = null;
+
+    const buildPreview = () => {
+      const docInfo = currentUnrecoredDocument?.document?.[0];
+      if (!docInfo) {
+        setPreviewUrl(null);
+        setIsPdfPreview(false);
+        return;
+      }
+
+      const filePath = docInfo.filepath;
+      const hasDataImage = Boolean(docInfo.DataImage?.data?.length);
+      const isPdf =
+        (filePath && filePath.toLowerCase().endsWith('.pdf')) ||
+        docInfo.DataType?.toLowerCase() === 'application/pdf';
+
+      // Prefer DataImage if available (this is what backend sends for some docs)
+      if (hasDataImage && docInfo.DataImage?.data) {
+        try {
+          const bytes = new Uint8Array(docInfo.DataImage.data);
+          const blob = new Blob([bytes], {
+            type: docInfo.DataImage.type || 'image/png',
+          });
+          objectUrl = URL.createObjectURL(blob);
+          setPreviewUrl(objectUrl);
+          setIsPdfPreview(false);
+          return;
+        } catch (err) {
+          console.error('Failed to build image from DataImage buffer:', err);
+          setPreviewUrl(null);
+          setIsPdfPreview(false);
+          return;
+        }
+      }
+
+      if (filePath) {
+        const normalizedPath = normalizeFileUrl(
+          filePath.startsWith('http') || filePath.startsWith('/')
+            ? filePath
+            : `/${filePath}`
+        );
+        setPreviewUrl(normalizedPath);
+        setIsPdfPreview(isPdf);
+        return;
+      }
+
+      // Fallback – nothing usable for preview
+      setPreviewUrl(null);
+      setIsPdfPreview(false);
+    };
+
+    buildPreview();
+
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [currentUnrecoredDocument]);
 
   if (loadingDepartments) {
     return <div>Loading departments...</div>;
@@ -498,16 +621,24 @@ const OCRUnrecordedUI = () => {
         {/* Right Panel - Document Preview */}
         <div className="w-full lg:w-1/2 p-2 sm:p-4 bg-white">
           {formData.selectedDoc ? (
-            currentUnrecoredDocument?.document[0]?.filepath ? (
+            previewUrl ? (
               <div className="w-full max-h-[60vh] overflow-auto border rounded-md bg-gray-50">
                 <div className="relative">
-                  <img
-                    ref={imgRef}
-                    src={currentUnrecoredDocument?.document[0]?.filepath || ''}
-                    alt="Document Preview"
-                    className="block w-full h-auto"
-                    draggable={false}
-                  />
+                  {isPdfPreview ? (
+                    <iframe
+                      src={previewUrl}
+                      title="Document Preview"
+                      className="block w-full h-[60vh] border-0"
+                    />
+                  ) : (
+                    <img
+                      ref={imgRef}
+                      src={previewUrl}
+                      alt="Document Preview"
+                      className="block w-full h-auto"
+                      draggable={false}
+                    />
+                  )}
                   <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
                     {formData.selectedDoc.FileName}
                   </div>
