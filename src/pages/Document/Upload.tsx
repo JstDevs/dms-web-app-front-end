@@ -93,7 +93,7 @@ export default function DocumentUpload() {
     useNestedDepartmentOptions();
   const { selectedRole, user } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   // Fetch allocation permissions for selected department/subdepartment
   const { permissions: allocationPermissions } = useAllocationPermissions({
     departmentId: newDoc.DepartmentId || null,
@@ -103,7 +103,7 @@ export default function DocumentUpload() {
 
   const hasSelectedContext = Boolean(newDoc.DepartmentId && newDoc.SubDepartmentId);
   const canUploadAttachment = hasSelectedContext && allocationPermissions.Add;
-  
+
   // Field allocations hook - don't pass userId to always show all active fields from allocation
   const {
     userPermissions,
@@ -164,7 +164,7 @@ export default function DocumentUpload() {
       toast.error('You do not have permission to upload documents in this department and document type.');
       return;
     }
-    
+
     // console.log({ newDoc, selectedFile });
     setIsLoading(true);
     setUploadProgress(0);
@@ -173,24 +173,24 @@ export default function DocumentUpload() {
       // Backend expects field values in Text1-10 or Date1-10 format based on FieldNumber
       const dynamicFieldsData: { [key: string]: any } = {};
       const activeFields = getActiveFields();
-      
+
       Object.entries(dynamicFieldValues).forEach(([key, value]) => {
         if (value !== null && value !== '' && value.trim() !== '') {
           // Extract field ID from key (format: field_123)
           const fieldId = Number(key.replace('field_', ''));
-          
+
           // Find the field from active fields to get its type and FieldNumber
           const field = activeFields.find(f => f.ID === fieldId);
-          
+
           if (field) {
             // Map field ID to column name based on FieldNumber
             // The backend expects fields in format: text1, text2, date1, date2, etc.
             // FieldNumber corresponds to the column number (1-10)
             const fieldNumber = field.FieldNumber || field.ID;
-            
+
             // Ensure fieldNumber is between 1-10 (database columns limit)
             const columnNumber = ((fieldNumber - 1) % 10) + 1;
-            
+
             if (field.Type === 'date' || field.Type === 'Date') {
               // Format date properly for backend (YYYY-MM-DD)
               const dateValue = value ? new Date(value).toISOString().slice(0, 10) : '';
@@ -216,15 +216,15 @@ export default function DocumentUpload() {
         const formattedKey = key.charAt(0).toUpperCase() + key.slice(1);
         (docWithFields as any)[formattedKey] = value;
       });
-      
+
       // Don't pass dynamicFields separately since we've merged them into docWithFields
       // This prevents duplicate appending which causes the "cannot be an array" error
       const formData = buildDocumentFormData(docWithFields, selectedFile, true, undefined, undefined);
-      
+
       // Debug: Log what we're sending
       console.log('Dynamic fields data being sent:', dynamicFieldsData);
       console.log('Active fields:', activeFields);
-      
+
       // Log FormData entries for debugging
       console.log('FormData entries (fields):');
       for (const [key, value] of formData.entries()) {
@@ -233,7 +233,7 @@ export default function DocumentUpload() {
         }
       }
       console.log('Doc with fields:', docWithFields);
-      
+
       // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
@@ -248,7 +248,7 @@ export default function DocumentUpload() {
       const response = await uploadFile(formData);
       clearInterval(progressInterval);
       setUploadProgress(100);
-      
+
       if (response.status) {
         // Log document creation activity
         try {
@@ -263,7 +263,7 @@ export default function DocumentUpload() {
         } catch (logError) {
           console.warn('Failed to log document creation activity:', logError);
         }
-        
+
         toast.success('Document Added Successfully');
         await loadDocuments();
       } else {
@@ -305,7 +305,7 @@ export default function DocumentUpload() {
         } catch (logError) {
           console.warn('Failed to log document update activity:', logError);
         }
-        
+
         await loadDocuments();
         toast.success('Document Updated Successfully');
       } else {
@@ -377,7 +377,7 @@ export default function DocumentUpload() {
     try {
       const documentToDelete = documents.find(d => d.newdoc.ID === id);
       await deleteDocument(id);
-      
+
       // Log document deletion activity
       if (documentToDelete) {
         try {
@@ -393,7 +393,7 @@ export default function DocumentUpload() {
           console.warn('Failed to log document deletion activity:', logError);
         }
       }
-      
+
       toast.success('Document deleted successfully');
       setDocuments((prev) => prev.filter((d) => d.newdoc.ID !== id));
     } catch (error) {
@@ -420,24 +420,24 @@ export default function DocumentUpload() {
       newDoc.FileDescription &&
       newDoc.FileDate &&
       newDoc.FileName;
-    
+
     // Use allocation permissions instead of module permissions
     const hasPermission = allocationPermissions.Add === true;
-    
+
     if (!baseValidation || !hasPermission) {
       return false;
     }
-    
+
     // For edit mode, don't require file
     if (editId) {
       return true; // Basic validation passed, permissions OK
     }
-    
+
     // For add mode, require file
     if (!selectedFile) {
       return false;
     }
-    
+
     // Check required dynamic fields - only check if there are active fields
     // and only validate fields that are explicitly marked as required
     const activeFields = getActiveFields();
@@ -455,7 +455,7 @@ export default function DocumentUpload() {
         }
       }
     }
-    
+
     return true;
   };
 
@@ -504,6 +504,11 @@ export default function DocumentUpload() {
       ...prev,
       [`field_${fieldId}`]: value
     }));
+
+    // If field is cleared, also remove from OCR applied fields list to allow re-scanning
+    if (!value || value.trim() === '') {
+      setOcrAppliedFields(prev => prev.filter(entry => entry.fieldId !== fieldId));
+    }
   };
 
   const handleOcrApplyToField = (fieldId: number, text: string) => {
@@ -587,556 +592,548 @@ export default function DocumentUpload() {
         <div className="lg:col-span-2 space-y-6">
           {/* Form Section */}
           <Card className="shadow-lg border-0 overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <CardTitle className="text-xl text-gray-800">Document Information</CardTitle>
-              <p className="text-sm text-gray-600 mt-1">Fill in the required details for your document</p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="space-y-6">
-            <div className="grid sm:grid-cols-2 gap-6 text-black">
-              {/* Department */}
-              <div className="col-span-1 space-y-2">
-                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
-                  <Building2 className="w-4 h-4 text-blue-600" />
-                  Department <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Select
-                    placeholder="Select a department"
-                    value={newDoc.DepartmentId?.toString() || ''}
-                    onChange={(e) => {
-                      const deptId = Number(e.target.value);
-                      setNewDoc({
-                        ...newDoc,
-                        DepartmentId: deptId,
-                        SubDepartmentId: 0, // Reset document type when department changes
-                      });
-                    }}
-                    options={departmentOptions}
-                    disabled={loading}
-                  />
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-600 rounded-lg">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl text-gray-800">Document Information</CardTitle>
+                  <p className="text-sm text-gray-600 mt-1">Fill in the required details for your document</p>
                 </div>
               </div>
-
-              {/* Document Type */}
-              <div className="col-span-1 space-y-2">
-                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
-                  <FolderOpen className="w-4 h-4 text-blue-600" />
-                  Document Type <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Select
-                    placeholder={
-                      !newDoc.DepartmentId
-                        ? 'Select a Department First'
-                        : getSubDepartmentOptions(newDoc.DepartmentId).length === 0
-                        ? 'No Document Types Available'
-                        : 'Select a Document Type'
-                    }
-                    value={newDoc.SubDepartmentId?.toString() || ''}
-                    onChange={(e) =>
-                      setNewDoc({
-                        ...newDoc,
-                        SubDepartmentId: Number(e.target.value),
-                      })
-                    }
-                    options={getSubDepartmentOptions(newDoc.DepartmentId || 0)}
-                    disabled={!newDoc.DepartmentId || loading}
-                  />
-                </div>
-              </div>
-
-              {/* File Description */}
-              <div className="col-span-1 space-y-2">
-                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  File Description <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  className="w-full"
-                  value={newDoc.FileDescription || ''}
-                  onChange={(e) =>
-                    setNewDoc({ ...newDoc, FileDescription: e.target.value })
-                  }
-                  required
-                  placeholder="Enter file description"
-                  icon={<FileText className="w-4 h-4" />}
-                />
-              </div>
-
-              {/* File Date */}
-              <div className="col-span-1 space-y-2">
-                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  File Date <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="date"
-                  value={formatDateForInput(newDoc.FileDate || '')}
-                  onChange={(e) => {
-                    const date = e.target.value ? new Date(e.target.value) : null;
-                    setNewDoc({
-                      ...newDoc,
-                      FileDate: date ? date.toISOString() : undefined,
-                    });
-                  }}
-                  icon={<Calendar className="w-4 h-4" />}
-                />
-              </div>
-
-              {/* File Name */}
-              <div className="col-span-1 space-y-2">
-                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
-                  <FileIcon className="w-4 h-4 text-blue-600" />
-                  File Name <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  className="w-full"
-                  value={newDoc.FileName || ''}
-                  onChange={(e) =>
-                    setNewDoc({ ...newDoc, FileName: e.target.value })
-                  }
-                  required
-                  placeholder="Enter file name"
-                  icon={<FileIcon className="w-4 h-4" />}
-                />
-              </div>
-
-              {/* Description */}
-              <div className="col-span-1 space-y-2">
-                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
-                  <MessageSquare className="w-4 h-4 text-blue-600" />
-                  Description
-                </label>
-                <Input
-                  className="w-full"
-                  value={newDoc.Description || ''}
-                  onChange={(e) =>
-                    setNewDoc({ ...newDoc, Description: e.target.value })
-                  }
-                  placeholder="Enter description"
-                  icon={<MessageSquare className="w-4 h-4" />}
-                />
-              </div>
-              
-              {/* Remarks */}
-              <div className="col-span-1 sm:col-span-2 space-y-2">
-                <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
-                  <MessageSquare className="w-4 h-4 text-blue-600" />
-                  Remarks
-                </label>
-                <textarea
-                  className="w-full border border-gray-300 rounded-lg p-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
-                  rows={3}
-                  value={newDoc.Remarks || ''}
-                  onChange={(e) =>
-                    setNewDoc({ ...newDoc, Remarks: e.target.value })
-                  }
-                  placeholder="Enter remarks or additional notes..."
-                ></textarea>
-              </div>
-
-              {/* Attachment - Simplified for side-by-side layout */}
-              {!editId && (
-                <div className="col-span-1 sm:col-span-2 space-y-2">
-                  <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
-                    <UploadCloud className="w-4 h-4 text-blue-600" />
-                    Attachment <span className="text-red-500">*</span>
-                  </label>
-                  {!selectedFile ? (
-                    // Enhanced Dropzone UI
-                    <div
-                      className={`mt-1 border-2 border-dashed rounded-xl transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 ${
-                        canUploadAttachment
-                          ? 'cursor-pointer border-gray-300 hover:border-blue-500 hover:shadow-lg'
-                          : 'cursor-not-allowed border-gray-200 text-gray-400'
-                      }`}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (!canUploadAttachment) return;
-                        e.currentTarget.classList.add(
-                          'border-blue-500',
-                          'bg-blue-100',
-                          'shadow-xl',
-                          'scale-[1.02]'
-                        );
-                      }}
-                      onDragLeave={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (!canUploadAttachment) return;
-                        e.currentTarget.classList.remove(
-                          'border-blue-500',
-                          'bg-blue-100',
-                          'shadow-xl',
-                          'scale-[1.02]'
-                        );
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (!canUploadAttachment) return;
-                        e.currentTarget.classList.remove(
-                          'border-blue-500',
-                          'bg-blue-100',
-                          'shadow-xl',
-                          'scale-[1.02]'
-                        );
-
-                        if (e.dataTransfer.files?.length) {
-                          const file = e.dataTransfer.files[0];
-                          setSelectedFile(file);
-                          if (fileInputRef.current) {
-                            fileInputRef.current.files = e.dataTransfer.files; // keep input in sync
-                          }
-                        }
-                      }}
-                      onClick={canUploadAttachment ? () => fileInputRef.current?.click() : undefined}
-                    >
-                      {!hasSelectedContext ? (
-                        <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-                          <AlertCircle className="w-10 h-10 text-gray-400 mb-3" />
-                          <p className="text-base font-medium text-gray-600">
-                            Please select a department and document type first
-                          </p>
-                        </div>
-                      ) : !allocationPermissions.Add ? (
-                        <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-                          <AlertCircle className="w-10 h-10 text-yellow-500 mb-3" />
-                          <p className="text-base font-medium text-gray-600">
-                            You do not have permission to upload documents in this department and document type.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-12 px-6">
-                          <div className="relative mb-6">
-                            <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
-                            <div className="relative p-4 bg-blue-600 rounded-full">
-                              <UploadCloud className="w-10 h-10 text-white" />
-                            </div>
-                          </div>
-                          <p className="mb-2 text-base font-semibold text-gray-700">
-                            <span className="text-blue-600">Click to upload</span> or drag and drop
-                          </p>
-                          <p className="text-sm text-gray-500 flex items-center gap-2">
-                            <FileIcon className="w-4 h-4" />
-                            PNG, JPEG, PDF, DOCX, XLSX, TXT (Max 50MB)
-                          </p>
-                        </div>
-                      )}
-                      <input
-                        type="file"
-                        className="hidden"
-                        ref={fileInputRef}
-                        onChange={handleAttach}
-                        accept=".png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,image/png,image/jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
-                        required
-                        disabled={!canUploadAttachment}
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                <div className="grid sm:grid-cols-2 gap-6 text-black">
+                  {/* Department */}
+                  <div className="col-span-1 space-y-2">
+                    <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                      <Building2 className="w-4 h-4 text-blue-600" />
+                      Department <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Select
+                        placeholder="Select a department"
+                        value={newDoc.DepartmentId?.toString() || ''}
+                        onChange={(e) => {
+                          const deptId = Number(e.target.value);
+                          setNewDoc({
+                            ...newDoc,
+                            DepartmentId: deptId,
+                            SubDepartmentId: 0, // Reset document type when department changes
+                          });
+                        }}
+                        options={departmentOptions}
+                        disabled={loading}
                       />
                     </div>
-                  ) : (
-                    // File Info Card (Preview moved to right column)
-                    <div className="flex flex-col gap-4 mt-2 border-2 border-blue-200 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md">
-                      <div className="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <FileIcon className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-gray-800">{selectedFile.name}</p>
-                            <p className="text-xs text-gray-500">
-                              {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleRemoveFile}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Remove file"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
+                  </div>
 
-                      {/* OCR Button */}
-                      {isOcrCompatible(selectedFile) && (
-                        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                          <div className="flex items-center justify-between">
+                  {/* Document Type */}
+                  <div className="col-span-1 space-y-2">
+                    <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                      <FolderOpen className="w-4 h-4 text-blue-600" />
+                      Document Type <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Select
+                        placeholder={
+                          !newDoc.DepartmentId
+                            ? 'Select a Department First'
+                            : getSubDepartmentOptions(newDoc.DepartmentId).length === 0
+                              ? 'No Document Types Available'
+                              : 'Select a Document Type'
+                        }
+                        value={newDoc.SubDepartmentId?.toString() || ''}
+                        onChange={(e) =>
+                          setNewDoc({
+                            ...newDoc,
+                            SubDepartmentId: Number(e.target.value),
+                          })
+                        }
+                        options={getSubDepartmentOptions(newDoc.DepartmentId || 0)}
+                        disabled={!newDoc.DepartmentId || loading}
+                      />
+                    </div>
+                  </div>
+
+                  {/* File Description */}
+                  <div className="col-span-1 space-y-2">
+                    <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                      File Description <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      className="w-full"
+                      value={newDoc.FileDescription || ''}
+                      onChange={(e) =>
+                        setNewDoc({ ...newDoc, FileDescription: e.target.value })
+                      }
+                      required
+                      placeholder="Enter file description"
+                      icon={<FileText className="w-4 h-4" />}
+                    />
+                  </div>
+
+                  {/* File Date */}
+                  <div className="col-span-1 space-y-2">
+                    <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      File Date <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      type="date"
+                      value={formatDateForInput(newDoc.FileDate || '')}
+                      onChange={(e) => {
+                        const date = e.target.value ? new Date(e.target.value) : null;
+                        setNewDoc({
+                          ...newDoc,
+                          FileDate: date ? date.toISOString() : undefined,
+                        });
+                      }}
+                      icon={<Calendar className="w-4 h-4" />}
+                    />
+                  </div>
+
+                  {/* File Name */}
+                  <div className="col-span-1 space-y-2">
+                    <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                      <FileIcon className="w-4 h-4 text-blue-600" />
+                      File Name <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      className="w-full"
+                      value={newDoc.FileName || ''}
+                      onChange={(e) =>
+                        setNewDoc({ ...newDoc, FileName: e.target.value })
+                      }
+                      required
+                      placeholder="Enter file name"
+                      icon={<FileIcon className="w-4 h-4" />}
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div className="col-span-1 space-y-2">
+                    <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                      <MessageSquare className="w-4 h-4 text-blue-600" />
+                      Description
+                    </label>
+                    <Input
+                      className="w-full"
+                      value={newDoc.Description || ''}
+                      onChange={(e) =>
+                        setNewDoc({ ...newDoc, Description: e.target.value })
+                      }
+                      placeholder="Enter description"
+                      icon={<MessageSquare className="w-4 h-4" />}
+                    />
+                  </div>
+
+                  {/* Remarks */}
+                  <div className="col-span-1 sm:col-span-2 space-y-2">
+                    <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                      <MessageSquare className="w-4 h-4 text-blue-600" />
+                      Remarks
+                    </label>
+                    <textarea
+                      className="w-full border border-gray-300 rounded-lg p-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                      rows={3}
+                      value={newDoc.Remarks || ''}
+                      onChange={(e) =>
+                        setNewDoc({ ...newDoc, Remarks: e.target.value })
+                      }
+                      placeholder="Enter remarks or additional notes..."
+                    ></textarea>
+                  </div>
+
+                  {/* Attachment - Simplified for side-by-side layout */}
+                  {!editId && (
+                    <div className="col-span-1 sm:col-span-2 space-y-2">
+                      <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                        <UploadCloud className="w-4 h-4 text-blue-600" />
+                        Attachment <span className="text-red-500">*</span>
+                      </label>
+                      {!selectedFile ? (
+                        // Enhanced Dropzone UI
+                        <div
+                          className={`mt-1 border-2 border-dashed rounded-xl transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 ${canUploadAttachment
+                              ? 'cursor-pointer border-gray-300 hover:border-blue-500 hover:shadow-lg'
+                              : 'cursor-not-allowed border-gray-200 text-gray-400'
+                            }`}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!canUploadAttachment) return;
+                            e.currentTarget.classList.add(
+                              'border-blue-500',
+                              'bg-blue-100',
+                              'shadow-xl',
+                              'scale-[1.02]'
+                            );
+                          }}
+                          onDragLeave={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!canUploadAttachment) return;
+                            e.currentTarget.classList.remove(
+                              'border-blue-500',
+                              'bg-blue-100',
+                              'shadow-xl',
+                              'scale-[1.02]'
+                            );
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!canUploadAttachment) return;
+                            e.currentTarget.classList.remove(
+                              'border-blue-500',
+                              'bg-blue-100',
+                              'shadow-xl',
+                              'scale-[1.02]'
+                            );
+
+                            if (e.dataTransfer.files?.length) {
+                              const file = e.dataTransfer.files[0];
+                              setSelectedFile(file);
+                              if (fileInputRef.current) {
+                                fileInputRef.current.files = e.dataTransfer.files; // keep input in sync
+                              }
+                            }
+                          }}
+                          onClick={canUploadAttachment ? () => fileInputRef.current?.click() : undefined}
+                        >
+                          {!hasSelectedContext ? (
+                            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                              <AlertCircle className="w-10 h-10 text-gray-400 mb-3" />
+                              <p className="text-base font-medium text-gray-600">
+                                Please select a department and document type first
+                              </p>
+                            </div>
+                          ) : !allocationPermissions.Add ? (
+                            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                              <AlertCircle className="w-10 h-10 text-yellow-500 mb-3" />
+                              <p className="text-base font-medium text-gray-600">
+                                You do not have permission to upload documents in this department and document type.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center py-12 px-6">
+                              <div className="relative mb-6">
+                                <div className="absolute inset-0 bg-blue-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                                <div className="relative p-4 bg-blue-600 rounded-full">
+                                  <UploadCloud className="w-10 h-10 text-white" />
+                                </div>
+                              </div>
+                              <p className="mb-2 text-base font-semibold text-gray-700">
+                                <span className="text-blue-600">Click to upload</span> or drag and drop
+                              </p>
+                              <p className="text-sm text-gray-500 flex items-center gap-2">
+                                <FileIcon className="w-4 h-4" />
+                                PNG, JPEG, PDF, DOCX, XLSX, TXT (Max 50MB)
+                              </p>
+                            </div>
+                          )}
+                          <input
+                            type="file"
+                            className="hidden"
+                            ref={fileInputRef}
+                            onChange={handleAttach}
+                            accept=".png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,image/png,image/jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+                            required
+                            disabled={!canUploadAttachment}
+                          />
+                        </div>
+                      ) : (
+                        // File Info Card (Preview moved to right column)
+                        <div className="flex flex-col gap-4 mt-2 border-2 border-blue-200 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md">
+                          <div className="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm">
                             <div className="flex items-center gap-3">
-                              <div className="p-2 bg-blue-600 rounded-lg">
-                                <Search className="w-5 h-5 text-white" />
+                              <div className="p-2 bg-blue-100 rounded-lg">
+                                <FileIcon className="w-5 h-5 text-blue-600" />
                               </div>
                               <div>
-                                <p className="font-semibold text-gray-800">
-                                  Extract Text with OCR
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  Scan document and populate fields automatically
+                                <p className="text-sm font-semibold text-gray-800">{selectedFile.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                                 </p>
                               </div>
                             </div>
-                            <Button
-                              onClick={() => setIsOcrModalOpen(true)}
-                              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
+                            <button
+                              type="button"
+                              onClick={handleRemoveFile}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Remove file"
                             >
-                              <div className="flex items-center">
-                                <Search className="w-5 h-5 mr-2" />
-                                Run OCR
-                              </div>
-                            </Button>
+                              <X className="w-5 h-5" />
+                            </button>
                           </div>
+
+                          {/* OCR Button */}
+                          {isOcrCompatible(selectedFile) && (
+                            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-blue-600 rounded-lg">
+                                    <Search className="w-5 h-5 text-white" />
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-gray-800">
+                                      Extract Text with OCR
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Scan document and populate fields automatically
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  onClick={() => setIsOcrModalOpen(true)}
+                                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
+                                >
+                                  <div className="flex items-center">
+                                    <Search className="w-5 h-5 mr-2" />
+                                    Run OCR
+                                  </div>
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   )}
+                  {/* Confidential Checkbox */}
+                  <div className="col-span-1 flex items-center gap-3 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border border-amber-200 hover:shadow-md transition-all">
+                    <input
+                      type="checkbox"
+                      checked={newDoc.Confidential || false}
+                      onChange={(e) =>
+                        setNewDoc({ ...newDoc, Confidential: e.target.checked })
+                      }
+                      id="confidential"
+                      className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                    />
+                    <label
+                      className="flex items-center gap-2 text-sm sm:text-base font-medium text-gray-700 cursor-pointer"
+                      htmlFor="confidential"
+                    >
+                      <Shield className="w-4 h-4 text-amber-600" />
+                      Confidential Document
+                    </label>
+                  </div>
+
+                  {/* Expiration Checkbox */}
+                  <div className="col-span-1 flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200 hover:shadow-md transition-all">
+                    <input
+                      type="checkbox"
+                      checked={newDoc.Expiration || false}
+                      onChange={(e) =>
+                        setNewDoc({ ...newDoc, Expiration: e.target.checked })
+                      }
+                      id="expiration"
+                      className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                    />
+                    <label
+                      className="flex items-center gap-2 text-sm sm:text-base font-medium text-gray-700 cursor-pointer"
+                      htmlFor="expiration"
+                    >
+                      <Clock className="w-4 h-4 text-purple-600" />
+                      Has Expiration Date
+                    </label>
+                  </div>
+
+                  {/* Expiration Date - Conditionally rendered */}
+                  {newDoc.Expiration && (
+                    <div className="col-span-1 space-y-2 animate-fade-in">
+                      <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
+                        <Clock className="w-4 h-4 text-purple-600" />
+                        Expiration Date <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        type="date"
+                        className="w-full"
+                        value={
+                          newDoc.ExpirationDate
+                            ? newDoc.ExpirationDate.split('T')[0]
+                            : ''
+                        }
+                        onChange={(e) =>
+                          setNewDoc({
+                            ...newDoc,
+                            ExpirationDate: e.target.value
+                              ? `${e.target.value}T00:00:00.000Z`
+                              : undefined,
+                          })
+                        }
+                        required={newDoc.Expiration}
+                        placeholder="Enter expiration date"
+                        icon={<Clock className="w-4 h-4" />}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Dynamic Fields Section - Shows only active fields from allocation */}
+          {newDoc.DepartmentId && newDoc.SubDepartmentId && (
+            <>
+              {fieldsLoading && (
+                <Card className="shadow-lg border-0">
+                  <CardContent className="p-8">
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                      <span className="ml-2 text-gray-600">Loading field configuration...</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!fieldsLoading && !fieldsError && getActiveFields().length > 0 && (
+                <DynamicFieldsSection
+                  fields={getActiveFields()}
+                  values={dynamicFieldValues}
+                  onChange={handleDynamicFieldChange}
+                  requiredFields={getActiveFields().filter(field => field.Add).map(field => field.ID)}
+                  onScanField={(fieldId) => {
+                    const alreadyOcrApplied = ocrAppliedFields.some(entry => entry.fieldId === fieldId);
+                    const existingValue = dynamicFieldValues[`field_${fieldId}`];
+
+                    if (alreadyOcrApplied) {
+                      toast.error('This field already has OCR text applied and cannot be scanned again.');
+                      return;
+                    }
+
+                    if (existingValue && existingValue.trim() !== '') {
+                      toast.error('This field already has a value and cannot be scanned again.');
+                      return;
+                    }
+
+                    if (selectedFile && isOcrCompatible(selectedFile)) {
+                      setPreselectedFieldForOcr(fieldId);
+                      setIsOcrModalOpen(true);
+                    } else {
+                      toast.error('Please attach a PDF or image file first to use OCR');
+                    }
+                  }}
+                />
+              )}
+
+              {!fieldsLoading && !fieldsError && getActiveFields().length === 0 && (
+                <Card className="shadow-lg border-0">
+                  <CardContent className="p-6">
+                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200 shadow-sm">
+                      <div className="flex items-start gap-4">
+                        <div className="p-2 bg-amber-500 rounded-lg flex-shrink-0">
+                          <AlertCircle className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-lg font-semibold text-gray-800 mb-1">
+                            No Active Fields Configured
+                          </h4>
+                          <p className="text-sm text-gray-600 leading-relaxed">
+                            No active fields are configured for this Department and Document Type combination.
+                            Please configure and activate fields in the{' '}
+                            <span className="font-medium text-blue-600">Allocation</span> section first.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
+
+          {/* Fields error */}
+          {fieldsError && (
+            <Card className="shadow-lg border-0">
+              <CardContent className="p-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-yellow-800 text-sm flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    Unable to load field configuration. You can still upload with basic fields.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Enhanced Action Buttons */}
+          <Card className="shadow-lg border-0">
+            <CardContent className="p-6">
+              {/* Upload Progress Bar */}
+              {isLoading && uploadProgress > 0 && (
+                <div className="mb-6 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 font-medium">Upload Progress</span>
+                    <span className="text-blue-600 font-semibold">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 rounded-full transition-all duration-300 ease-out shadow-lg relative overflow-hidden"
+                      style={{ width: `${uploadProgress}%` }}
+                    >
+                      <div className="absolute inset-0 bg-white opacity-30 animate-pulse"></div>
+                    </div>
+                  </div>
                 </div>
               )}
-              {/* Confidential Checkbox */}
-              <div className="col-span-1 flex items-center gap-3 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border border-amber-200 hover:shadow-md transition-all">
-                <input
-                  type="checkbox"
-                  checked={newDoc.Confidential || false}
-                  onChange={(e) =>
-                    setNewDoc({ ...newDoc, Confidential: e.target.checked })
-                  }
-                  id="confidential"
-                  className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                />
-                <label
-                  className="flex items-center gap-2 text-sm sm:text-base font-medium text-gray-700 cursor-pointer"
-                  htmlFor="confidential"
-                >
-                  <Shield className="w-4 h-4 text-amber-600" />
-                  Confidential Document
-                </label>
-              </div>
 
-              {/* Expiration Checkbox */}
-              <div className="col-span-1 flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200 hover:shadow-md transition-all">
-                <input
-                  type="checkbox"
-                  checked={newDoc.Expiration || false}
-                  onChange={(e) =>
-                    setNewDoc({ ...newDoc, Expiration: e.target.checked })
-                  }
-                  id="expiration"
-                  className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                />
-                <label
-                  className="flex items-center gap-2 text-sm sm:text-base font-medium text-gray-700 cursor-pointer"
-                  htmlFor="expiration"
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <Button
+                  onClick={resetForm}
+                  className="w-full sm:w-auto px-8 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 rounded-lg font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+                  disabled={isLoading}
                 >
-                  <Clock className="w-4 h-4 text-purple-600" />
-                  Has Expiration Date
-                </label>
-              </div>
-
-              {/* Expiration Date - Conditionally rendered */}
-              {newDoc.Expiration && (
-                <div className="col-span-1 space-y-2 animate-fade-in">
-                  <label className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-700">
-                    <Clock className="w-4 h-4 text-purple-600" />
-                    Expiration Date <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="date"
-                    className="w-full"
-                    value={
-                      newDoc.ExpirationDate
-                        ? newDoc.ExpirationDate.split('T')[0]
+                  <X className="w-4 h-4 mr-2" />
+                  Cancel
+                </Button>
+                {/* // TODO ADD PROGRESS BAR HERE */}
+                {allocationPermissions.Add && (
+                  <Button
+                    onClick={handleAddOrUpdate}
+                    className={`w-full sm:w-auto px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${!isFormValid() || isLoading
+                        ? 'opacity-50 cursor-not-allowed bg-gray-400'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
+                      }`}
+                    disabled={!isFormValid() || isLoading}
+                    title={
+                      !isFormValid()
+                        ? `Form validation failed. Check: ${!newDoc.DepartmentId ? 'Department, ' : ''
+                        }${!newDoc.SubDepartmentId ? 'Document Type, ' : ''
+                        }${!newDoc.FileDescription ? 'File Description, ' : ''
+                        }${!newDoc.FileDate ? 'File Date, ' : ''
+                        }${!newDoc.FileName ? 'File Name, ' : ''
+                        }${!selectedFile && !editId ? 'File attachment, ' : ''
+                        }Required fields`
                         : ''
                     }
-                    onChange={(e) =>
-                      setNewDoc({
-                        ...newDoc,
-                        ExpirationDate: e.target.value
-                          ? `${e.target.value}T00:00:00.000Z`
-                          : undefined,
-                      })
-                    }
-                    required={newDoc.Expiration}
-                    placeholder="Enter expiration date"
-                    icon={<Clock className="w-4 h-4" />}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Dynamic Fields Section - Shows only active fields from allocation */}
-      {newDoc.DepartmentId && newDoc.SubDepartmentId && (
-        <>
-          {fieldsLoading && (
-            <Card className="shadow-lg border-0">
-              <CardContent className="p-8">
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                  <span className="ml-2 text-gray-600">Loading field configuration...</span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {!fieldsLoading && !fieldsError && getActiveFields().length > 0 && (
-            <DynamicFieldsSection
-              fields={getActiveFields()}
-              values={dynamicFieldValues}
-              onChange={handleDynamicFieldChange}
-              requiredFields={getActiveFields().filter(field => field.Add).map(field => field.ID)}
-              onScanField={(fieldId) => {
-                const alreadyOcrApplied = ocrAppliedFields.some(entry => entry.fieldId === fieldId);
-                const existingValue = dynamicFieldValues[`field_${fieldId}`];
-
-                if (alreadyOcrApplied) {
-                  toast.error('This field already has OCR text applied and cannot be scanned again.');
-                  return;
-                }
-
-                if (existingValue && existingValue.trim() !== '') {
-                  toast.error('This field already has a value and cannot be scanned again.');
-                  return;
-                }
-
-                if (selectedFile && isOcrCompatible(selectedFile)) {
-                  setPreselectedFieldForOcr(fieldId);
-                  setIsOcrModalOpen(true);
-                } else {
-                  toast.error('Please attach a PDF or image file first to use OCR');
-                }
-              }}
-            />
-          )}
-
-          {!fieldsLoading && !fieldsError && getActiveFields().length === 0 && (
-            <Card className="shadow-lg border-0">
-              <CardContent className="p-6">
-                <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200 shadow-sm">
-                  <div className="flex items-start gap-4">
-                    <div className="p-2 bg-amber-500 rounded-lg flex-shrink-0">
-                      <AlertCircle className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-lg font-semibold text-gray-800 mb-1">
-                        No Active Fields Configured
-                      </h4>
-                      <p className="text-sm text-gray-600 leading-relaxed">
-                        No active fields are configured for this Department and Document Type combination. 
-                        Please configure and activate fields in the{' '}
-                        <span className="font-medium text-blue-600">Allocation</span> section first.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
-
-      {/* Fields error */}
-      {fieldsError && (
-        <Card className="shadow-lg border-0">
-          <CardContent className="p-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-yellow-800 text-sm flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                Unable to load field configuration. You can still upload with basic fields.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Enhanced Action Buttons */}
-      <Card className="shadow-lg border-0">
-        <CardContent className="p-6">
-          {/* Upload Progress Bar */}
-          {isLoading && uploadProgress > 0 && (
-            <div className="mb-6 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 font-medium">Upload Progress</span>
-                <span className="text-blue-600 font-semibold">{uploadProgress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 rounded-full transition-all duration-300 ease-out shadow-lg relative overflow-hidden"
-                  style={{ width: `${uploadProgress}%` }}
-                >
-                  <div className="absolute inset-0 bg-white opacity-30 animate-pulse"></div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button
-              onClick={resetForm}
-              className="w-full sm:w-auto px-8 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 rounded-lg font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-              disabled={isLoading}
-            >
-              <X className="w-4 h-4 mr-2" />
-              Cancel
-            </Button>
-            {/* // TODO ADD PROGRESS BAR HERE */}
-            {allocationPermissions.Add && (
-              <Button
-                onClick={handleAddOrUpdate}
-                className={`w-full sm:w-auto px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${
-                  !isFormValid() || isLoading
-                    ? 'opacity-50 cursor-not-allowed bg-gray-400'
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
-                }`}
-                disabled={!isFormValid() || isLoading}
-                title={
-                  !isFormValid()
-                    ? `Form validation failed. Check: ${
-                        !newDoc.DepartmentId ? 'Department, ' : ''
-                      }${
-                        !newDoc.SubDepartmentId ? 'Document Type, ' : ''
-                      }${
-                        !newDoc.FileDescription ? 'File Description, ' : ''
-                      }${
-                        !newDoc.FileDate ? 'File Date, ' : ''
-                      }${
-                        !newDoc.FileName ? 'File Name, ' : ''
-                      }${
-                        !selectedFile && !editId ? 'File attachment, ' : ''
-                      }Required fields`
-                    : ''
-                }
-              >
-                {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                    {uploadProgress > 0 ? `Uploading... ${uploadProgress}%` : 'Processing...'}
-                  </div>
-                ) : editId ? (
-                  <>
-                    <CheckCircle2 className="w-5 h-5 mr-2" />
-                    Update Document
-                  </>
-                ) : (
-                  <>
-                    <UploadCloud className="w-5 h-5 mr-2" />
-                    Upload Document
-                  </>
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                        {uploadProgress > 0 ? `Uploading... ${uploadProgress}%` : 'Processing...'}
+                      </div>
+                    ) : editId ? (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 mr-2" />
+                        Update Document
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud className="w-5 h-5 mr-2" />
+                        Upload Document
+                      </>
+                    )}
+                  </Button>
                 )}
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column: Document Preview - Sticky on desktop, normal on mobile - Made larger for better visibility */}
@@ -1155,60 +1152,60 @@ export default function DocumentUpload() {
                 </div>
               </CardHeader>
               <div className="p-4 flex flex-col flex-1 min-h-0" style={{ minHeight: '600px' }}>
-              {selectedFile ? (
-                <div className="flex flex-col h-full space-y-3">
-                  {/* File Info - Compact */}
-                  <div className="flex items-center justify-between bg-white rounded-lg p-2 shadow-sm border border-gray-200 flex-shrink-0">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <div className="p-1.5 bg-blue-100 rounded-lg flex-shrink-0">
-                        <FileIcon className="w-4 h-4 text-blue-600" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-gray-800 truncate">{selectedFile.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
+                {selectedFile ? (
+                  <div className="flex flex-col h-full space-y-3">
+                    {/* File Info - Compact */}
+                    <div className="flex items-center justify-between bg-white rounded-lg p-2 shadow-sm border border-gray-200 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="p-1.5 bg-blue-100 rounded-lg flex-shrink-0">
+                          <FileIcon className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-gray-800 truncate">{selectedFile.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Document Preview - Takes up remaining space, made larger */}
-                  <div className="relative flex-1 rounded-lg overflow-hidden border-2 border-gray-200 shadow-lg bg-gray-50 min-h-0">
-                    {selectedFile.type.startsWith('image/') && filePreviewUrl ? (
-                      <div className="w-full h-full flex items-center justify-center p-2 bg-white">
-                        <img
+                    {/* Document Preview - Takes up remaining space, made larger */}
+                    <div className="relative flex-1 rounded-lg overflow-hidden border-2 border-gray-200 shadow-lg bg-gray-50 min-h-0">
+                      {selectedFile.type.startsWith('image/') && filePreviewUrl ? (
+                        <div className="w-full h-full flex items-center justify-center p-2 bg-white">
+                          <img
+                            src={filePreviewUrl}
+                            alt="Preview"
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        </div>
+                      ) : selectedFile.type === 'application/pdf' && filePreviewUrl ? (
+                        <iframe
                           src={filePreviewUrl}
-                          alt="Preview"
-                          className="max-w-full max-h-full object-contain"
+                          title="PDF Preview"
+                          className="w-full h-full border-0"
+                          style={{ height: '100%', minHeight: '100%' }}
                         />
-                      </div>
-                    ) : selectedFile.type === 'application/pdf' && filePreviewUrl ? (
-                      <iframe
-                        src={filePreviewUrl}
-                        title="PDF Preview"
-                        className="w-full h-full border-0"
-                        style={{ height: '100%', minHeight: '100%' }}
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full p-12 bg-white">
-                        <FileText className="w-16 h-16 text-gray-400 mb-4" />
-                        <p className="text-gray-600 font-medium">Preview not available</p>
-                        <p className="text-sm text-gray-500 mt-1">File type: {selectedFile.type}</p>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full p-12 bg-white">
+                          <FileText className="w-16 h-16 text-gray-400 mb-4" />
+                          <p className="text-gray-600 font-medium">Preview not available</p>
+                          <p className="text-sm text-gray-500 mt-1">File type: {selectedFile.type}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full px-6 text-center bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg border-2 border-dashed border-gray-300">
-                  <div className="p-4 bg-blue-100 rounded-full mb-4">
-                    <FileText className="w-12 h-12 text-blue-600" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full px-6 text-center bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <div className="p-4 bg-blue-100 rounded-full mb-4">
+                      <FileText className="w-12 h-12 text-blue-600" />
+                    </div>
+                    <p className="text-gray-700 font-semibold mb-2">No Document Selected</p>
+                    <p className="text-sm text-gray-500">
+                      Upload a file to see the preview here
+                    </p>
                   </div>
-                  <p className="text-gray-700 font-semibold mb-2">No Document Selected</p>
-                  <p className="text-sm text-gray-500">
-                    Upload a file to see the preview here
-                  </p>
-                </div>
-              )}
+                )}
               </div>
             </Card>
           </div>
@@ -1230,8 +1227,8 @@ export default function DocumentUpload() {
 
       {/* Document List Section */}
       {/* <div className="space-y-4"> */}
-        {/* Search and Title */}
-        {/* <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+      {/* Search and Title */}
+      {/* <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
           <h2 className="text-lg font-semibold w-full sm:w-auto">
             Document List
           </h2>

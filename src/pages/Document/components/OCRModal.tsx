@@ -46,6 +46,9 @@ export const OCRModal: React.FC<OCRModalProps> = ({
   usedSelections = [],
 }) => {
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
+  const [selectedFieldIds, setSelectedFieldIds] = useState<number[]>([]);
+  const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
+  const [isSequentialMode, setIsSequentialMode] = useState(false);
   const [ocrText, setOcrText] = useState('');
   const [selectedText, setSelectedText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -65,9 +68,9 @@ export const OCRModal: React.FC<OCRModalProps> = ({
   const [fitToScreen, setFitToScreen] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const fileUrlRef = useRef<string | null>(null);
-  
+
   // Memoize usedFieldIds to prevent infinite loops
-  const usedFieldIds = useMemo(() => 
+  const usedFieldIds = useMemo(() =>
     usedSelections.map((entry) => entry.fieldId),
     [usedSelections]
   );
@@ -119,7 +122,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
   // Suppress LSTM console errors (they're non-fatal warnings)
   useEffect(() => {
     if (!isOpen) return;
-    
+
     const originalError = console.error;
     const errorFilter = (...args: any[]) => {
       const message = args.join(' ');
@@ -129,9 +132,9 @@ export const OCRModal: React.FC<OCRModalProps> = ({
       }
       originalError.apply(console, args);
     };
-    
+
     console.error = errorFilter;
-    
+
     return () => {
       console.error = originalError;
     };
@@ -149,6 +152,9 @@ export const OCRModal: React.FC<OCRModalProps> = ({
       setOcrWords([]);
       setSelectedRegion(null);
       setViewMode('preview');
+      setSelectedFieldIds([]);
+      setCurrentQueueIndex(0);
+      setIsSequentialMode(false);
       // Clean up image URL if it exists
       if (documentImageRef.current && documentImageRef.current.startsWith('blob:')) {
         URL.revokeObjectURL(documentImageRef.current);
@@ -242,7 +248,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
 
     try {
       let currentProgress = 0;
-      
+
       // Simulate stage updates
       const stageInterval = setInterval(() => {
         if (currentProgress < 30) {
@@ -271,7 +277,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
       } else {
         setPagePreviews([]);
         setOcrWords(result.words || []);
-        
+
         // Always set document image - prioritize OCR result, fallback to file
         if (result.imageData) {
           console.log('Using OCR result imageData');
@@ -298,11 +304,11 @@ export const OCRModal: React.FC<OCRModalProps> = ({
           }
         }
       }
-      
+
       setHasRunOCR(true);
       setProcessingStage('OCR completed successfully');
       toast.success('OCR completed successfully');
-      
+
       // Debug log
       console.log('OCR completed:', {
         hasText: !!result.text,
@@ -314,7 +320,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
         ocrWordsSet: ocrWords.length,
         sampleWords: result.words?.slice(0, 3).map(w => ({ text: w.text, bbox: w.bbox })),
       });
-      
+
       // Warn if no words extracted
       if (!result.words || result.words.length === 0) {
         console.warn('⚠️ NO WORD DATA EXTRACTED! Region selection will not work.');
@@ -359,7 +365,21 @@ export const OCRModal: React.FC<OCRModalProps> = ({
     }
 
     onApplyToField(selectedFieldId, textToApply.trim());
-    toast.success('Text applied to field successfully');
+
+    if (isSequentialMode) {
+      if (currentQueueIndex < selectedFieldIds.length - 1) {
+        setCurrentQueueIndex(prev => prev + 1);
+        setSelectedFieldId(selectedFieldIds[currentQueueIndex + 1]);
+        setSelectedText('');
+        setSelectedRegion(null);
+        toast.success(`Text applied! Moving to next field: ${fields.find(f => f.ID === selectedFieldIds[currentQueueIndex + 1])?.Field}`);
+      } else {
+        toast.success('All selected fields have been populated!');
+        // Optionally auto-close or stay open
+      }
+    } else {
+      toast.success('Text applied to field successfully');
+    }
   };
 
   const handleCopyAll = () => {
@@ -419,7 +439,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
 
     const naturalRegion = convertDisplayToNatural(region);
     console.log('Converting region:', { display: region, natural: naturalRegion });
-    
+
     const regionText: string[] = [];
 
     // Sort words by position (top to bottom, left to right)
@@ -481,9 +501,9 @@ export const OCRModal: React.FC<OCRModalProps> = ({
     });
 
     const result = regionText.join(' ').trim();
-    
+
     console.log(`Extraction result: ${result.length} chars, ${regionText.length} words matched out of ${sortedWords.length} total words`);
-    
+
     if (!result) {
       console.warn('No text found in region', {
         naturalRegion,
@@ -517,9 +537,9 @@ export const OCRModal: React.FC<OCRModalProps> = ({
       console.log('⚠️ Not left button, ignoring', e.button);
       return;
     }
-    
-    console.log('🔵🔵🔵 handleMouseDown CALLED!', { 
-      target: e.target, 
+
+    console.log('🔵🔵🔵 handleMouseDown CALLED!', {
+      target: e.target,
       currentTarget: e.currentTarget,
       hasImgRef: !!imgRef.current,
       hasDocumentImage: !!documentImage,
@@ -527,58 +547,58 @@ export const OCRModal: React.FC<OCRModalProps> = ({
       button: e.button,
       type: e.type
     });
-    
+
     // CRITICAL: Prevent all default behaviors FIRST
     e.preventDefault();
     e.stopPropagation();
     e.nativeEvent.stopImmediatePropagation();
-    
+
     if (!documentImage) {
       console.warn('Cannot start selection: documentImage missing');
       return;
     }
-    
+
     // Check if we have word data
     if (ocrWords.length === 0) {
       console.warn('⚠️ No OCR words available. Cannot extract text from region.');
       toast.error('No word data available. Please run OCR again or check console for details.');
       return;
     }
-    
+
     // Now that we're using rendered images for both PDF and images, we can use imgRef for both
     if (!imgRef.current) {
       console.warn('imgRef.current is null');
       return;
     }
-    
+
     const container = e.currentTarget;
     const containerRect = container.getBoundingClientRect();
     const imageRectDown = imgRef.current.getBoundingClientRect();
-    
+
     // Get scroll position of the container (for scrolling support)
     const scrollX = container.scrollLeft || 0;
     const scrollY = container.scrollTop || 0;
-    
+
     // Calculate position relative to the container's viewport
     const clientX = e.clientX - containerRect.left;
     const clientY = e.clientY - containerRect.top;
-    
+
     // Add scroll offset to get position relative to the full image
     const x = clientX + scrollX;
     const y = clientY + scrollY;
-    
+
     // Clamp to image natural dimensions (not display dimensions)
     const maxX = imageDimensions.width || imageRectDown.width;
     const maxY = imageDimensions.height || imageRectDown.height;
     const clampedX = Math.max(0, Math.min(x, maxX));
     const clampedY = Math.max(0, Math.min(y, maxY));
 
-    console.log('🔵 Mouse position calculated:', { 
-      clientX: e.clientX, 
+    console.log('🔵 Mouse position calculated:', {
+      clientX: e.clientX,
       clientY: e.clientY,
       containerLeft: containerRect.left,
       containerTop: containerRect.top,
-      scrollX, 
+      scrollX,
       scrollY,
       calculatedX: x,
       calculatedY: y,
@@ -591,25 +611,25 @@ export const OCRModal: React.FC<OCRModalProps> = ({
     // Calculate scale factor (display size vs natural size)
     const scaleX = (imageDimensions.displayWidth || imageRectDown.width) / (imageDimensions.width || imageRectDown.width);
     const scaleY = (imageDimensions.displayHeight || imageRectDown.height) / (imageDimensions.height || imageRectDown.height);
-    
+
     // Convert natural coordinates to display coordinates for overlay
     // Reference point is the image's top-left corner
     const displayX = clampedX * scaleX;
     const displayY = clampedY * scaleY;
-    
-    console.log('✅✅✅ Selection started at:', { 
-      naturalX: clampedX, 
-      naturalY: clampedY, 
-      displayX, 
+
+    console.log('✅✅✅ Selection started at:', {
+      naturalX: clampedX,
+      naturalY: clampedY,
+      displayX,
       displayY,
       scaleX,
       scaleY,
       scrollX,
       scrollY,
-      imageWidth: maxX, 
-      imageHeight: maxY 
+      imageWidth: maxX,
+      imageHeight: maxY
     });
-    
+
     // Store natural coordinates for OCR matching
     setSelectionStart({ x: clampedX, y: clampedY });
     setSelectionEnd({ x: clampedX, y: clampedY });
@@ -622,8 +642,8 @@ export const OCRModal: React.FC<OCRModalProps> = ({
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isSelecting || !selectionStart) {
       if (isSelecting) {
-        console.log('⚠️ handleMouseMove: isSelecting but missing data', { 
-          isSelecting, 
+        console.log('⚠️ handleMouseMove: isSelecting but missing data', {
+          isSelecting,
           hasSelectionStart: !!selectionStart
         });
       }
@@ -636,23 +656,23 @@ export const OCRModal: React.FC<OCRModalProps> = ({
 
     // Now that we're using rendered images for both PDF and images, we can use imgRef for both
     if (!imgRef.current || !selectionStart) return;
-    
+
     const container = e.currentTarget;
     const containerRect = container.getBoundingClientRect();
     const imageRectMove = imgRef.current.getBoundingClientRect();
-    
+
     // Get scroll position of the container (for scrolling support)
     const scrollX = container.scrollLeft || 0;
     const scrollY = container.scrollTop || 0;
-    
+
     // Calculate position relative to the container's viewport
     const clientX = e.clientX - containerRect.left;
     const clientY = e.clientY - containerRect.top;
-    
+
     // Add scroll offset to get position relative to the full image
     const x = clientX + scrollX;
     const y = clientY + scrollY;
-    
+
     // Clamp to image natural dimensions (not display dimensions)
     const maxX = imageDimensions.width || imageRectMove.width;
     const maxY = imageDimensions.height || imageRectMove.height;
@@ -662,13 +682,13 @@ export const OCRModal: React.FC<OCRModalProps> = ({
     // Calculate scale factor (display size vs natural size)
     const scaleX = (imageDimensions.displayWidth || imageRectMove.width) / (imageDimensions.width || imageRectMove.width);
     const scaleY = (imageDimensions.displayHeight || imageRectMove.height) / (imageDimensions.height || imageRectMove.height);
-    
+
     // Convert natural coordinates to display coordinates for overlay
     const startDisplayX = selectionStart.x * scaleX;
     const startDisplayY = selectionStart.y * scaleY;
     const currentDisplayX = clampedX * scaleX;
     const currentDisplayY = clampedY * scaleY;
-    
+
     const newRegion = {
       x: Math.min(startDisplayX, currentDisplayX),
       y: Math.min(startDisplayY, currentDisplayY),
@@ -680,25 +700,25 @@ export const OCRModal: React.FC<OCRModalProps> = ({
       display: newRegion,
       natural: { x: Math.min(selectionStart.x, clampedX), y: Math.min(selectionStart.y, clampedY), width: Math.abs(clampedX - selectionStart.x), height: Math.abs(clampedY - selectionStart.y) }
     });
-    
+
     // Store display coordinates for overlay, but we'll use natural coordinates for extraction
     setSelectedRegion(newRegion);
     setSelectionEnd({ x: clampedX, y: clampedY });
   };
-  
+
 
   const handleMouseUp = () => {
     if (!isSelecting) return;
-    
+
     // Reset selecting state first to allow scrolling again
     setIsSelecting(false);
-    
+
     if (selectedRegion && selectedRegion.width > 10 && selectedRegion.height > 10 && selectionStart && selectionEnd) {
       console.log('=== REGION SELECTION COMPLETE ===');
       console.log('Region selected:', selectedRegion);
       console.log('OCR words available:', ocrWords.length);
       console.log('Image dimensions:', imageDimensions);
-      
+
       if (ocrWords.length === 0) {
         console.error('❌ No OCR words available for extraction!');
         toast.error('No word data available. Please run OCR again.');
@@ -706,16 +726,16 @@ export const OCRModal: React.FC<OCRModalProps> = ({
         setSelectionStart(null);
         return;
       }
-      
+
       const naturalRegion = {
         x: Math.min(selectionStart.x, selectionEnd.x),
         y: Math.min(selectionStart.y, selectionEnd.y),
         width: Math.abs(selectionEnd.x - selectionStart.x),
         height: Math.abs(selectionEnd.y - selectionStart.y),
       };
-      
+
       console.log('Natural region for extraction:', naturalRegion);
-      
+
       // Try to extract using OCR words first
       let extractedText = '';
       if (ocrWords.length > 0) {
@@ -723,7 +743,7 @@ export const OCRModal: React.FC<OCRModalProps> = ({
         console.log('Extracted text from region:', extractedText);
         console.log('Extraction length:', extractedText.length);
       }
-      
+
       // Fallback: If no OCR words or extraction failed, try browser text selection
       if (!extractedText && ocrText) {
         // Use the full OCR text as fallback - user can manually select from text view
@@ -733,10 +753,32 @@ export const OCRModal: React.FC<OCRModalProps> = ({
           duration: 4000,
         });
       }
-      
+
       if (extractedText) {
         setSelectedText(extractedText);
         toast.success(`Extracted ${extractedText.split(/\s+/).filter(Boolean).length} words from selected region`);
+
+        // AUTO-APPLY in sequential mode for "scan after scan" experience
+        if (isSequentialMode && selectedFieldId) {
+          // Use setTimeout to ensure state (selectedText) is updated before applying, 
+          // or just call handleApplyToField with the text directly if we refactor it.
+          // For now, let's call onApplyToField directly to be safe and fast.
+          onApplyToField(selectedFieldId, extractedText.trim());
+
+          if (currentQueueIndex < selectedFieldIds.length - 1) {
+            const nextIndex = currentQueueIndex + 1;
+            const nextFieldId = selectedFieldIds[nextIndex];
+            setCurrentQueueIndex(nextIndex);
+            setSelectedFieldId(nextFieldId);
+            setSelectedText('');
+            setSelectedRegion(null);
+            toast.success(`Applied to ${fields.find(f => f.ID === selectedFieldId)?.Field}. Next: ${fields.find(f => f.ID === nextFieldId)?.Field}`);
+          } else {
+            toast.success(`Completed! All ${selectedFieldIds.length} fields populated.`);
+            setSelectedText('');
+            setSelectedRegion(null);
+          }
+        }
       } else {
         // Provide more helpful error message
         if (ocrWords.length === 0) {
@@ -779,10 +821,30 @@ export const OCRModal: React.FC<OCRModalProps> = ({
     label: field.Field || field.Description || `Field ${field.ID}`,
   }));
 
+  const toggleFieldSelection = (fieldId: number) => {
+    setSelectedFieldIds(prev => {
+      if (prev.includes(fieldId)) {
+        const next = prev.filter(id => id !== fieldId);
+        if (selectedFieldId === fieldId) {
+          setSelectedFieldId(next.length > 0 ? next[0] : null);
+          setCurrentQueueIndex(0);
+        }
+        return next;
+      } else {
+        const next = [...prev, fieldId];
+        if (next.length === 1) {
+          setSelectedFieldId(fieldId);
+          setCurrentQueueIndex(0);
+        }
+        return next;
+      }
+    });
+  };
+
   const selectedField = fields.find((f) => f.ID === selectedFieldId);
 
   return createPortal(
-    <div 
+    <div
       className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 lg:p-6"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -901,19 +963,123 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                   Target Field Selection
                   <span className="text-red-500">*</span>
                 </label>
-                {selectedField && (
-                  <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">
-                    {selectedField.Field || selectedField.Description}
-                  </span>
-                )}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg border border-gray-200">
+                    <button
+                      onClick={() => {
+                        setIsSequentialMode(false);
+                        setSelectedFieldIds([]);
+                      }}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${!isSequentialMode
+                          ? 'bg-white text-indigo-700 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                      Single Field
+                    </button>
+                    <button
+                      onClick={() => setIsSequentialMode(true)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${isSequentialMode
+                          ? 'bg-white text-indigo-700 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                      Sequential Scan
+                    </button>
+                  </div>
+                  {selectedField && (
+                    <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">
+                      {selectedField.Field || selectedField.Description}
+                    </span>
+                  )}
+                </div>
               </div>
-              <Select
-                placeholder="Select a field to populate with OCR text..."
-                value={selectedFieldId?.toString() || ''}
-                onChange={(e) => setSelectedFieldId(Number(e.target.value))}
-                options={fieldOptions}
-                disabled={isProcessing || fieldOptions.length === 0}
-              />
+
+              {!isSequentialMode ? (
+                <Select
+                  placeholder="Select a field to populate with OCR text..."
+                  value={selectedFieldId?.toString() || ''}
+                  onChange={(e) => setSelectedFieldId(Number(e.target.value))}
+                  options={fieldOptions}
+                  disabled={isProcessing || fieldOptions.length === 0}
+                />
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {availableFields.map((field) => (
+                      <label
+                        key={field.ID}
+                        className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${selectedFieldIds.includes(field.ID)
+                            ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                          }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                          checked={selectedFieldIds.includes(field.ID)}
+                          onChange={() => toggleFieldSelection(field.ID)}
+                        />
+                        <span className={`text-sm font-medium ${selectedFieldIds.includes(field.ID) ? 'text-indigo-900' : 'text-gray-700'}`}>
+                          {field.Field || field.Description}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {selectedFieldIds.length > 0 && (
+                    <div className="bg-indigo-600 text-white rounded-xl p-4 shadow-lg animate-in fade-in slide-in-from-top-4 duration-300">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Target className="w-5 h-5" />
+                          <h4 className="font-bold">Scan Queue</h4>
+                        </div>
+                        <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded-full uppercase tracking-wider">
+                          {currentQueueIndex + 1} of {selectedFieldIds.length}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-white transition-all duration-500 ease-out"
+                            style={{ width: `${((currentQueueIndex + 1) / selectedFieldIds.length) * 100}%` }}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              if (currentQueueIndex > 0) {
+                                setCurrentQueueIndex(prev => prev - 1);
+                                setSelectedFieldId(selectedFieldIds[currentQueueIndex - 1]);
+                              }
+                            }}
+                            disabled={currentQueueIndex === 0}
+                            className="p-1 px-2 text-xs bg-white/20 hover:bg-white/30 rounded disabled:opacity-30 transition-colors"
+                          >
+                            Back
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (currentQueueIndex < selectedFieldIds.length - 1) {
+                                setCurrentQueueIndex(prev => prev + 1);
+                                setSelectedFieldId(selectedFieldIds[currentQueueIndex + 1]);
+                              }
+                            }}
+                            disabled={currentQueueIndex === selectedFieldIds.length - 1}
+                            className="p-1 px-2 text-xs bg-white/20 hover:bg-white/30 rounded disabled:opacity-30 transition-colors"
+                          >
+                            Skip
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs mt-3 text-indigo-100 flex items-center gap-2">
+                        <Info className="w-3 h-3" />
+                        Currently targetting: <span className="font-bold text-white uppercase">{fields.find(f => f.ID === selectedFieldIds[currentQueueIndex])?.Field}</span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="mt-4 space-y-2">
                 {fieldOptions.length === 0 && (
                   <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -955,11 +1121,10 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                 <Button
                   onClick={handleRunOCR}
                   disabled={!file || isProcessing}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
-                    isProcessing
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${isProcessing
                       ? 'opacity-60 cursor-not-allowed bg-gray-400 text-white'
                       : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white hover:shadow-xl hover:scale-105 active:scale-95'
-                  }`}
+                    }`}
                 >
                   {isProcessing ? (
                     <div className="flex items-center gap-2">
@@ -999,27 +1164,27 @@ export const OCRModal: React.FC<OCRModalProps> = ({
               <div className="bg-white/90 backdrop-blur-sm rounded-xl border border-gray-200 shadow-md p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                <h3 className="text-base font-bold text-gray-900 mb-1 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-indigo-600" />
-                  Document Preview - Select Region
-                </h3>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-gray-600">
-                    {file.type.startsWith('image/')
-                      ? 'Click and drag on the document to select text region'
-                      : 'PDF preview - text selection available in text view'}
-                  </p>
-                  {ocrWords.length === 0 && hasRunOCR && (
-                    <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-lg">
-                      ⚠️ No word data - region selection disabled
-                    </span>
-                  )}
-                  {ocrWords.length > 0 && (
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-lg">
-                      ✅ {ocrWords.length} words available
-                    </span>
-                  )}
-                </div>
+                    <h3 className="text-base font-bold text-gray-900 mb-1 flex items-center gap-2">
+                      <Target className="w-5 h-5 text-indigo-600" />
+                      Document Preview - Select Region
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-600">
+                        {file.type.startsWith('image/')
+                          ? 'Click and drag on the document to select text region'
+                          : 'PDF preview - text selection available in text view'}
+                      </p>
+                      {ocrWords.length === 0 && hasRunOCR && (
+                        <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-lg">
+                          ⚠️ No word data - region selection disabled
+                        </span>
+                      )}
+                      {ocrWords.length > 0 && (
+                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-lg">
+                          ✅ {ocrWords.length} words available
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -1053,11 +1218,10 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                             });
                           }
                         }}
-                        className={`px-3 py-2 text-sm rounded-lg transition-all duration-200 font-medium flex items-center gap-2 ${
-                          isSelecting
+                        className={`px-3 py-2 text-sm rounded-lg transition-all duration-200 font-medium flex items-center gap-2 ${isSelecting
                             ? 'bg-red-100 hover:bg-red-200 text-red-700'
                             : 'bg-green-100 hover:bg-green-200 text-green-700'
-                        }`}
+                          }`}
                       >
                         {isSelecting ? (
                           <>
@@ -1379,13 +1543,12 @@ export const OCRModal: React.FC<OCRModalProps> = ({
                 <Button
                   onClick={handleApplyToField}
                   disabled={!selectedFieldId || (!selectedText && !ocrText)}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
-                    !selectedFieldId || (!selectedText && !ocrText)
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${!selectedFieldId || (!selectedText && !ocrText)
                       ? 'opacity-50 cursor-not-allowed bg-gray-400 text-white'
                       : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white hover:shadow-xl hover:scale-105 active:scale-95'
-                  }`}
+                    }`}
                 >
-                  <div className="flex items-center gap-2"> 
+                  <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5" />
                     <span>Apply to Field</span>
                   </div>
