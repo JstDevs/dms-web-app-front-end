@@ -190,9 +190,9 @@ const Sidebar: React.FC = () => {
       {isMobile && !isMobileOpen && (
         <button
           onClick={() => setIsMobileOpen(true)}
-          className="fixed top-4 left-4 z-40 p-1 rounded-md bg-blue-900 hover:opacity-80 text-white md:hidden"
+          className="fixed top-6 left-6 z-40 p-1 rounded-md bg-blue-700 hover:opacity-80 text-white md:hidden"
         >
-          <Menu size={20} />
+          <Menu size={30} />
         </button>
       )}
 
