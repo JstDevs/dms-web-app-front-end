@@ -177,7 +177,7 @@ export const TemplateOCR = () => {
           const currentMatch = currentMap.get(fid);
           const activeVal = currentMatch ? (currentMatch as any).Active : (f as any)?.Active;
           const isActive = activeVal === 1 || activeVal === '1' || activeVal === true || activeVal === 'true';
-          
+
           return {
             ID: fid,
             Field: String(currentMatch?.Description ?? f.Field ?? f.Description ?? ''),
@@ -204,7 +204,7 @@ export const TemplateOCR = () => {
 
         // Filter to show only active fields (like Allocation)
         const activeFieldsOnly = union.filter(f => f.IsActive === true);
-        
+
         // Map to the format expected by the dropdown
         setFields(activeFieldsOnly.map(f => ({
           ID: f.ID,
@@ -227,18 +227,18 @@ export const TemplateOCR = () => {
     if (!searchTerm.trim()) {
       return templates;
     }
-    
+
     return templates.filter(template =>
       template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       template.header.toLowerCase().includes(searchTerm.toLowerCase()) ||
       template.Department?.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       template.SubDepartment?.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      template.fields.some(field => 
+      template.fields.some(field =>
         field.fieldName.toLowerCase().includes(searchTerm.toLowerCase())
       )
     );
   }, [templates, searchTerm]);
-  
+
   // Load templates on component mount
   useEffect(() => {
     loadTemplates();
@@ -452,8 +452,7 @@ export const TemplateOCR = () => {
       else if (selectedTemplate) {
         // Fetch the original file if needed
         const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/static/public/templates/${
-            selectedTemplate.samplePdfPath
+          `${import.meta.env.VITE_API_BASE_URL}/static/public/templates/${selectedTemplate.samplePdfPath
           }`
         );
         const blob = await response.blob();
@@ -482,7 +481,7 @@ export const TemplateOCR = () => {
     try {
       if (currentView === 'edit' && selectedTemplate) {
         await updateTemplate(selectedTemplate.ID, formDataToSend);
-        
+
         // Log template update activity
         try {
           await logOCRActivity(
@@ -497,11 +496,11 @@ export const TemplateOCR = () => {
         } catch (logError) {
           console.warn('Failed to log template update activity:', logError);
         }
-        
+
         toast.success('Template updated successfully!');
       } else {
         await createTemplate(formDataToSend);
-        
+
         // Log template creation activity
         try {
           await logOCRActivity(
@@ -516,7 +515,7 @@ export const TemplateOCR = () => {
         } catch (logError) {
           console.warn('Failed to log template creation activity:', logError);
         }
-        
+
         toast.success('Template created successfully!');
       }
 
@@ -555,9 +554,8 @@ export const TemplateOCR = () => {
   };
 
   const loadTemplateFile = async (template: Template) => {
-    const fileUrl = `${
-      import.meta.env.VITE_API_BASE_URL
-    }/static/public/templates/${template.samplePdfPath}`;
+    const fileUrl = `${import.meta.env.VITE_API_BASE_URL
+      }/static/public/templates/${template.samplePdfPath}`;
     console.log({ template, fileUrl });
     try {
       // Check file extension
@@ -630,7 +628,7 @@ export const TemplateOCR = () => {
     try {
       const templateToDelete = templates.find(t => t.ID === templateId);
       await deleteTemplate(templateId);
-      
+
       // Log template deletion activity
       if (templateToDelete) {
         try {
@@ -647,7 +645,7 @@ export const TemplateOCR = () => {
           console.warn('Failed to log template deletion activity:', logError);
         }
       }
-      
+
       toast.success('Template deleted successfully!');
       loadTemplates();
     } catch (error) {
@@ -711,7 +709,7 @@ export const TemplateOCR = () => {
               )}
             </div>
           </div>
-          
+
           {/* Search Results Counter */}
           {searchTerm && (
             <div className="text-sm text-gray-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
@@ -731,151 +729,127 @@ export const TemplateOCR = () => {
       ) : (
         <div className="grid gap-4 lg:gap-6">
           {filteredTemplates.map((template) => (
-            <div 
+            <div
+              key={template.ID}
               onClick={() => handleViewTemplate(template)}
             >
-            <Card
-              key={template.ID}
-              className="group hover:shadow-xl transition-all duration-300 border border-gray-200 shadow-sm hover:-translate-y-1 bg-white hover:bg-blue-50 hover:text-blue-600 transition-colors cursor-pointer"
-            >
-              <div className="p-4">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
-                        {template.name}
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        {isImageFile(template.samplePdfPath) ? (
-                          <Badge className="bg-violet-100 text-violet-800 border-violet-200">
-                            <Image className="mr-1 w-4" />
-                            Image
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-pink-100 text-pink-800 border-pink-200">
-                            <FileText className="mr-1 w-4" />
-                            PDF
-                          </Badge>
-                        )}
+              <Card
+                className="group hover:shadow-xl transition-all duration-300 border border-gray-200 shadow-sm hover:-translate-y-1 bg-white hover:bg-blue-50 hover:text-blue-600 transition-colors cursor-pointer"
+              >
+                <div className="p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-xl font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                          {template.name}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          {isImageFile(template.samplePdfPath) ? (
+                            <Badge className="bg-violet-100 text-violet-800 border-violet-200">
+                              <Image className="mr-1 w-4" />
+                              Image
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-pink-100 text-pink-800 border-pink-200">
+                              <FileText className="mr-1 w-4" />
+                              PDF
+                            </Badge>
+                          )}
+                        </div>
                       </div>
+                      <p className="text-gray-600 leading-relaxed mb-4">
+                        {template.header}
+                      </p>
                     </div>
-                    <p className="text-gray-600 leading-relaxed mb-4">
-                      {template.header}
-                    </p>
-                  </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 shrink-0">
-                    {/* <Button
-                      onClick={() => handleViewTemplate(template)}
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 w-9 p-0 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                    >
-                      <Eye size={16} />
-                    </Button> */}
-                    {templatePermissions?.Edit && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditTemplate(template)}
-                        className="h-9 w-9 p-0 hover:bg-green-50 hover:text-green-600 transition-colors"
-                      >
-                        <Edit size={16} />
-                      </Button>
-                    )}
-                    {templatePermissions?.Delete && (
-                      <DeleteDialog
-                        onConfirm={() => handleDeleteTemplate(template.ID)}
-                      >
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 shrink-0">
+                      {templatePermissions?.Edit && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditTemplate(template);
+                          }}
+                          className="h-9 w-9 p-0 hover:bg-green-50 hover:text-green-600 transition-colors"
                         >
-                          <Trash2 size={16} />
+                          <Edit size={16} />
                         </Button>
-                      </DeleteDialog>
+                      )}
+                      {templatePermissions?.Delete && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <DeleteDialog
+                            onConfirm={() => handleDeleteTemplate(template.ID)}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </DeleteDialog>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <CardContent className="pt-0">
+                  {/* Template Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Building size={14} className="text-gray-400" />
+                      <span className="font-medium">Department:</span>
+                      <span className="truncate">
+                        {template.Department?.Name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Users size={14} className="text-gray-400" />
+                      <span className="font-medium">Doc-Type:</span>
+                      <span className="truncate">
+                        {template.SubDepartment?.Name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <FolderOpen size={14} className="text-gray-400" />
+                      <span className="font-medium">Fields:</span>
+                      <span>{template.fields.length}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Calendar size={14} className="text-gray-400" />
+                      <span className="font-medium"></span>
+                      <span>{formatDate(template.updatedAt)}</span>
+                    </div>
+                  </div>
+
+                  {/* Fields Preview */}
+                  <div className="flex flex-wrap gap-2">
+                    {template.fields.slice(0, 4).map((field) => (
+                      <Badge
+                        key={field.id}
+                        variant="outline"
+                        className="text-xs bg-gray-50 text-gray-700 border-gray-200"
+                      >
+                        {field.fieldName}
+                      </Badge>
+                    ))}
+                    {template.fields.length > 4 && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                      >
+                        +{template.fields.length - 4} more
+                      </Badge>
                     )}
                   </div>
-                </div>
-              </div>
-
-              <CardContent className="pt-0" >
-                {/* Template Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Building size={14} className="text-gray-400" />
-                    <span className="font-medium">Department:</span>
-                    <span className="truncate">
-                      {template.Department?.Name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users size={14} className="text-gray-400" />
-                    <span className="font-medium">Doc-Type:</span>
-                    <span className="truncate">
-                      {template.SubDepartment?.Name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <FolderOpen size={14} className="text-gray-400" />
-                    <span className="font-medium">Fields:</span>
-                    <span>{template.fields.length}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar size={14} className="text-gray-400" />
-                    <span className="font-medium"></span>
-                    <span>{formatDate(template.updatedAt)}</span>
-                  </div>
-                </div>
-
-                {/* Template Dimensions */}
-                {/* <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Image className="text-gray-400" />
-                    <span className="font-medium">Dimensions:</span>
-                    <span>
-                      {template.imageWidth} × {template.imageHeight}px
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <FileText size={14} className="text-gray-400" />
-                    <span className="font-medium">Sample:</span>
-                    <span className="truncate">{template.samplePdfPath}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar size={14} className="text-gray-400" />
-                    <span className="font-medium">Updated:</span>
-                    <span>{formatDate(template.updatedAt)}</span>
-                  </div>
-                </div> */}
-
-                {/* Fields Preview */}
-                <div className="flex flex-wrap gap-2">
-                  {template.fields.slice(0, 4).map((field) => (
-                    <Badge
-                      key={field.id}
-                      variant="outline"
-                      className="text-xs bg-gray-50 text-gray-700 border-gray-200"
-                    >
-                      {field.fieldName}
-                    </Badge>
-                  ))}
-                  {template.fields.length > 4 && (
-                    <Badge
-                      variant="outline"
-                      className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                    >
-                      +{template.fields.length - 4} more
-                    </Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
             </div>
           ))}
-          
+
           {/* Empty Search Results */}
           {filteredTemplates.length === 0 && searchTerm && (
             <div className="text-center py-16">
@@ -899,7 +873,7 @@ export const TemplateOCR = () => {
       )}
     </div>
   );
-  console.log(formData);
+
   const renderTemplateForm = () => (
     <div className="flex flex-col bg-white rounded-md shadow-lg">
       {/* Header */}
@@ -919,8 +893,8 @@ export const TemplateOCR = () => {
               {currentView === 'create'
                 ? 'Create Template'
                 : currentView === 'edit'
-                ? 'Edit Template'
-                : 'View Template'}
+                  ? 'Edit Template'
+                  : 'View Template'}
             </h1>
             <p className="mt-2 text-gray-600">
               {currentView === 'view'
@@ -956,8 +930,8 @@ export const TemplateOCR = () => {
               !formData.department
                 ? 'Select a Department First'
                 : subDepartmentOptions.length === 0
-                ? 'No Document Types Available'
-                : 'Select a Document Type'
+                  ? 'No Document Types Available'
+                  : 'Select a Document Type'
             }
             options={subDepartmentOptions}
             disabled={currentView === 'view' || !formData.department}
@@ -1087,12 +1061,12 @@ export const TemplateOCR = () => {
                     !formData.department || !formData.subdepartment
                       ? 'Select Department and Document Type First'
                       : fieldsLoading
-                      ? 'Loading fields...'
-                      : fieldsError
-                      ? 'Error loading fields'
-                      : fields.length === 0
-                      ? 'No active fields available'
-                      : 'Select a Field'
+                        ? 'Loading fields...'
+                        : fieldsError
+                          ? 'Error loading fields'
+                          : fields.length === 0
+                            ? 'No active fields available'
+                            : 'Select a Field'
                   }
                   options={fields.map((field) => ({
                     value: field.ID.toString(),
@@ -1116,7 +1090,7 @@ export const TemplateOCR = () => {
               </div>
             </div>
           )}
-          
+
           {currentView !== 'view' && (
             <div className="flex-1 flex gap-2 margin-right">
               <Button
@@ -1133,7 +1107,7 @@ export const TemplateOCR = () => {
               >
                 Delete Field
               </Button>
-            </div>          
+            </div>
           )}
         </div>
 
