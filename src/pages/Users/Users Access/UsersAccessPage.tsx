@@ -210,12 +210,22 @@ const UserAccessPage = () => {
             />
           </div>
 
-          <RoleDropdown
-            roles={roles}
-            selectedRole={selectedRole}
-            onSelect={setSelectedRole}
-            onAddNew={() => setIsDialogOpen(true)}
-          />
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <RoleDropdown
+              roles={roles}
+              selectedRole={selectedRole}
+              onSelect={setSelectedRole}
+            />
+            {userAccessPermissions?.Add && (
+              <Button
+                onClick={() => setIsDialogOpen(true)}
+                className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center gap-2 h-full min-h-[50px]"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="hidden sm:inline whitespace-nowrap">Add New Role</span>
+              </Button>
+            )}
+          </div>
         </div>
 
         {currentRole && (
@@ -278,11 +288,10 @@ const UserAccessPage = () => {
             )}
             {userAccessPermissions?.Edit && (
               <Button
-                className={`px-6 py-2.5 rounded-lg text-sm font-semibold text-white focus:outline-none focus:ring-2 transition-all flex items-center gap-2 shadow-md ${
-                  hasChanges
+                className={`px-6 py-2.5 rounded-lg text-sm font-semibold text-white focus:outline-none focus:ring-2 transition-all flex items-center gap-2 shadow-md ${hasChanges
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:ring-blue-500 hover:shadow-lg transform hover:-translate-y-0.5'
                     : 'bg-gray-300 cursor-not-allowed shadow-none'
-                }`}
+                  }`}
                 onClick={
                   isNewRole ? handleAddNewRoleBackend : handleSaveChanges
                 }

@@ -1,26 +1,21 @@
 import { FiChevronDown } from 'react-icons/fi';
 import { useState, useRef, useEffect } from 'react';
-import { Users, Plus, Shield, Check } from 'lucide-react';
-import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
-import { MODULE_IDS } from '@/constants/moduleIds';
+import { Users, Shield, Check } from 'lucide-react';
 
 type RoleDropdownProps = {
   roles: { role: string }[];
   selectedRole: string;
   onSelect: (role: string) => void;
-  onAddNew: () => void;
 };
 
 const RoleDropdown = ({
   roles,
   selectedRole,
   onSelect,
-  onAddNew,
 }: RoleDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const userAccessPermissions = useModulePermissions(MODULE_IDS.userAccess);
-  
+
   const handleSelect = (role: string) => {
     if (role === 'Select Role') return; // Do nothing
     onSelect(role);
@@ -61,9 +56,8 @@ const RoleDropdown = ({
           </span>
         </div>
         <FiChevronDown
-          className={`ml-2 transition-transform duration-200 text-gray-400 group-hover:text-gray-600 ${
-            isOpen ? 'rotate-180' : ''
-          }`}
+          className={`ml-2 transition-transform duration-200 text-gray-400 group-hover:text-gray-600 ${isOpen ? 'rotate-180' : ''
+            }`}
         />
       </button>
       {isOpen && (
@@ -81,15 +75,13 @@ const RoleDropdown = ({
                   <button
                     key={role.role}
                     disabled={role.role === 'Select Role'}
-                    className={`w-full text-left px-4 py-3 transition-all duration-150 flex items-center gap-3 ${
-                      isSelected
+                    className={`w-full text-left px-4 py-3 transition-all duration-150 flex items-center gap-3 ${isSelected
                         ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 font-semibold border-l-4 border-blue-500'
                         : 'text-gray-700 hover:bg-blue-50'
-                    } ${
-                      role.role === 'Select Role'
+                      } ${role.role === 'Select Role'
                         ? 'text-gray-400 cursor-default opacity-50'
                         : 'cursor-pointer'
-                    }`}
+                      }`}
                     onClick={() => handleSelect(role.role)}
                   >
                     {isSelected && (
@@ -103,23 +95,6 @@ const RoleDropdown = ({
                   </button>
                 );
               })
-            )}
-            {userAccessPermissions?.Add && (
-              <>
-                <div className="border-t border-gray-200 my-1"></div>
-                <button
-                  onClick={() => {
-                    onAddNew();
-                    setIsOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-all flex items-center gap-2 border-t border-gray-100"
-                >
-                  <div className="p-1 bg-blue-100 rounded-lg">
-                    <Plus className="w-4 h-4" />
-                  </div>
-                  <span>Add New Role</span>
-                </button>
-              </>
             )}
           </div>
         </div>
