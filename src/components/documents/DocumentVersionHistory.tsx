@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   Clock,
-  RefreshCw,
   ArrowLeft,
   ArrowRight,
   FileText,
@@ -24,7 +23,6 @@ import {
   DocumentVersionChanges,
 } from "@/types/Document";
 import toast from "react-hot-toast";
-import axios from "@/api/axios";
 import Modal from "../ui/Modal";
 import { getToken } from "@/utils/token";
 
@@ -35,7 +33,7 @@ interface DocumentVersionHistoryProps {
 // Normalize filepath URL to use correct base URL
 const normalizeFilepathUrl = (filepath: string | null | undefined): string => {
   if (!filepath) return '';
-  
+
   // If already a full URL, check if it's localhost and replace with API base URL
   if (filepath.startsWith('http://') || filepath.startsWith('https://')) {
     // Check if it contains localhost
@@ -50,7 +48,7 @@ const normalizeFilepathUrl = (filepath: string | null | undefined): string => {
     // Already a valid full URL, return as is
     return filepath;
   }
-  
+
   // If it's a relative path, prepend API base URL
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
   // Ensure path starts with /
@@ -71,8 +69,6 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
   const [isDownloading, setIsDownloading] = useState<number | null>(null);
 
   const allVersions = document?.versions || [];
-  const currentVersion =
-    allVersions.find((v) => v.IsCurrentVersion) || allVersions[0];
 
   const handleVersionSelect = (version: DocumentVersion) => {
     setSelectedVersion(version);
@@ -91,19 +87,19 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
     if (!selectedVersion) return;
 
     // Show success message
-    alert(`Version ${selectedVersion.VersionNumber} will be restored`);
+    toast.success(`Version ${selectedVersion.VersionNumber} will be restored`);
   };
 
   const handleViewVersion = (version: DocumentVersion, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
     }
-    
+
     if (!version.filepath && !document?.document[0]?.ID) {
       toast.error('File not available for this version');
       return;
     }
-    
+
     setViewingVersion(version);
   };
 
@@ -153,7 +149,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
       }
 
       const blob = await response.blob();
-      
+
       // Determine file extension from blob type or filename
       let extension = '';
       if (blob.type) {
@@ -165,12 +161,12 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
           else if (blob.type.includes('jpeg') || blob.type.includes('jpg')) extension = '.jpg';
         }
       }
-      
+
       // If no extension from blob, try to get from filename
       if (!extension && fileName.includes('.')) {
         extension = fileName.substring(fileName.lastIndexOf('.'));
       }
-      
+
       // Ensure filename has extension
       if (!fileName.includes('.')) {
         fileName = `${fileName}${extension || '.pdf'}`;
@@ -198,7 +194,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
 
   const getFileType = (filepath?: string): string => {
     if (!filepath) return 'unknown';
-    
+
     const lowerPath = filepath.toLowerCase();
     if (lowerPath.endsWith('.pdf')) return 'pdf';
     if (lowerPath.endsWith('.docx')) return 'docx';
@@ -210,13 +206,22 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (!dateString) return "—";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "—";
+      return date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      });
+    } catch {
+      return "—";
+    }
   };
 
   const isChangesObject = (
@@ -534,7 +539,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
               </div>
             )}
           </div>
-           
+
         </div>
 
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-2 md:p-6 border border-blue-100">
@@ -634,11 +639,10 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
             {allVersions.map((version) => (
               <div
                 key={version.ID}
-                className={`border-b border-gray-200 p-4 cursor-pointer transition-all duration-200 hover:bg-white ${
-                  selectedVersion?.ID === version.ID
-                    ? "bg-white shadow-sm border-l-4 border-l-blue-500"
-                    : ""
-                }`}
+                className={`border-b border-gray-200 p-4 cursor-pointer transition-all duration-200 hover:bg-white ${selectedVersion?.ID === version.ID
+                  ? "bg-white shadow-sm border-l-4 border-l-blue-500"
+                  : ""
+                  }`}
                 onClick={() => handleVersionSelect(version)}
               >
                 <div className="flex items-center justify-between mb-3">

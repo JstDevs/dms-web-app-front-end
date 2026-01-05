@@ -52,7 +52,11 @@ export interface ApprovalStatusResponse {
 
 export const requestDocumentApproval = async (documentId: number) => {
   const response = await axios.post<RequestApprovalResponse>(
-    `/documents/${documentId}/approvals/request`
+    `/documents/${documentId}/approvals/request`,
+    {},
+    {
+      timeout: 30000, // 30 second timeout (backend is slow)
+    }
   );
   return response.data;
 };
@@ -69,19 +73,19 @@ export const actOnDocumentApproval = async (
     comments: payload.comments || '',
     rejectionReason: payload.action === 'REJECT' ? (payload.comments || '') : '',
   };
-  
+
   // Include approverId if provided
   if (payload.approverId) {
     backendPayload.approverId = payload.approverId;
   }
-  
+
   console.log('Sending approval action:', { documentId, approvalId, backendPayload });
-  
+
   const response = await axios.put(
     `/documents/${documentId}/approvals/${approvalId}`,
     backendPayload
   );
-  
+
   console.log('Approval response:', response.data);
   return response.data;
 };
@@ -139,22 +143,22 @@ export const cancelDocumentApproval = async (
   const backendPayload: any = {
     isCancelled: true,
   };
-  
+
   if (payload?.reason) {
     backendPayload.reason = payload.reason;
   }
-  
+
   if (payload?.approverId) {
     backendPayload.approverId = payload.approverId;
   }
-  
+
   console.log('Cancelling approval request:', { documentId, backendPayload });
-  
+
   const response = await axios.put<CancelApprovalResponse>(
     `/documents/${documentId}/approvals/cancel`,
     backendPayload
   );
-  
+
   console.log('Cancel approval response:', response.data);
   return response.data;
 };

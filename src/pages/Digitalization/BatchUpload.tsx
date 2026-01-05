@@ -1,6 +1,6 @@
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useAllocationPermissions } from '../Document/utils/useAllocationPermissions';
-import { UploadCloud, Trash2, ChevronDown, FileText, Download, CheckCircle2, AlertCircle, X, FileCheck, Building2, FolderOpen, ExternalLink } from 'lucide-react';
+import { UploadCloud, Trash2, ChevronDown, FileText, Download, CheckCircle2, AlertCircle, X, FileCheck, Building2, FolderOpen, ExternalLink, Loader2 } from 'lucide-react';
 import { useState, useRef, useEffect, ChangeEvent, DragEvent } from 'react';
 import toast from 'react-hot-toast';
 import { performBatchUpload, performDocumentUpload } from './utils/batchServices';
@@ -38,6 +38,7 @@ export const BatchUploadPanel = () => {
     null
   );
   const [createdDocumentIds, setCreatedDocumentIds] = useState<number[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const {
     departmentOptions,
     getSubDepartmentOptions,
@@ -45,16 +46,16 @@ export const BatchUploadPanel = () => {
   } = useNestedDepartmentOptions();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
-  
+
   // Get department and subdepartment IDs from selected values
   const selectedDeptId = departmentOptions.find(
     (dept) => dept.label === selectedDepartment
   )?.value;
-  
+
   const selectedSubDeptId = subDepartmentOptions.find(
     (sub) => sub.label === selectedSubDepartment
   )?.value;
-  
+
   // Fetch allocation permissions for selected department/subdepartment
   const { permissions: allocationPermissions } = useAllocationPermissions({
     departmentId: selectedDeptId ? Number(selectedDeptId) : null,
@@ -91,7 +92,7 @@ export const BatchUploadPanel = () => {
       toast.error('You do not have permission to upload documents in this department and document type.');
       return;
     }
-    
+
     if (!e.target.files) return;
 
     const selected = Array.from(e.target.files);
@@ -114,9 +115,9 @@ export const BatchUploadPanel = () => {
       const lower = file.name.toLowerCase();
       const isCsv = lower.endsWith('.csv');
       const isXlsx = lower.endsWith('.xlsx') || lower.endsWith('.xls');
-      const isZip = lower.endsWith('.zip') || 
-                    file.type === 'application/zip' || 
-                    file.type === 'application/x-zip-compressed';
+      const isZip = lower.endsWith('.zip') ||
+        file.type === 'application/zip' ||
+        file.type === 'application/x-zip-compressed';
 
       // Client-side validation for CSV templates
       if (isCsv) {
@@ -190,13 +191,13 @@ export const BatchUploadPanel = () => {
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    
+
     // Check Add permission before allowing file drop
     if (!allocationPermissions.Add) {
       toast.error('You do not have permission to upload documents in this department and document type.');
       return;
     }
-    
+
     if (!e.dataTransfer.files) return;
 
     const droppedFiles = e.dataTransfer.files;
@@ -235,7 +236,7 @@ export const BatchUploadPanel = () => {
     return !isNaN(d.getTime());
   }
 
-  async function validateCsvTemplate(file: File): Promise<{ errors: string[]; rowCount: number }>{
+  async function validateCsvTemplate(file: File): Promise<{ errors: string[]; rowCount: number }> {
     const text = await file.text();
     const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
     if (lines.length === 0) return { errors: ['Empty file'], rowCount: 0 };
@@ -258,7 +259,7 @@ export const BatchUploadPanel = () => {
     for (let i = 1; i < lines.length; i++) {
       const row = lines[i].split(',');
       if (row.length === 1 && row[0].trim() === '') continue; // skip empty line
-      const rowObj: Record<string,string> = {};
+      const rowObj: Record<string, string> = {};
       headersLower.forEach((h, idx) => {
         const v = (row[idx] ?? '').trim();
         const key = h.replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
@@ -267,24 +268,24 @@ export const BatchUploadPanel = () => {
       });
 
       // Required fields
-      if (!rowObj.filename) errors.push(`Row ${i+1}: FileName is required`);
-      if (!rowObj.filedescription) errors.push(`Row ${i+1}: FileDescription is required`);
-      if (!rowObj.filedate) errors.push(`Row ${i+1}: FileDate is required`);
-      if (rowObj.filedate && !isValidDateString(rowObj.filedate)) errors.push(`Row ${i+1}: FileDate must be YYYY-MM-DD`);
+      if (!rowObj.filename) errors.push(`Row ${i + 1}: FileName is required`);
+      if (!rowObj.filedescription) errors.push(`Row ${i + 1}: FileDescription is required`);
+      if (!rowObj.filedate) errors.push(`Row ${i + 1}: FileDate is required`);
+      if (rowObj.filedate && !isValidDateString(rowObj.filedate)) errors.push(`Row ${i + 1}: FileDate must be YYYY-MM-DD`);
 
       // Expiration logic
       const expVal = ((rowObj.expiration || rowObj['expiration']) || '').toLowerCase();
-      if (['true','yes','1'].includes(expVal)) {
+      if (['true', 'yes', '1'].includes(expVal)) {
         const expDate = rowObj.expirationdate || rowObj['expiration date'];
-        if (!expDate) errors.push(`Row ${i+1}: ExpirationDate required when Expiration is TRUE`);
-        if (expDate && !isValidDateString(expDate)) errors.push(`Row ${i+1}: ExpirationDate must be YYYY-MM-DD`);
+        if (!expDate) errors.push(`Row ${i + 1}: ExpirationDate required when Expiration is TRUE`);
+        if (expDate && !isValidDateString(expDate)) errors.push(`Row ${i + 1}: ExpirationDate must be YYYY-MM-DD`);
       }
 
       // DateN validation
       for (let d = 1; d <= 10; d++) {
         const keyNoSpace = `date${d}`;
         const val = rowObj[keyNoSpace] ?? rowObj[`date ${d}`];
-        if (val && !isValidDateString(val)) errors.push(`Row ${i+1}: Date${d} must be YYYY-MM-DD`);
+        if (val && !isValidDateString(val)) errors.push(`Row ${i + 1}: Date${d} must be YYYY-MM-DD`);
       }
     }
 
@@ -294,28 +295,28 @@ export const BatchUploadPanel = () => {
   async function validateZipFile(file: File): Promise<{ isValid: boolean; error?: string }> {
     try {
       console.log(`Validating ZIP file: ${file.name} (${file.size} bytes)`);
-      
+
       // Lazy-load JSZip from CDN as ESM
       // @ts-ignore - dynamic ESM import via CDN
       const JSZipModule: any = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
       const JSZip = JSZipModule.default || JSZipModule;
-      
+
       if (!JSZip) {
         console.error('Failed to load JSZip library');
         return { isValid: false, error: 'Failed to load ZIP validation library' };
       }
-      
+
       const arrayBuffer = await file.arrayBuffer();
-      
+
       // Check file size - very small files are likely corrupted
       if (arrayBuffer.byteLength < 22) {
         // Minimum ZIP file size is 22 bytes (end of central directory record)
-        return { 
-          isValid: false, 
-          error: 'ZIP file is too small or corrupted. Minimum valid ZIP size is 22 bytes.' 
+        return {
+          isValid: false,
+          error: 'ZIP file is too small or corrupted. Minimum valid ZIP size is 22 bytes.'
         };
       }
-      
+
       // Try to load the ZIP file with strict validation
       const zip = new JSZip();
       try {
@@ -325,28 +326,28 @@ export const BatchUploadPanel = () => {
         // If loadAsync fails, the file is definitely corrupted
         const loadErrorMessage = loadError?.message || 'Failed to load ZIP file';
         console.error('ZIP loadAsync failed:', loadErrorMessage);
-        
+
         // Check for specific corruption errors
-        if (loadErrorMessage.includes('end of central directory') || 
-            loadErrorMessage.includes('Can\'t find') ||
-            loadErrorMessage.includes('central directory')) {
+        if (loadErrorMessage.includes('end of central directory') ||
+          loadErrorMessage.includes('Can\'t find') ||
+          loadErrorMessage.includes('central directory')) {
           return {
             isValid: false,
             error: 'ZIP file is corrupted: Cannot find end of central directory. The file structure is incomplete or damaged.'
           };
         }
-        
+
         throw loadError; // Re-throw to be caught by outer catch
       }
-      
+
       // Check if ZIP has any files
       const fileNames = Object.keys(zip.files);
       console.log(`ZIP file contains ${fileNames.length} files`);
-      
+
       if (fileNames.length === 0) {
         return { isValid: false, error: 'ZIP file is empty (no files inside)' };
       }
-      
+
       // Additional validation: Try to read at least one file to ensure ZIP is fully readable
       try {
         const firstFileName = fileNames[0];
@@ -358,7 +359,7 @@ export const BatchUploadPanel = () => {
         console.warn('Warning: Could not read file from ZIP:', readError);
         // Don't fail validation for this, but log it
       }
-      
+
       // ZIP is valid
       console.log(`ZIP file validation passed: ${file.name} (${fileNames.length} files)`);
       return { isValid: true };
@@ -366,27 +367,27 @@ export const BatchUploadPanel = () => {
       // JSZip throws specific errors for corrupted files
       const errorMessage = error?.message || 'Unknown error';
       console.error(`ZIP validation failed for ${file.name}:`, errorMessage);
-      
-      if (errorMessage.includes('end of central directory') || 
-          errorMessage.includes('corrupted') ||
-          errorMessage.includes('not a zip file') ||
-          errorMessage.includes('Can\'t find end of central directory') ||
-          errorMessage.includes('Can\'t find') ||
-          errorMessage.includes('central directory')) {
-        return { 
-          isValid: false, 
-          error: 'Invalid or corrupted ZIP file. The file may be damaged or not a valid ZIP archive. Please check the file and try again.' 
+
+      if (errorMessage.includes('end of central directory') ||
+        errorMessage.includes('corrupted') ||
+        errorMessage.includes('not a zip file') ||
+        errorMessage.includes('Can\'t find end of central directory') ||
+        errorMessage.includes('Can\'t find') ||
+        errorMessage.includes('central directory')) {
+        return {
+          isValid: false,
+          error: 'Invalid or corrupted ZIP file. The file may be damaged or not a valid ZIP archive. Please check the file and try again.'
         };
       }
-      
-      return { 
-        isValid: false, 
-        error: `ZIP validation failed: ${errorMessage}` 
+
+      return {
+        isValid: false,
+        error: `ZIP validation failed: ${errorMessage}`
       };
     }
   }
 
-  async function validateXlsxTemplate(file: File): Promise<{ errors: string[]; rowCount: number }>{
+  async function validateXlsxTemplate(file: File): Promise<{ errors: string[]; rowCount: number }> {
     // Lazy-load XLSX from CDN as ESM
     // @ts-ignore - dynamic ESM import via CDN
     const XLSX: any = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
@@ -450,7 +451,7 @@ export const BatchUploadPanel = () => {
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i] as string[];
       if (!row || row.length === 0 || row.every(c => (c ?? '').toString().trim() === '')) continue;
-      const rowObj: Record<string,string> = {};
+      const rowObj: Record<string, string> = {};
       headersLower.forEach((h, idx) => {
         const raw = row[idx] as any;
         // Normalize known date columns
@@ -466,36 +467,37 @@ export const BatchUploadPanel = () => {
         }
       });
 
-      if (!rowObj.filename) errors.push(`Row ${i+1}: FileName is required`);
-      if (!rowObj.filedescription) errors.push(`Row ${i+1}: FileDescription is required`);
-      if (!rowObj.filedate) errors.push(`Row ${i+1}: FileDate is required`);
-      if (rowObj.filedate && !isValidDateString(rowObj.filedate)) errors.push(`Row ${i+1}: FileDate must be YYYY-MM-DD`);
+      if (!rowObj.filename) errors.push(`Row ${i + 1}: FileName is required`);
+      if (!rowObj.filedescription) errors.push(`Row ${i + 1}: FileDescription is required`);
+      if (!rowObj.filedate) errors.push(`Row ${i + 1}: FileDate is required`);
+      if (rowObj.filedate && !isValidDateString(rowObj.filedate)) errors.push(`Row ${i + 1}: FileDate must be YYYY-MM-DD`);
 
       const expVal = ((rowObj.expiration || rowObj['expiration']) || '').toLowerCase();
-      if (['true','yes','1'].includes(expVal)) {
+      if (['true', 'yes', '1'].includes(expVal)) {
         const expDate = rowObj.expirationdate || rowObj['expiration date'];
-        if (!expDate) errors.push(`Row ${i+1}: ExpirationDate required when Expiration is TRUE`);
-        if (expDate && !isValidDateString(expDate)) errors.push(`Row ${i+1}: ExpirationDate must be YYYY-MM-DD`);
+        if (!expDate) errors.push(`Row ${i + 1}: ExpirationDate required when Expiration is TRUE`);
+        if (expDate && !isValidDateString(expDate)) errors.push(`Row ${i + 1}: ExpirationDate must be YYYY-MM-DD`);
       }
 
       for (let d = 1; d <= 10; d++) {
         const keyNoSpace = `date${d}`;
         const val = rowObj[keyNoSpace] ?? rowObj[`date ${d}`];
-        if (val && !isValidDateString(val)) errors.push(`Row ${i+1}: Date${d} must be YYYY-MM-DD`);
+        if (val && !isValidDateString(val)) errors.push(`Row ${i + 1}: Date${d} must be YYYY-MM-DD`);
       }
     }
 
     return { errors, rowCount: Math.max(0, rows.length - 1) };
   }
 
-   const handleUpload = async () => {
+  const handleUpload = async () => {
     // Check Add permission before allowing upload
     if (!allocationPermissions.Add) {
       toast.error('You do not have permission to upload documents in this department and document type.');
       return;
     }
-    
-    if (!files || files.length === 0) return;
+
+    if (!files || files.length === 0 || isUploading) return;
+    setIsUploading(true);
 
     // Ensure context is selected
     if (!selectedDepartment || !selectedSubDepartment) {
@@ -539,22 +541,22 @@ export const BatchUploadPanel = () => {
         console.warn(`Skipping ${uploadedFile.name} due to validation errors:`, uploadedFile.validationErrors);
         continue;
       }
-      
+
       if (uploadedFile.status === 'Pending') {
         console.log(`Uploading file: ${uploadedFile.name} (${uploadedFile.type})`);
         const formData = new FormData();
-        
+
         // Determine file type and use appropriate endpoint
         const lowerFileName = uploadedFile.name.toLowerCase();
-        const isZip = lowerFileName.endsWith('.zip') || 
-                      uploadedFile.file.type === 'application/zip' || 
-                      uploadedFile.file.type === 'application/x-zip-compressed';
-        const isExcelOrCsv = uploadedFile.file.type.includes('excel') || 
-                           uploadedFile.file.type.includes('spreadsheet') ||
-                           uploadedFile.file.type.includes('csv') ||
-                           lowerFileName.endsWith('.xlsx') ||
-                           lowerFileName.endsWith('.xls') ||
-                           lowerFileName.endsWith('.csv');
+        const isZip = lowerFileName.endsWith('.zip') ||
+          uploadedFile.file.type === 'application/zip' ||
+          uploadedFile.file.type === 'application/x-zip-compressed';
+        const isExcelOrCsv = uploadedFile.file.type.includes('excel') ||
+          uploadedFile.file.type.includes('spreadsheet') ||
+          uploadedFile.file.type.includes('csv') ||
+          lowerFileName.endsWith('.xlsx') ||
+          lowerFileName.endsWith('.xls') ||
+          lowerFileName.endsWith('.csv');
 
         if (isZip) {
           // Re-validate ZIP file right before upload to catch any issues
@@ -565,9 +567,9 @@ export const BatchUploadPanel = () => {
               console.error(`ZIP validation failed before upload: ${zipError}`);
               toast.error(`Cannot upload ${uploadedFile.name}: ${zipError || 'ZIP file is corrupted'}`);
               // Update file status to show error
-              setFiles(prevFiles => 
-                prevFiles.map(file => 
-                  file.id === uploadedFile.id 
+              setFiles(prevFiles =>
+                prevFiles.map(file =>
+                  file.id === uploadedFile.id
                     ? { ...file, status: 'Pending' as const, validationErrors: [zipError || 'ZIP file is corrupted'] }
                     : file
                 )
@@ -578,31 +580,31 @@ export const BatchUploadPanel = () => {
           } catch (validationError: any) {
             console.error(`ZIP re-validation error:`, validationError);
             toast.error(`Cannot upload ${uploadedFile.name}: Failed to validate ZIP file`);
-            setFiles(prevFiles => 
-              prevFiles.map(file => 
-                file.id === uploadedFile.id 
+            setFiles(prevFiles =>
+              prevFiles.map(file =>
+                file.id === uploadedFile.id
                   ? { ...file, status: 'Pending' as const, validationErrors: ['ZIP validation failed'] }
                   : file
               )
             );
             continue; // Skip this file
           }
-          
+
           // Use batch upload endpoint for ZIP files (backend will extract and process)
           console.log(`Preparing ZIP upload: ${uploadedFile.name}`);
-          
+
           // Verify file integrity one more time by reading it as a blob
           try {
             const fileBlob = uploadedFile.file.slice(0, uploadedFile.file.size, uploadedFile.file.type);
             const fileSize = fileBlob.size;
             console.log(`File blob size: ${fileSize} bytes, Original size: ${uploadedFile.file.size} bytes`);
-            
+
             if (fileSize !== uploadedFile.file.size) {
               console.error('File size mismatch detected!');
               toast.error(`File size mismatch detected for ${uploadedFile.name}. Please try selecting the file again.`);
               continue;
             }
-            
+
             // Verify the file is still readable
             const arrayBuffer = await fileBlob.arrayBuffer();
             if (arrayBuffer.byteLength < 22) {
@@ -610,14 +612,14 @@ export const BatchUploadPanel = () => {
               toast.error(`File ${uploadedFile.name} appears to be corrupted. Please try again.`);
               continue;
             }
-            
+
             console.log(`File integrity verified: ${arrayBuffer.byteLength} bytes`);
           } catch (verifyError: any) {
             console.error('File verification failed:', verifyError);
             toast.error(`Failed to verify file ${uploadedFile.name}. Please try again.`);
             continue;
           }
-          
+
           // Make sure we're using the original file object, not a copy
           formData.append('batchupload', uploadedFile.file, uploadedFile.name);
           formData.append('isZip', 'true'); // Flag to indicate ZIP file
@@ -630,14 +632,14 @@ export const BatchUploadPanel = () => {
           }
           formData.append('dep', String(depId));
           formData.append('subdep', String(subId));
-          
+
           // Log FormData contents for debugging
           console.log(`ZIP FormData prepared:`);
           console.log(`  - File: ${uploadedFile.name} (${uploadedFile.file.size} bytes, type: ${uploadedFile.file.type})`);
           console.log(`  - dep: ${depId}`);
           console.log(`  - subdep: ${subId}`);
           console.log(`  - isZip: true`);
-          
+
           // Verify FormData entry
           const formDataFile = formData.get('batchupload') as File;
           if (formDataFile) {
@@ -664,9 +666,9 @@ export const BatchUploadPanel = () => {
           formData.append('file', uploadedFile.file, uploadedFile.name);
           formData.append('FileName', uploadedFile.name);
           formData.append('FileDescription', `Batch uploaded: ${uploadedFile.name}`);
-          formData.append('DepartmentId', selectedDepartment ? 
+          formData.append('DepartmentId', selectedDepartment ?
             departmentOptions.find(d => d.label === selectedDepartment)?.value || '1' : '1');
-          formData.append('SubDepartmentId', selectedSubDepartment ? 
+          formData.append('SubDepartmentId', selectedSubDepartment ?
             subDepartmentOptions.find(s => s.label === selectedSubDepartment)?.value || '1' : '1');
           formData.append('FileDate', new Date().toISOString().split('T')[0]);
           formData.append('Confidential', 'false');
@@ -679,7 +681,7 @@ export const BatchUploadPanel = () => {
           const data = (isZip || isExcelOrCsv)
             ? await performBatchUpload(formData)
             : await performDocumentUpload(formData);
-          
+
           // Log batch upload activity
           try {
             const uploadType = isZip ? 'ZIP Archive' : (isExcelOrCsv ? 'Spreadsheet' : 'Document');
@@ -695,28 +697,28 @@ export const BatchUploadPanel = () => {
           } catch (logError) {
             console.warn('Failed to log batch upload activity:', logError);
           }
-          
+
           // Update file status
-          setFiles(prevFiles => 
-            prevFiles.map(file => 
-              file.id === uploadedFile.id 
+          setFiles(prevFiles =>
+            prevFiles.map(file =>
+              file.id === uploadedFile.id
                 ? { ...file, status: 'Success' as const }
                 : file
             )
           );
           successCount += 1;
-          
+
           console.log(`Uploaded ${uploadedFile.name}:`, data);
           console.log(`Full response structure:`, JSON.stringify(data, null, 2));
-          
+
           // Capture last response for spreadsheets/ZIP to show details
           if (isZip || isExcelOrCsv) {
             setLastBatchResponse(data);
-            
+
             // Extract created document IDs from response
             const responseData = data as any;
             const documentIds: number[] = [];
-            
+
             // Try to extract document IDs from various possible response formats
             if (responseData?.processedDocuments && Array.isArray(responseData.processedDocuments)) {
               responseData.processedDocuments.forEach((doc: any) => {
@@ -725,29 +727,29 @@ export const BatchUploadPanel = () => {
                 if (doc.ID) documentIds.push(doc.ID);
               });
             }
-            
+
             if (responseData?.createdDocuments && Array.isArray(responseData.createdDocuments)) {
               responseData.createdDocuments.forEach((doc: any) => {
                 if (doc.id) documentIds.push(doc.id);
                 if (doc.ID) documentIds.push(doc.ID);
               });
             }
-            
+
             // Also check if response has document IDs directly
             if (responseData?.documentIds && Array.isArray(responseData.documentIds)) {
               documentIds.push(...responseData.documentIds);
             }
-            
+
             // Check for success count in response
             const successCount = responseData?.successfulUpdates || responseData?.successCount || responseData?.totalDocuments || 0;
-            
+
             if (documentIds.length > 0) {
               setCreatedDocumentIds(prev => [...prev, ...documentIds]);
               console.log(`✅ Created document IDs:`, documentIds);
             } else if (successCount > 0) {
               console.log(`✅ Upload successful: ${successCount} document(s) created (IDs not in response)`);
             }
-            
+
             // Prefer backend-provided counts when available
             if (typeof (data as any)?.successfulUpdates === 'number' && typeof (data as any)?.failedUpdates === 'number') {
               const total = (data as any)?.totalDocuments ?? ((data as any)?.successfulUpdates + (data as any)?.failedUpdates);
@@ -763,49 +765,49 @@ export const BatchUploadPanel = () => {
           console.error(`Failed to upload ${uploadedFile.name}:`, error);
           console.error('Error response:', error?.response?.data);
           console.error('Error status:', error?.response?.status);
-          
+
           // Extract error message from various possible response formats
           let errorMessage = 'Unknown error occurred';
           let errorDetails = '';
-          
+
           if (error?.response?.data) {
             const data = error.response.data;
             // Try different possible error message fields
-            errorMessage = data.message 
-              || data.error 
+            errorMessage = data.message
+              || data.error
               || data.errorMessage
               || data.msg
               || (typeof data === 'string' ? data : 'Internal server error');
-            
+
             // Try to get additional details
-            errorDetails = data.details 
+            errorDetails = data.details
               || data.detail
               || data.stack
               || '';
-            
+
             // Special handling for ZIP file corruption errors
-            const isZipCorruptionError = errorDetails?.includes('end of central directory') 
+            const isZipCorruptionError = errorDetails?.includes('end of central directory')
               || errorDetails?.includes('not a zip file')
               || errorDetails?.includes('Can\'t find')
               || errorDetails?.includes('central directory')
               || errorMessage?.includes('end of central directory')
               || errorMessage?.includes('not a zip file');
-            
+
             if (isZipCorruptionError) {
               // Check if client-side validation passed but server failed
               const clientValidationPassed = !uploadedFile.validationErrors || uploadedFile.validationErrors.length === 0;
-              
+
               if (clientValidationPassed) {
                 // This is a SERVER-SIDE issue - file is valid but server can't read it
                 errorMessage = '⚠️ Server-side ZIP processing error';
-                const cleanDetails = errorDetails?.split(':')[0]?.trim() || 
-                                   'The server cannot read the ZIP file structure.';
+                const cleanDetails = errorDetails?.split(':')[0]?.trim() ||
+                  'The server cannot read the ZIP file structure.';
                 errorDetails = `❌ SERVER ERROR: ${cleanDetails}\n\n✅ Client validation: PASSED\n✅ File integrity: VERIFIED\n✅ File size: ${uploadedFile.file.size} bytes\n\n🔍 This indicates a BACKEND/SERVER issue:\n• Server ZIP library may be outdated or incompatible\n• Server-side file parsing error\n• Multipart form data parsing issue\n• Server file size/encoding configuration\n\n💡 Recommended actions:\n1. Contact system administrator\n2. Check server logs for detailed error\n3. Verify server ZIP library version\n4. Try a smaller ZIP file to test\n5. Check server file upload configuration`;
               } else {
                 // Client-side validation also failed
                 errorMessage = 'Invalid or corrupted ZIP file';
-                const cleanDetails = errorDetails?.split(':')[0]?.trim() || 
-                                   'The ZIP file structure is damaged or incomplete.';
+                const cleanDetails = errorDetails?.split(':')[0]?.trim() ||
+                  'The ZIP file structure is damaged or incomplete.';
                 errorDetails = `${cleanDetails}\n\nPossible solutions:\n• Recreate the ZIP file\n• Use a different ZIP tool (7-Zip, WinRAR, etc.)\n• Check if the file was downloaded correctly\n• Ensure the file is not corrupted or incomplete`;
               }
             } else if (errorDetails && !errorMessage.includes(errorDetails)) {
@@ -815,7 +817,7 @@ export const BatchUploadPanel = () => {
           } else if (error?.message) {
             errorMessage = error.message;
           }
-          
+
           // Format the final error message
           // For toast, use a simpler format (toast doesn't handle newlines well)
           let toastMessage = errorMessage;
@@ -826,30 +828,30 @@ export const BatchUploadPanel = () => {
               toastMessage = `${errorMessage}: ${firstLine}`;
             }
           }
-          
+
           // Show error toast with simplified message
           toast.error(`Failed to upload ${uploadedFile.name}: ${toastMessage}`, {
             duration: 10000, // Show for 10 seconds to allow reading
           });
-          
+
           // For file status, store the full detailed message
           const fullErrorMessage = errorDetails && !errorMessage.includes(errorDetails)
-            ? `${errorMessage}\n\n${errorDetails}` 
+            ? `${errorMessage}\n\n${errorDetails}`
             : errorMessage;
-          
+
           // Update file status to show error with full details
-          setFiles(prevFiles => 
-            prevFiles.map(file => 
-              file.id === uploadedFile.id 
-                ? { 
-                    ...file, 
-                    status: 'Pending' as const, 
-                    validationErrors: [fullErrorMessage.replace(/\n/g, ' | ')] // Replace newlines for display
-                  }
+          setFiles(prevFiles =>
+            prevFiles.map(file =>
+              file.id === uploadedFile.id
+                ? {
+                  ...file,
+                  status: 'Pending' as const,
+                  validationErrors: [fullErrorMessage.replace(/\n/g, ' | ')] // Replace newlines for display
+                }
                 : file
             )
           );
-          
+
           // Also log the full error for debugging
           console.error(`Full error details for ${uploadedFile.name}:`, {
             errorMessage,
@@ -861,7 +863,7 @@ export const BatchUploadPanel = () => {
         }
       }
     }
-    
+
     // Log batch upload completion
     try {
       await logOCRActivity(
@@ -876,16 +878,16 @@ export const BatchUploadPanel = () => {
     } catch (logError) {
       console.warn('Failed to log batch upload completion activity:', logError);
     }
-    
+
     // Fallback count if backend didn't provide
     if (!lastBatchCount) {
       setLastBatchCount({ total: files.length, success: successCount });
     }
-    
+
     // Show success message with option to view documents
     const depId = departmentOptions.find(d => d.label === selectedDepartment)?.value || '';
     const subId = subDepartmentOptions.find(s => s.label === selectedSubDepartment)?.value || '';
-    
+
     if (successCount > 0 && depId && subId) {
       const viewDocuments = () => {
         // Navigate to MyDocuments with pre-applied filters
@@ -896,7 +898,7 @@ export const BatchUploadPanel = () => {
         params.set('appliedSubDepartment', subId);
         navigate(`/documents?${params.toString()}`);
       };
-      
+
       toast.success(
         (t) => (
           <div className="flex flex-col gap-2">
@@ -924,6 +926,7 @@ export const BatchUploadPanel = () => {
     } else {
       toast.success(`Batch upload completed! Processed ${files.length} files.`);
     }
+    setIsUploading(false);
   };
 
   if (loadingDepartments) {
@@ -1043,11 +1046,10 @@ export const BatchUploadPanel = () => {
       <Card className="shadow-lg border-0 overflow-hidden">
         <CardContent className="p-6">
           <div
-            className={`border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 ${
-              selectedSubDepartment && allocationPermissions.Add
-                ? 'border-gray-300 hover:border-blue-500 hover:shadow-lg'
-                : 'border-gray-300 bg-gray-50 text-gray-400 cursor-not-allowed'
-            }`}
+            className={`border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 ${selectedSubDepartment && allocationPermissions.Add
+              ? 'border-gray-300 hover:border-blue-500 hover:shadow-lg'
+              : 'border-gray-300 bg-gray-50 text-gray-400 cursor-not-allowed'
+              }`}
             onClick={selectedSubDepartment && allocationPermissions.Add ? triggerFileInput : undefined}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
@@ -1122,16 +1124,24 @@ export const BatchUploadPanel = () => {
               )}
               {allocationPermissions?.Add && (
                 <button
-                  className={`flex items-center gap-2 px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${
-                    files.some((f) => f.status === 'Pending')
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
-                      : 'opacity-50 cursor-not-allowed bg-gray-400 text-white'
-                  }`}
-                  disabled={!files.some((f) => f.status === 'Pending')}
+                  className={`flex items-center gap-2 px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${files.some((f) => f.status === 'Pending') && !isUploading
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
+                    : 'opacity-50 cursor-not-allowed bg-gray-400 text-white'
+                    }`}
+                  disabled={!files.some((f) => f.status === 'Pending') || isUploading}
                   onClick={handleUpload}
                 >
-                  <UploadCloud className="w-5 h-5" />
-                  Upload {files.length > 0 ? `(${files.filter(f => f.status === 'Pending').length})` : ''}
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-5 h-5" />
+                      Upload {files.length > 0 ? `(${files.filter(f => f.status === 'Pending').length})` : ''}
+                    </>
+                  )}
                 </button>
               )}
             </div>
@@ -1195,11 +1205,10 @@ export const BatchUploadPanel = () => {
                       </td>
                       <td className="px-6 py-3 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                            file.status === 'Success'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }`}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${file.status === 'Success'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                            }`}
                         >
                           {file.status === 'Success' ? (
                             <CheckCircle2 className="w-3 h-3" />
@@ -1214,7 +1223,7 @@ export const BatchUploadPanel = () => {
                           const lower = file.name.toLowerCase();
                           const isCsvOrXlsx = lower.endsWith('.csv') || lower.endsWith('.xlsx') || lower.endsWith('.xls');
                           const isZip = lower.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
-                          
+
                           if (isZip) {
                             return file.validationErrors && file.validationErrors.length > 0 ? (
                               <span
@@ -1292,7 +1301,7 @@ export const BatchUploadPanel = () => {
               <div>
                 <CardTitle className="text-xl text-gray-800">Upload Results</CardTitle>
                 <p className="text-sm text-gray-600 mt-1">
-                  Processed: <span className="font-semibold text-green-700">{lastBatchCount.total}</span> file(s), 
+                  Processed: <span className="font-semibold text-green-700">{lastBatchCount.total}</span> file(s),
                   Success: <span className="font-semibold text-green-700">{lastBatchCount.success}</span>
                 </p>
               </div>
@@ -1327,11 +1336,10 @@ export const BatchUploadPanel = () => {
                       <tr key={idx} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{row.fileName ?? '-'}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                            row.status && row.status.toLowerCase().includes('fail')
-                              ? 'bg-red-100 text-red-800 border border-red-200'
-                              : 'bg-green-100 text-green-800 border border-green-200'
-                          }`}>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${row.status && row.status.toLowerCase().includes('fail')
+                            ? 'bg-red-100 text-red-800 border border-red-200'
+                            : 'bg-green-100 text-green-800 border border-green-200'
+                            }`}>
                             {row.status && !row.status.toLowerCase().includes('fail') && <CheckCircle2 className="w-3 h-3" />}
                             {row.status && row.status.toLowerCase().includes('fail') && <X className="w-3 h-3" />}
                             {row.status ?? '-'}

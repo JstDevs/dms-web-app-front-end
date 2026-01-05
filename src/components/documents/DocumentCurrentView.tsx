@@ -75,10 +75,36 @@ const normalizeDateInput = (value?: string | null) => {
   return date.toISOString().slice(0, 10);
 };
 
+/**
+ * Robust date-time formatter that handles potential timezone issues
+ * Ensures consistency across different browser environments
+ */
+const safeDateTimeFormat = (dateValue: string | null | undefined) => {
+  if (!dateValue) return '—';
+
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return '—';
+
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  } catch (err) {
+    console.warn('Error formatting date:', err);
+    return '—';
+  }
+};
+
 // Normalize filepath URL to use correct base URL (fixes localhost issue when accessing from different machines)
 const normalizeFilepathUrl = (filepath: string | null | undefined): string => {
   if (!filepath) return '';
-  
+
   // If already a full URL, check if it's localhost and replace with API base URL
   if (filepath.startsWith('http://') || filepath.startsWith('https://')) {
     // Check if it contains localhost
@@ -93,7 +119,7 @@ const normalizeFilepathUrl = (filepath: string | null | undefined): string => {
     // Already a valid full URL, return as is
     return filepath;
   }
-  
+
   // If it's a relative path, prepend API base URL
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
   // Ensure path starts with /
@@ -131,7 +157,7 @@ const DocumentCurrentView = ({
   const { fetchDocument } = useDocument();
 
   const currentDocumentInfo = document?.document[0];
-  
+
   // Get current version's filepath if available (prioritize over document[0].filepath)
   // This ensures we always show the latest version's file
   const currentVersion = document?.versions?.find(v => v.IsCurrentVersion) || document?.versions?.[0];
@@ -173,7 +199,7 @@ const DocumentCurrentView = ({
 
               const normalizedType: 'field' | 'open' =
                 normalizedTypeString === 'open' ||
-                normalizedTypeString === 'custom area'
+                  normalizedTypeString === 'custom area'
                   ? 'open'
                   : 'field';
 
@@ -190,14 +216,14 @@ const DocumentCurrentView = ({
           const filtered = normalizedRestrictions.filter((restriction) => {
             const restrictionRoleId =
               restriction.UserRole !== undefined &&
-              restriction.UserRole !== null &&
-              String(restriction.UserRole) !== ''
+                restriction.UserRole !== null &&
+                String(restriction.UserRole) !== ''
                 ? Number(restriction.UserRole)
                 : null;
             const restrictionUserId =
               restriction.UserID !== undefined &&
-              restriction.UserID !== null &&
-              String(restriction.UserID) !== ''
+                restriction.UserID !== null &&
+                String(restriction.UserID) !== ''
                 ? Number(restriction.UserID)
                 : null;
 
@@ -221,7 +247,7 @@ const DocumentCurrentView = ({
           setViewerRestrictions([]);
           setRestrictionsError(
             response.message ||
-              'No masking details available for this document.'
+            'No masking details available for this document.'
           );
         }
       } catch (error) {
@@ -395,9 +421,9 @@ const DocumentCurrentView = ({
     try {
       // Metadata edits create minor versions (v1 → v1.1, v2 → v2.1, etc.)
       const formData = buildDocumentFormData(
-        updatedDoc, 
-        null, 
-        false, 
+        updatedDoc,
+        null,
+        false,
         currentDocumentInfo.ID,
         undefined,
         true,   // isMinorVersion: true - metadata edits create minor versions
@@ -445,7 +471,7 @@ const DocumentCurrentView = ({
 
       // Refresh document to get updated version
       await fetchDocument(String(currentDocumentInfo.ID));
-      
+
       toast.success('Document updated successfully.');
       setIsEditing(false);
     } catch (error: any) {
@@ -485,7 +511,7 @@ const DocumentCurrentView = ({
         if (fieldsData.length === 0) {
           // Create a temporary display for any fields that have values
           const tempFields: Field[] = [];
-          
+
           // Check Text fields (1-10)
           for (let i = 1; i <= 10; i++) {
             const textKey = `Text${i}` as keyof typeof currentDocumentInfo;
@@ -500,7 +526,7 @@ const DocumentCurrentView = ({
               });
             }
           }
-          
+
           // Check Date fields (1-10)
           for (let i = 1; i <= 10; i++) {
             const dateKey = `Date${i}` as keyof typeof currentDocumentInfo;
@@ -515,10 +541,10 @@ const DocumentCurrentView = ({
               });
             }
           }
-          
+
           // Sort fields by FieldNumber to ensure correct order
           tempFields.sort((a, b) => a.FieldNumber - b.FieldNumber);
-          
+
           setFields(tempFields);
         } else {
           setFields(activeFields);
@@ -579,15 +605,16 @@ const DocumentCurrentView = ({
       try {
         // Normalize filepath to use correct base URL (fixes localhost issue)
         const normalizedFilepath = normalizeFilepathUrl(effectiveFilepath);
+        if (!currentDocumentInfo) return;
         const response = await fetch(normalizedFilepath);
         const blob = await response.blob();
-        
+
         // Determine the correct MIME type based on detected file type
         const detectedType = getFileType();
         let mimeType = blob.type;
         let fileName = currentDocumentInfo?.FileName || 'document';
         let finalBlob = blob;
-        
+
         // Override MIME type based on detected file type to ensure correct download
         switch (detectedType) {
           case 'pdf':
@@ -595,14 +622,14 @@ const DocumentCurrentView = ({
             if (!fileName.toLowerCase().endsWith('.pdf')) {
               fileName = `${fileName}.pdf`;
             }
-            
+
             // Convert PDF to PDF/A format for archiving
             // PDF/A is an ISO-standardized format for long-term document preservation
             try {
               toast.loading('Converting PDF to PDF/A format...', { id: 'pdfa-conversion' });
               const conversionResult = await convertPdfToPdfA(blob, currentDocumentInfo.ID);
               finalBlob = conversionResult.blob;
-              
+
               // Check if conversion actually happened
               if (conversionResult.converted) {
                 // Update filename to indicate PDF/A format
@@ -614,7 +641,7 @@ const DocumentCurrentView = ({
                 toast.dismiss('pdfa-conversion');
                 toast(
                   'PDF/A conversion not available. Downloading original PDF. Please implement backend conversion endpoint.',
-                  { 
+                  {
                     id: 'pdfa-conversion',
                     duration: 4000,
                     icon: 'ℹ️'
@@ -654,7 +681,7 @@ const DocumentCurrentView = ({
             break;
           case 'image':
             // For images, use DataType if available, otherwise infer from filename or use blob type
-            if (currentDocumentInfo.DataType && currentDocumentInfo.DataType.startsWith('image/')) {
+            if (currentDocumentInfo?.DataType && currentDocumentInfo.DataType.startsWith('image/')) {
               mimeType = currentDocumentInfo.DataType;
             } else if (!mimeType || mimeType === 'application/octet-stream') {
               // Try to infer from filename
@@ -675,13 +702,13 @@ const DocumentCurrentView = ({
             break;
           default:
             // For other types, use DataType if available, otherwise use blob type
-            if (currentDocumentInfo.DataType && currentDocumentInfo.DataType.startsWith('application/')) {
+            if (currentDocumentInfo?.DataType && currentDocumentInfo.DataType.startsWith('application/')) {
               mimeType = currentDocumentInfo.DataType;
             } else if (!mimeType || mimeType === 'application/octet-stream') {
-              mimeType = currentDocumentInfo.DataType || blob.type || 'application/octet-stream';
+              mimeType = currentDocumentInfo?.DataType || blob.type || 'application/octet-stream';
             }
         }
-        
+
         // Log document download activity FIRST (before download)
         // This ensures the activity is logged even if download fails
         try {
@@ -690,8 +717,8 @@ const DocumentCurrentView = ({
             'DOWNLOADED',
             user!.ID,
             user!.UserName,
-            currentDocumentInfo.ID,
-            currentDocumentInfo.FileName,
+            currentDocumentInfo?.ID || 0,
+            currentDocumentInfo?.FileName || 'Unknown',
             `Downloaded by ${user!.UserName}`
           );
           console.log('✅ Download activity logged successfully');
@@ -700,7 +727,7 @@ const DocumentCurrentView = ({
           // Don't block the download if logging fails, but show a warning
           toast.error('Download will proceed, but activity logging failed. Please refresh the audit trail manually.');
         }
-        
+
         // Create a new blob with the correct MIME type
         const correctedBlob = new Blob([finalBlob], { type: mimeType });
         const url = window.URL.createObjectURL(correctedBlob);
@@ -714,7 +741,7 @@ const DocumentCurrentView = ({
 
         // Clean up the blob URL
         window.URL.revokeObjectURL(url);
-        
+
         // Refresh document data to show the new audit trail entry
         // Add a small delay to allow backend to process the audit log
         setTimeout(async () => {
@@ -734,7 +761,7 @@ const DocumentCurrentView = ({
       }
     }
   };
-  
+
   // Show loading state if document is not yet loaded
   if (!document || !currentDocumentInfo) {
     return (
@@ -750,38 +777,38 @@ const DocumentCurrentView = ({
   // Helper function to detect file type
   const getFileType = () => {
     if (!effectiveFilepath) return 'unknown';
-    
+
     const filepath = effectiveFilepath.toLowerCase();
     const filename = currentDocumentInfo.FileName?.toLowerCase() || '';
     const dataType = currentDocumentInfo.DataType?.toLowerCase() || '';
-    
+
     // Check by file extension first
     if (filepath.endsWith('.pdf') || filename.endsWith('.pdf')) {
       return 'pdf';
     }
-    
+
     if (filepath.endsWith('.docx') || filename.endsWith('.docx')) {
       return 'docx';
     }
-    
+
     if (filepath.endsWith('.doc') || filename.endsWith('.doc')) {
       return 'doc';
     }
-    
+
     // Check for Excel files by extension
     if (filepath.endsWith('.xlsx') || filename.endsWith('.xlsx')) {
       return 'xlsx';
     }
-    
+
     if (filepath.endsWith('.xls') || filename.endsWith('.xls')) {
       return 'xls';
     }
-    
+
     // Check by MIME type from DataType field
     if (dataType.includes('pdf') || dataType === 'application/pdf') {
       return 'pdf';
     }
-    
+
     if (
       dataType.includes('wordprocessingml') ||
       dataType.includes('msword') ||
@@ -790,7 +817,7 @@ const DocumentCurrentView = ({
     ) {
       return filepath.endsWith('.doc') || filename.endsWith('.doc') ? 'doc' : 'docx';
     }
-    
+
     // Check for Excel files by MIME type
     if (
       dataType.includes('spreadsheetml') ||
@@ -802,7 +829,7 @@ const DocumentCurrentView = ({
     ) {
       return filepath.endsWith('.xls') || filename.endsWith('.xls') ? 'xls' : 'xlsx';
     }
-    
+
     // Check if it's an image
     if (
       dataType.startsWith('image/') ||
@@ -811,7 +838,7 @@ const DocumentCurrentView = ({
     ) {
       return 'image';
     }
-    
+
     return 'unknown';
   };
 
@@ -824,14 +851,14 @@ const DocumentCurrentView = ({
   // Helper function to format file type for display
   const getFormattedFileType = () => {
     if (!currentDocumentInfo?.DataType) return 'N/A';
-    
+
     const dataType = currentDocumentInfo.DataType.toLowerCase();
-    
+
     // PDF
     if (dataType.includes('pdf') || fileType === 'pdf') {
       return 'PDF Document';
     }
-    
+
     // Word documents
     if (
       dataType.includes('wordprocessingml') ||
@@ -841,7 +868,7 @@ const DocumentCurrentView = ({
     ) {
       return fileType === 'doc' ? 'Word Document (.doc)' : 'Word Document (.docx)';
     }
-    
+
     // Excel
     if (
       dataType.includes('spreadsheetml') ||
@@ -852,28 +879,28 @@ const DocumentCurrentView = ({
     ) {
       return fileType === 'xls' ? 'Excel Spreadsheet (.xls)' : 'Excel Spreadsheet (.xlsx)';
     }
-    
+
     // Images
     if (dataType.startsWith('image/') || isImage) {
       const imageType = dataType.split('/')[1]?.toUpperCase() || 'Image';
       return `${imageType} Image`;
     }
-    
+
     // Text files
     if (dataType.includes('text/plain') || dataType.includes('txt')) {
       return 'Text File';
     }
-    
+
     // CSV
     if (dataType.includes('csv') || dataType.includes('text/csv')) {
       return 'CSV File';
     }
-    
+
     // ZIP
     if (dataType.includes('zip')) {
       return 'ZIP Archive';
     }
-    
+
     // If it's a long MIME type, try to extract a readable name
     if (dataType.includes('application/')) {
       const parts = dataType.split('/');
@@ -884,7 +911,7 @@ const DocumentCurrentView = ({
         }
       }
     }
-    
+
     // Fallback to original DataType but truncate if too long
     return currentDocumentInfo.DataType.length > 30
       ? `${currentDocumentInfo.DataType.substring(0, 30)}...`
@@ -893,8 +920,8 @@ const DocumentCurrentView = ({
 
   // Include both field restrictions and custom area restrictions (both need masking)
   const allRestrictionsForMasking = viewerRestrictions.filter(
-    (restriction) => 
-      restriction.restrictedType === 'open' || 
+    (restriction) =>
+      restriction.restrictedType === 'open' ||
       restriction.restrictedType === 'field'
   );
   const shouldApplyMasking = allRestrictionsForMasking.length > 0;
@@ -942,7 +969,7 @@ const DocumentCurrentView = ({
                 src={`${normalizeFilepathUrl(effectiveFilepath)}#toolbar=1`}
                 title="PDF Viewer"
                 className="w-full border-0 rounded-lg"
-                style={{ 
+                style={{
                   height: '85vh',
                   minHeight: '600px',
                   maxHeight: '85vh'
@@ -1025,9 +1052,9 @@ const DocumentCurrentView = ({
             </div>
           ) : isImage ? (
             <div className="w-full h-full flex items-center justify-center p-4">
-              <img 
-                src={normalizeFilepathUrl(effectiveFilepath)} 
-                alt={currentDocumentInfo?.FileName || 'Document'} 
+              <img
+                src={normalizeFilepathUrl(effectiveFilepath)}
+                alt={currentDocumentInfo?.FileName || 'Document'}
                 className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-lg"
                 onError={(e) => {
                   console.error('Image loading error:', e);
@@ -1093,17 +1120,7 @@ const DocumentCurrentView = ({
                   <Clock className="h-4 w-4" />
                   <span>
                     Last modified:{' '}
-                    {document?.versions?.[0]?.ModificationDate
-                      ? new Date(
-                          document?.versions?.[0]?.ModificationDate
-                        ).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : '—'}
+                    {safeDateTimeFormat(document?.versions?.[0]?.ModificationDate)}
                   </span>
                 </div>
               </div>
@@ -1174,7 +1191,7 @@ const DocumentCurrentView = ({
                   </button> */}
 
                 </div>
-                
+
               </div>
 
             </div>
@@ -1197,145 +1214,139 @@ const DocumentCurrentView = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* File Format */}
               <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-purple-400 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center shadow-inner">
-                  <FileText className="h-5 w-5 text-white drop-shadow-sm" />
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center shadow-inner">
+                    <FileText className="h-5 w-5 text-white drop-shadow-sm" />
+                  </div>
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
+                    File Format
+                  </h4>
                 </div>
-                <h4 className="text-base font-semibold text-gray-800 tracking-wide">
-                  File Format
-                </h4>
+
+                <p
+                  className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg ${currentDocumentInfo?.DataType ? 'text-gray-900' : 'text-gray-500 italic'
+                    }`}
+                >
+                  {getFormattedFileType()}
+                </p>
               </div>
 
-              <p
-                className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg ${
-                  currentDocumentInfo?.DataType ? 'text-gray-900' : 'text-gray-500 italic'
-                }`}
-              >
-                {getFormattedFileType()}
-              </p>
-            </div>
 
-              
               {/* Confidential Status */}
               <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-green-400 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-3">
-                <div
-                  className={`h-10 w-10 rounded-lg flex items-center justify-center shadow-inner transition-all duration-300 ${
-                    currentDocumentInfo?.Confidential
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className={`h-10 w-10 rounded-lg flex items-center justify-center shadow-inner transition-all duration-300 ${currentDocumentInfo?.Confidential
                       ? 'bg-gradient-to-r from-red-500 to-pink-500'
                       : 'bg-gradient-to-r from-green-500 to-emerald-500'
-                  }`}
-                >
-                  <Shield className="h-5 w-5 text-white drop-shadow-sm" />
+                      }`}
+                  >
+                    <Shield className="h-5 w-5 text-white drop-shadow-sm" />
+                  </div>
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
+                    Confidential
+                  </h4>
                 </div>
-                <h4 className="text-base font-semibold text-gray-800 tracking-wide">
-                  Confidential
-                </h4>
-              </div>
 
-              {isEditing ? (
-                <label className="flex items-center gap-3 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={formValues.Confidential}
-                    onChange={(e) => handleFormValueChange('Confidential', e.target.checked)}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span>{formValues.Confidential ? 'Confidential document' : 'Mark as confidential'}</span>
-                </label>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-all duration-300 ${
-                      currentDocumentInfo?.Confidential
+                {isEditing ? (
+                  <label className="flex items-center gap-3 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={formValues.Confidential}
+                      onChange={(e) => handleFormValueChange('Confidential', e.target.checked)}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span>{formValues.Confidential ? 'Confidential document' : 'Mark as confidential'}</span>
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-all duration-300 ${currentDocumentInfo?.Confidential
                         ? 'bg-red-100 text-red-800 border border-red-200'
                         : 'bg-green-100 text-green-800 border border-green-200'
-                    }`}
-                  >
-                    <span
-                      className={`h-2 w-2 rounded-full mr-2 ${
-                        currentDocumentInfo?.Confidential ? 'bg-red-500' : 'bg-green-500'
-                      }`}
-                    ></span>
-                    {currentDocumentInfo?.Confidential ? 'Yes, Confidential' : 'No, Public'}
-                  </span>
-                </div>
-              )}
-            </div>
+                        }`}
+                    >
+                      <span
+                        className={`h-2 w-2 rounded-full mr-2 ${currentDocumentInfo?.Confidential ? 'bg-red-500' : 'bg-green-500'
+                          }`}
+                      ></span>
+                      {currentDocumentInfo?.Confidential ? 'Yes, Confidential' : 'No, Public'}
+                    </span>
+                  </div>
+                )}
+              </div>
 
 
 
               {/* Department */}
               <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center shadow-inner">
-                  <Building className="h-5 w-5 text-white drop-shadow-sm" />
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center shadow-inner">
+                    <Building className="h-5 w-5 text-white drop-shadow-sm" />
+                  </div>
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
+                    Department
+                  </h4>
                 </div>
-                <h4 className="text-base font-semibold text-gray-800 tracking-wide">
-                  Department
-                </h4>
-              </div>
 
-              <p
-                className={`text-gray-900 font-medium leading-relaxed ${
-                  isEditing ? '' : 'bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg'
-                }`}
-              >
-                {isEditing ? (
-                  <select
-                    value={formValues.DepartmentId}
-                    onChange={(e) => handleDepartmentChange(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  >
-                    <option value="">Select department</option>
-                    {departmentOptions.map((dept) => (
-                      <option key={dept.value} value={dept.value}>
-                        {dept.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  documentsDepartment?.label || 'N/A'
-                )}
-              </p>
-            </div>
+                <p
+                  className={`text-gray-900 font-medium leading-relaxed ${isEditing ? '' : 'bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg'
+                    }`}
+                >
+                  {isEditing ? (
+                    <select
+                      value={formValues.DepartmentId}
+                      onChange={(e) => handleDepartmentChange(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="">Select department</option>
+                      {departmentOptions.map((dept) => (
+                        <option key={dept.value} value={dept.value}>
+                          {dept.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    documentsDepartment?.label || 'N/A'
+                  )}
+                </p>
+              </div>
 
 
               {/* Document Type */}
               <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-indigo-400 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-inner">
-                  <Building className="h-5 w-5 text-white drop-shadow-sm" />
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-inner">
+                    <Building className="h-5 w-5 text-white drop-shadow-sm" />
+                  </div>
+                  <h4 className="text-base font-semibold text-gray-800 tracking-wide">
+                    Document Type
+                  </h4>
                 </div>
-                <h4 className="text-base font-semibold text-gray-800 tracking-wide">
-                  Document Type
-                </h4>
-              </div>
 
-              <p
-                className={`text-gray-900 font-medium leading-relaxed ${
-                  isEditing ? '' : 'bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg'
-                }`}
-              >
-                {isEditing ? (
-                  <select
-                    value={formValues.SubDepartmentId}
-                    onChange={(e) => handleFormValueChange('SubDepartmentId', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    disabled={!formValues.DepartmentId}
-                  >
-                    <option value="">Select document type</option>
-                    {subDepartmentOptions.map((sub) => (
-                      <option key={sub.value} value={sub.value}>
-                        {sub.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  documentsSubDepartment?.label || 'N/A'
-                )}
-              </p>
-            </div>
+                <p
+                  className={`text-gray-900 font-medium leading-relaxed ${isEditing ? '' : 'bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg'
+                    }`}
+                >
+                  {isEditing ? (
+                    <select
+                      value={formValues.SubDepartmentId}
+                      onChange={(e) => handleFormValueChange('SubDepartmentId', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      disabled={!formValues.DepartmentId}
+                    >
+                      <option value="">Select document type</option>
+                      {subDepartmentOptions.map((sub) => (
+                        <option key={sub.value} value={sub.value}>
+                          {sub.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    documentsSubDepartment?.label || 'N/A'
+                  )}
+                </p>
+              </div>
 
               {/* File Date */}
               <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-orange-400 transition-all duration-300">
@@ -1356,19 +1367,18 @@ const DocumentCurrentView = ({
                   />
                 ) : (
                   <p
-                    className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
-                      currentDocumentInfo?.FileDate ? 'text-gray-900' : 'text-gray-500 italic'
-                    }`}
+                    className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${currentDocumentInfo?.FileDate ? 'text-gray-900' : 'text-gray-500 italic'
+                      }`}
                   >
                     {currentDocumentInfo?.FileDate
                       ? new Date(currentDocumentInfo.FileDate).toLocaleDateString(
-                          'en-US',
-                          {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          }
-                        )
+                        'en-US',
+                        {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        }
+                      )
                       : 'N/A'}
                   </p>
                 )}
@@ -1432,51 +1442,50 @@ const DocumentCurrentView = ({
                   </h4>
                 </div>
 
-              {isEditing ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      File Description
-                    </label>
-                    <textarea
-                      value={formValues.FileDescription}
-                      onChange={(e) => handleFormValueChange('FileDescription', e.target.value)}
-                      rows={3}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      placeholder="Enter file description"
-                    />
+                {isEditing ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        File Description
+                      </label>
+                      <textarea
+                        value={formValues.FileDescription}
+                        onChange={(e) => handleFormValueChange('FileDescription', e.target.value)}
+                        rows={3}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="Enter file description"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Additional Description
+                      </label>
+                      <textarea
+                        value={formValues.Description}
+                        onChange={(e) => handleFormValueChange('Description', e.target.value)}
+                        rows={3}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="Optional internal description"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      Additional Description
-                    </label>
-                    <textarea
-                      value={formValues.Description}
-                      onChange={(e) => handleFormValueChange('Description', e.target.value)}
-                      rows={3}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      placeholder="Optional internal description"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p
-                    className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
-                      currentDocumentInfo?.FileDescription
+                ) : (
+                  <div className="space-y-3">
+                    <p
+                      className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${currentDocumentInfo?.FileDescription
                         ? 'text-gray-900'
                         : 'text-gray-500 italic'
-                    }`}
-                  >
-                    {currentDocumentInfo?.FileDescription || 'No description available'}
-                  </p>
-                  {currentDocumentInfo?.Description ? (
-                    <p className="text-sm text-gray-600 bg-white border border-gray-200 px-4 py-2 rounded-lg">
-                      {currentDocumentInfo.Description}
+                        }`}
+                    >
+                      {currentDocumentInfo?.FileDescription || 'No description available'}
                     </p>
-                  ) : null}
-                </div>
-              )}
+                    {currentDocumentInfo?.Description ? (
+                      <p className="text-sm text-gray-600 bg-white border border-gray-200 px-4 py-2 rounded-lg">
+                        {currentDocumentInfo.Description}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
               </div>
 
               {/* Remarks */}
@@ -1499,9 +1508,8 @@ const DocumentCurrentView = ({
                   />
                 ) : (
                   <p
-                    className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${
-                      currentDocumentInfo?.Remarks ? 'text-gray-900' : 'text-gray-500 italic'
-                    }`}
+                    className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg ${currentDocumentInfo?.Remarks ? 'text-gray-900' : 'text-gray-500 italic'
+                      }`}
                   >
                     {currentDocumentInfo?.Remarks || 'No remarks recorded'}
                   </p>

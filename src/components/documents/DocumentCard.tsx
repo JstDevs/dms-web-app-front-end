@@ -41,6 +41,9 @@ interface DocumentCardProps {
     Collaborate?: boolean;
   };
   onDelete?: (id: string) => void;
+  selected?: boolean;
+  onSelect?: (id: string, selected: boolean) => void;
+  onStatusUpdate?: (id: string, status: string) => void;
 }
 
 const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
@@ -48,6 +51,9 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   onClick,
   permissions,
   onDelete,
+  selected = false,
+  onSelect,
+  onStatusUpdate,
 }) => {
   const {
     FileName,
@@ -75,12 +81,19 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  
+
+  // Report status back to parent whenever it changes
+  React.useEffect(() => {
+    if (onStatusUpdate && actualApprovalStatus) {
+      onStatusUpdate(ID.toString(), actualApprovalStatus);
+    }
+  }, [ID, actualApprovalStatus, onStatusUpdate]);
+
   // Check if current user is the approver (same logic as DocumentApproval.tsx)
   // Check both the stored pendingRequest and all pending requests
   const isCurrentUserApprover = useMemo(() => {
     if (!user?.ID) return false;
-    
+
     // First check if we have a stored pendingRequest
     if (pendingRequest) {
       const approverId = pendingRequest.approverId ?? pendingRequest.ApproverID;
@@ -89,7 +102,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
         return true;
       }
     }
-    
+
     // Also check all pending requests (fallback)
     if (allPendingRequests.length > 0) {
       return allPendingRequests.some((req: any) => {
@@ -97,7 +110,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
         return approverId === user.ID || Number(approverId) === Number(user.ID);
       });
     }
-    
+
     return false;
   }, [pendingRequest, allPendingRequests, user?.ID]);
 
@@ -122,21 +135,21 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
         if (statusResponse?.data) {
           const finalStatus = statusResponse.data.finalStatus;
-          
+
           if (finalStatus === 'APPROVED') {
             setActualApprovalStatus('approved');
             setPendingRequest(null);
             setAllPendingRequests([]);
             return;
           }
-          
+
           if (finalStatus === 'REJECTED') {
             setActualApprovalStatus('rejected');
             setPendingRequest(null);
             setAllPendingRequests([]);
             return;
           }
-          
+
           if (finalStatus === 'IN_PROGRESS') {
             setActualApprovalStatus('in_progress');
             // Always fetch pending requests to ensure we have the latest data
@@ -152,30 +165,30 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
                   const status = req.Status;
                   const isCancelled = req.IsCancelled;
                   const hasApprovalDate = req.ApprovalDate !== null && req.ApprovalDate !== undefined;
-                  
+
                   // Exclude if already decided
-                  const isDecided = 
+                  const isDecided =
                     hasApprovalDate ||
                     status === 'APPROVED' ||
                     status === 'REJECTED' ||
                     status === '1' ||
                     status === '0';
-                  
+
                   // Only include if truly pending and not cancelled
                   const isPending =
                     (status === 'PENDING' ||
-                    status === 'Pending' ||
-                    status === 'pending' ||
-                    status === null ||
-                    status === undefined) &&
+                      status === 'Pending' ||
+                      status === 'pending' ||
+                      status === null ||
+                      status === undefined) &&
                     !isDecided;
-                  
+
                   return isPending && (isCancelled === 0 || isCancelled === false || isCancelled === '0' || isCancelled === null);
                 });
-                
+
                 // Store all pending requests
                 setAllPendingRequests(pendingRequests);
-                
+
                 // Find request for current user - use both direct and number comparison
                 // Same comparison as DocumentApproval: req.approverId === user?.ID
                 const userPendingRequest = pendingRequests.find((req: any) => {
@@ -194,7 +207,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
             }
             return;
           }
-          
+
           if (finalStatus === 'PENDING') {
             setActualApprovalStatus('pending');
             setPendingRequest(null);
@@ -207,34 +220,34 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
         const response = await axios.get(`/documents/documents/${ID}/approvals`, {
           signal: abortController.signal
         });
-        
+
         if (!isMounted) return;
 
         if (response.data.success && response.data.data.length > 0) {
           const requests = response.data.data;
-          const activeRequests = requests.filter((req: any) => 
+          const activeRequests = requests.filter((req: any) =>
             req.IsCancelled === 0 || req.IsCancelled === false || req.IsCancelled === '0' || req.IsCancelled === null
           );
-          
+
           // Quick check: if all processed, determine status
           const allProcessed = activeRequests.every((req: any) => {
             const status = req.Status;
             const hasApprovalDate = req.ApprovalDate !== null && req.ApprovalDate !== undefined;
             return (
-              status === 'APPROVED' || 
-              status === 'REJECTED' || 
-              status === '1' || 
+              status === 'APPROVED' ||
+              status === 'REJECTED' ||
+              status === '1' ||
               status === '0' ||
               hasApprovalDate
             );
           });
-          
+
           if (allProcessed && activeRequests.length > 0) {
             // Simplified calculation - use default ALL rule for speed
-            const approved = activeRequests.filter((req: any) => 
+            const approved = activeRequests.filter((req: any) =>
               req.Status === 'APPROVED' || req.Status === '1'
             );
-            
+
             setActualApprovalStatus(approved.length === activeRequests.length ? 'approved' : 'rejected');
             setPendingRequest(null);
             setAllPendingRequests([]);
@@ -248,11 +261,11 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
                 !hasApprovalDate
               );
             });
-            
+
             if (hasPending) {
               setActualApprovalStatus('in_progress');
               // Filter for pending requests first
-              const pendingRequests = activeRequests.filter((req: any) => 
+              const pendingRequests = activeRequests.filter((req: any) =>
                 (req.Status === 'PENDING' || req.Status === null || req.Status === undefined) &&
                 (req.ApprovalDate === null || req.ApprovalDate === undefined)
               );
@@ -297,17 +310,17 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   // Browser console will show 403 errors - this is expected and cannot be disabled (browser security feature)
   React.useEffect(() => {
     const abortController = new AbortController();
-    
+
     // Don't fetch if user doesn't have Collaborate permission
     // Check explicitly: if permissions exists and Collaborate is explicitly false or undefined, skip
     const hasCollaboratePermission = permissions?.Collaborate === true;
-    
+
     if (!hasCollaboratePermission) {
       setVersionNumber(null);
       setIsVersionLoading(false);
       return;
     }
-    
+
     // Note: Even with permission check, request may still return 403 if:
     // - Document belongs to different department than permissions checked
     // - User is new and permissions haven't been configured yet
@@ -344,7 +357,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
           setIsVersionLoading(false);
           return;
         }
-        
+
         // This catch block should rarely execute for 403 errors since interceptor handles them
         // But keep it as a fallback for other errors
         if (error?.response?.status === 403) {
@@ -361,7 +374,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     };
 
     fetchVersion();
-    
+
     // Cleanup: abort request if component unmounts or effect re-runs
     return () => {
       abortController.abort();
@@ -394,8 +407,8 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
       }
     } catch (error: any) {
       console.error('Error requesting approval:', error);
-      const errorMsg = error?.response?.data?.message 
-        || error?.message 
+      const errorMsg = error?.response?.data?.message
+        || error?.message
         || 'Failed to send approval request';
       toast.error(errorMsg);
     } finally {
@@ -434,8 +447,8 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
       }, 500);
     } catch (error: any) {
       console.error('Error approving document:', error);
-      const errorMsg = error?.response?.data?.message 
-        || error?.message 
+      const errorMsg = error?.response?.data?.message
+        || error?.message
         || 'Failed to approve document';
       toast.error(errorMsg);
     } finally {
@@ -488,8 +501,8 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
       }, 500);
     } catch (error: any) {
       console.error('Error rejecting document:', error);
-      const errorMsg = error?.response?.data?.message 
-        || error?.message 
+      const errorMsg = error?.response?.data?.message
+        || error?.message
         || 'Failed to reject document';
       toast.error(errorMsg);
     } finally {
@@ -581,7 +594,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     );
   }, [actualApprovalStatus, publishing_status]);
 
-  const isExpired = useMemo(() => 
+  const isExpired = useMemo(() =>
     Expiration && ExpirationDate && new Date(ExpirationDate) < new Date(),
     [Expiration, ExpirationDate]
   );
@@ -606,6 +619,21 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
           CONFIDENTIAL
         </div>
       )}
+
+      {/* Selection Checkbox */}
+      <div
+        className="absolute top-4 left-4 z-20"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <input
+          type="checkbox"
+          checked={selected}
+          disabled={actualApprovalStatus === 'approved' || actualApprovalStatus === 'in_progress'}
+          onChange={(e) => onSelect?.(ID.toString(), e.target.checked)}
+          className="w-5 h-5 rounded-md border-2 border-blue-500 bg-white text-blue-600 focus:ring-blue-500 cursor-pointer shadow-md transition-all hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed accent-blue-600"
+          aria-label={`Select ${FileName}`}
+        />
+      </div>
 
       {/* Expiration Warning */}
       {isExpired && (
@@ -669,23 +697,22 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
               <span className="font-semibold text-gray-700">Created:</span>
               <span className="ml-2 text-gray-600">
                 {(CreatedDate || FileDate)
-                    ? new Date(CreatedDate || FileDate).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })
-                    : 'No date'}
+                  ? new Date(CreatedDate || FileDate).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                  : 'No date'}
               </span>
             </div>
           </div>
 
           {Expiration && ExpirationDate && (
             <div
-              className={`flex items-center text-sm rounded-lg px-3.5 py-2.5 transition-all duration-200 border ${
-                isExpired 
-                  ? 'bg-gradient-to-r from-red-50 to-red-50/50 group-hover:from-red-100 group-hover:to-red-100/50 border-red-200' 
-                  : 'bg-gradient-to-r from-gray-50 to-gray-50/50 group-hover:from-gray-100 group-hover:to-gray-100/50 border-gray-100'
-              }`}
+              className={`flex items-center text-sm rounded-lg px-3.5 py-2.5 transition-all duration-200 border ${isExpired
+                ? 'bg-gradient-to-r from-red-50 to-red-50/50 group-hover:from-red-100 group-hover:to-red-100/50 border-red-200'
+                : 'bg-gradient-to-r from-gray-50 to-gray-50/50 group-hover:from-gray-100 group-hover:to-gray-100/50 border-gray-100'
+                }`}
             >
               <div className={`p-1.5 rounded-md mr-3 ${isExpired ? 'bg-red-100' : 'bg-amber-50'}`}>
                 <Clock className={`w-3.5 h-3.5 ${isExpired ? 'text-red-600' : 'text-amber-600'}`} />
@@ -798,13 +825,13 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
       {/* Enhanced professional hover overlay with subtle gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 via-indigo-50/0 to-purple-50/0 group-hover:from-blue-50/30 group-hover:via-indigo-50/20 group-hover:to-purple-50/30 transition-all duration-300 pointer-events-none rounded-2xl" />
-      
+
       {/* Subtle corner accent */}
       <div className="absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-tl from-blue-100/0 to-blue-100/0 group-hover:from-blue-100/20 group-hover:to-blue-100/10 rounded-tl-full transition-all duration-300 pointer-events-none" />
 
       {/* Delete Confirmation Modal */}
-      <ModernModal 
-        isOpen={isDeleteModalOpen} 
+      <ModernModal
+        isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         size="md"
       >
@@ -862,8 +889,8 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
       </ModernModal>
 
       {/* Reject Approval Modal */}
-      <ModernModal 
-        isOpen={isRejectModalOpen} 
+      <ModernModal
+        isOpen={isRejectModalOpen}
         onClose={() => setIsRejectModalOpen(false)}
         size="md"
       >
@@ -881,8 +908,8 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
 
           {/* Content */}
           <div className="mb-6">
-            <label 
-              htmlFor="reject-reason" 
+            <label
+              htmlFor="reject-reason"
               className="block text-sm font-semibold text-gray-700 mb-3"
             >
               Rejection Reason <span className="text-red-500">*</span>

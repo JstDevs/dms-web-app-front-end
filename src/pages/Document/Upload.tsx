@@ -1,15 +1,11 @@
-import { DeleteDialog } from '@/components/ui/DeleteDialog';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 // import { useDepartmentOptions } from '@/hooks/useDepartmentOptions';
 import { Button } from '@chakra-ui/react';
 import {
   // BookCheck,
-  Edit,
   FileIcon,
   Search,
-  Trash,
-  Trash2,
   UploadCloud,
   Loader2,
   AlertCircle,
@@ -40,7 +36,6 @@ import {
 import { useNestedDepartmentOptions } from '@/hooks/useNestedDepartmentOptions';
 import { useAllocationPermissions } from './utils/useAllocationPermissions';
 import { logDocumentActivity } from '@/utils/activityLogger';
-import { PaginationControls } from '@/components/ui/PaginationControls';
 import { useFieldAllocations } from './utils/useFieldAllocations';
 import { DynamicFieldsSection } from './components/DynamicFields';
 import { OCRModal } from './components/OCRModal';
@@ -759,8 +754,8 @@ export default function DocumentUpload() {
                         // Enhanced Dropzone UI
                         <div
                           className={`mt-1 border-2 border-dashed rounded-xl transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 ${canUploadAttachment
-                              ? 'cursor-pointer border-gray-300 hover:border-blue-500 hover:shadow-lg'
-                              : 'cursor-not-allowed border-gray-200 text-gray-400'
+                            ? 'cursor-pointer border-gray-300 hover:border-blue-500 hover:shadow-lg'
+                            : 'cursor-not-allowed border-gray-200 text-gray-400'
                             }`}
                           onDragOver={(e) => {
                             e.preventDefault();
@@ -1096,22 +1091,11 @@ export default function DocumentUpload() {
                 {allocationPermissions.Add && (
                   <Button
                     onClick={handleAddOrUpdate}
-                    className={`w-full sm:w-auto px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${!isFormValid() || isLoading
-                        ? 'opacity-50 cursor-not-allowed bg-gray-400'
-                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
+                    className={`flex items-center gap-2 px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${isFormValid() && !isLoading
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
+                      : 'opacity-50 cursor-not-allowed bg-gray-400 text-white'
                       }`}
                     disabled={!isFormValid() || isLoading}
-                    title={
-                      !isFormValid()
-                        ? `Form validation failed. Check: ${!newDoc.DepartmentId ? 'Department, ' : ''
-                        }${!newDoc.SubDepartmentId ? 'Document Type, ' : ''
-                        }${!newDoc.FileDescription ? 'File Description, ' : ''
-                        }${!newDoc.FileDate ? 'File Date, ' : ''
-                        }${!newDoc.FileName ? 'File Name, ' : ''
-                        }${!selectedFile && !editId ? 'File attachment, ' : ''
-                        }Required fields`
-                        : ''
-                    }
                   >
                     {isLoading ? (
                       <div className="flex items-center justify-center">
@@ -1213,17 +1197,19 @@ export default function DocumentUpload() {
       </div>
 
       {/* OCR Modal */}
-      {selectedFile && (
-        <OCRModal
-          isOpen={isOcrModalOpen}
-          onClose={handleCloseOcrModal}
-          file={selectedFile}
-          fields={getActiveFields().filter(f => f.Type !== 'date' && f.Type !== 'Date')}
-          onApplyToField={handleOcrApplyToField}
-          preselectedFieldId={preselectedFieldForOcr}
-          usedSelections={ocrAppliedFields}
-        />
-      )}
+      {
+        selectedFile && (
+          <OCRModal
+            isOpen={isOcrModalOpen}
+            onClose={handleCloseOcrModal}
+            file={selectedFile}
+            fields={getActiveFields().filter(f => f.Type !== 'date' && f.Type !== 'Date')}
+            onApplyToField={handleOcrApplyToField}
+            preselectedFieldId={preselectedFieldForOcr}
+            usedSelections={ocrAppliedFields}
+          />
+        )
+      }
 
       {/* Document List Section */}
       {/* <div className="space-y-4"> */}
@@ -1400,6 +1386,6 @@ export default function DocumentUpload() {
           // onItemsPerPageChange={setItemsPerPage}
         />
       </div> */}
-    </div>
+    </div >
   );
 }

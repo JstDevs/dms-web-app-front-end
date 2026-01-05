@@ -100,7 +100,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
       {/* Rows per page selector */}
       <div className="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-start">
         <span className="text-sm text-gray-700 whitespace-nowrap">
-          Rows Per Page: {onItemsPerPageChange ? ' ' : ' 10'}
+          Rows Per Page: {onItemsPerPageChange ? ' ' : ` ${itemsPerPage}`}
         </span>
         {onItemsPerPageChange && (
           <select
@@ -108,7 +108,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
             onChange={(e) => onItemsPerPageChange?.(Number(e.target.value))}
             className="px-3 py-1.5 border border-blue-200 rounded-md text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {[5, 10, 20, 50].map((option) => (
+            {[5, 10, 15, 20, 50].map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
@@ -134,11 +134,10 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
             ) : (
               <button
                 onClick={() => onPageChange(Number(item))}
-                className={`px-3 py-1 rounded-md border text-sm ${
-                  item === currentPage
+                className={`px-3 py-1 rounded-md border text-sm ${item === currentPage
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-100'
-                }`}
+                  }`}
               >
                 {item}
               </button>
