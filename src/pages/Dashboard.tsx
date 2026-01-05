@@ -123,20 +123,20 @@ const formatFileTypeLabel = (typeKey: string): string => {
   return typeKey === 'pdf'
     ? 'PDF'
     : typeKey === 'doc' || typeKey === 'docx'
-    ? 'Docx'
-    : typeKey === 'xls' || typeKey === 'xlsx'
-    ? 'Excel'
-    : typeKey === 'png' || typeKey === 'jpg' || typeKey === 'jpeg'
-    ? 'Image'
-    : typeKey === 'txt'
-    ? 'Text'
-    : typeKey === 'csv'
-    ? 'CSV'
-    : typeKey === 'zip'
-    ? 'ZIP'
-    : typeKey === 'others'
-    ? 'Others'
-    : typeKey.toUpperCase();
+      ? 'Docx'
+      : typeKey === 'xls' || typeKey === 'xlsx'
+        ? 'Excel'
+        : typeKey === 'png' || typeKey === 'jpg' || typeKey === 'jpeg'
+          ? 'Image'
+          : typeKey === 'txt'
+            ? 'Text'
+            : typeKey === 'csv'
+              ? 'CSV'
+              : typeKey === 'zip'
+                ? 'ZIP'
+                : typeKey === 'others'
+                  ? 'Others'
+                  : typeKey.toUpperCase();
 };
 
 const toBool = (value: unknown): boolean => {
@@ -153,15 +153,15 @@ const Dashboard: React.FC = () => {
   const { fetchDocumentList } = useDocument();
   const { selectedRole, user } = useAuth();
   // Recent Activity moved to AuditTrail page
-  
-// Add this after line 16 in Dashboard.tsx
-// console.log('🔍 Auth Context Debug:', {
-//   selectedRole: selectedRole,
-//   hasSelectedRole: !!selectedRole,
-//   hasID: !!selectedRole?.ID,
-//   idValue: selectedRole?.ID,
-//   idType: typeof selectedRole?.ID
-// });
+
+  // Add this after line 16 in Dashboard.tsx
+  // console.log('🔍 Auth Context Debug:', {
+  //   selectedRole: selectedRole,
+  //   hasSelectedRole: !!selectedRole,
+  //   hasID: !!selectedRole?.ID,
+  //   idValue: selectedRole?.ID,
+  //   idType: typeof selectedRole?.ID
+  // });
 
   // Filters for analytics
   const [selectedYear] = useState<string>(new Date().getFullYear().toString());
@@ -174,7 +174,7 @@ const Dashboard: React.FC = () => {
   const [subDepartmentOptions, setSubDepartmentOptions] = useState<
     { value: string; label: string }[]
   >([]);
-  
+
   // Department options hook
   const {
     departmentOptions,
@@ -224,9 +224,9 @@ const Dashboard: React.FC = () => {
     subDepartment?: string,
     startDate?: string,
     endDate?: string
-  ): Promise<{ 
-    totalDocuments: number; 
-    totalPages: number; 
+  ): Promise<{
+    totalDocuments: number;
+    totalPages: number;
     fileTypes: Record<string, number>;
     uploads: number;
     confidentialDocs: number;
@@ -254,7 +254,7 @@ const Dashboard: React.FC = () => {
           startDate,
           endDate
         );
-        
+
         const raw = response?.data as any;
         const data = (raw && (raw.data ?? raw)) as any;
         const docs = Array.isArray(data?.documents) ? data.documents : [];
@@ -283,7 +283,7 @@ const Dashboard: React.FC = () => {
 
         filteredDocs.forEach((doc: any) => {
           const docData = doc?.newdoc || doc;
-          
+
           // Count uploads (documents created in the date range)
           if (startBound || endBound) {
             const docDateStr = docData?.CreatedDate || docData?.FileDate;
@@ -323,10 +323,10 @@ const Dashboard: React.FC = () => {
 
         const pageCount = filteredDocs.reduce((sum: number, doc: any) => {
           const docPageCount = typeof doc?.PageCount === 'number' ? doc.PageCount :
-                               typeof doc?.newdoc?.PageCount === 'number' ? doc.newdoc.PageCount : 0;
+            typeof doc?.newdoc?.PageCount === 'number' ? doc.newdoc.PageCount : 0;
           return sum + (docPageCount || 0);
         }, 0);
-        
+
         totalFilteredPages += pageCount;
 
         // Check if there are more pages
@@ -337,30 +337,30 @@ const Dashboard: React.FC = () => {
         }
       }
 
-        console.log('📊 Documents stats:', {
-          totalDocuments: totalFilteredDocuments,
-          totalPages: totalFilteredPages,
-          uploads: uploadsCount,
-          confidentialDocs: confidentialDocIds.size,
-          createdByUsers: createdByUsers.size,
-          hasDateFilter: !!(startBound || endBound),
-          hasDeptFilter: !!department,
-          hasSubDeptFilter: !!subDepartment
-        });
+      console.log('📊 Documents stats:', {
+        totalDocuments: totalFilteredDocuments,
+        totalPages: totalFilteredPages,
+        uploads: uploadsCount,
+        confidentialDocs: confidentialDocIds.size,
+        createdByUsers: createdByUsers.size,
+        hasDateFilter: !!(startBound || endBound),
+        hasDeptFilter: !!department,
+        hasSubDeptFilter: !!subDepartment
+      });
 
-        return {
-          totalDocuments: totalFilteredDocuments,
-          totalPages: totalFilteredPages,
-          fileTypes: typeCounter,
-          uploads: uploadsCount,
-          confidentialDocs: confidentialDocIds.size,
-          createdByUsers,
-        };
+      return {
+        totalDocuments: totalFilteredDocuments,
+        totalPages: totalFilteredPages,
+        fileTypes: typeCounter,
+        uploads: uploadsCount,
+        confidentialDocs: confidentialDocIds.size,
+        createdByUsers,
+      };
     } catch (error) {
       console.error('Error fetching all pages for count:', error);
-      return { 
-        totalDocuments: 0, 
-        totalPages: 0, 
+      return {
+        totalDocuments: 0,
+        totalPages: 0,
         fileTypes: {},
         uploads: 0,
         confidentialDocs: 0,
@@ -372,7 +372,7 @@ const Dashboard: React.FC = () => {
   // Combined function to fetch both documents and analytics
   const fetchAllData = useCallback(async () => {
     if (!selectedRole?.ID) return;
-    
+
     // Reset counts when filters change to show loading state
     const hasFilters = !!(selectedDepartment || selectedSubDepartment || startDate || endDate);
     if (hasFilters) {
@@ -380,11 +380,11 @@ const Dashboard: React.FC = () => {
       setTotalDocumentsCount(0);
       setTotalPagesCount(0);
     }
-    
+
     setIsDocumentsLoading(true);
     setIsAnalyticsLoading(true);
     setIsFilterLoading(true);
-    
+
     try {
       // Fetch documents, analytics, total page count, and all users in parallel
       const [documentsResult, analyticsResult, countsResult, usersResult] = await Promise.allSettled([
@@ -393,9 +393,9 @@ const Dashboard: React.FC = () => {
           // Fetch documents directly to get pagination info
           const deptFilter = selectedDepartment || undefined;
           const subDeptFilter = selectedSubDepartment || undefined;
-          
+
           const hasFilters = !!(deptFilter || subDeptFilter || startDate || endDate);
-          
+
           console.log('🔍 Dashboard fetching with filters:', {
             userId: Number(selectedRole.ID),
             department: deptFilter,
@@ -404,29 +404,29 @@ const Dashboard: React.FC = () => {
             endDate: endDate || undefined,
             hasFilters: hasFilters
           });
-          
+
           const response = await fetchDocuments(
-            Number(selectedRole.ID), 
-            1, 
-            undefined, 
-            deptFilter, 
-            subDeptFilter, 
-            startDate || undefined, 
+            Number(selectedRole.ID),
+            1,
+            undefined,
+            deptFilter,
+            subDeptFilter,
+            startDate || undefined,
             endDate || undefined
           );
-          
+
           const raw = response?.data as any;
           const data = (raw && (raw.data ?? raw)) as any;
           const pagination = data?.pagination ?? { totalItems: 0 };
           const docs = Array.isArray(data?.documents) ? data.documents : [];
-          
+
           // Check if returned documents match the filters
           const firstDoc = docs[0];
           const docMatchesFilter = firstDoc ? (
             (!deptFilter || Number(firstDoc.newdoc?.DepartmentId || firstDoc.DepartmentId) === Number(deptFilter)) &&
             (!subDeptFilter || Number(firstDoc.newdoc?.SubDepartmentId || firstDoc.SubDepartmentId) === Number(subDeptFilter))
           ) : true;
-          
+
           console.log('📊 Dashboard API response:', {
             totalItems: pagination?.totalItems,
             totalPages: pagination?.totalPages,
@@ -441,18 +441,18 @@ const Dashboard: React.FC = () => {
               expectedSubDept: subDeptFilter
             } : 'no documents'
           });
-          
+
           // Also update the context for other components that might use it
           await fetchDocumentList(
-            Number(selectedRole.ID), 
-            1, 
-            undefined, 
-            deptFilter, 
-            subDeptFilter, 
-            startDate || undefined, 
+            Number(selectedRole.ID),
+            1,
+            undefined,
+            deptFilter,
+            subDeptFilter,
+            startDate || undefined,
             endDate || undefined
           );
-          
+
           return { totalDocuments: pagination?.totalItems ?? docs.length };
         })(),
         // Analytics API call - for downloads and active users
@@ -463,28 +463,28 @@ const Dashboard: React.FC = () => {
 
           const paramsWhenRange = hasRange
             ? {
-                startDate: startDate,
-                endDate: endDate,
-                start_date: startDate,
-                end_date: endDate,
-                from: startDate,
-                to: endDate,
-                startAt,
-                endAt,
-                ...(selectedDepartment && { department: selectedDepartment }),
-                ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
-              }
-            : { 
-                year: selectedYear,
-                ...(selectedDepartment && { department: selectedDepartment }),
-                ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
-              };
+              startDate: startDate,
+              endDate: endDate,
+              start_date: startDate,
+              end_date: endDate,
+              from: startDate,
+              to: endDate,
+              startAt,
+              endAt,
+              ...(selectedDepartment && { department: selectedDepartment }),
+              ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
+            }
+            : {
+              year: selectedYear,
+              ...(selectedDepartment && { department: selectedDepartment }),
+              ...(selectedSubDepartment && { subDepartment: selectedSubDepartment }),
+            };
 
           try {
             const { data } = await axios.get(`/documents/activities-dashboard`, {
               params: paramsWhenRange,
             });
-            
+
             if (!data?.success) {
               console.warn('Activities API returned unsuccessful response');
               return { downloads: 0, activeUsers: new Set<string>() };
@@ -493,7 +493,7 @@ const Dashboard: React.FC = () => {
             const auditTrails = data?.data?.auditTrails || [];
             const startBound = startDate ? new Date(startDate + 'T00:00:00') : null;
             const endBound = endDate ? new Date(endDate + 'T23:59:59.999') : null;
-            
+
             // Filter activities by date, department, and sub-department
             const filteredActivities = auditTrails.filter((a: any) => {
               // Date filtering - check ActionDate
@@ -509,11 +509,11 @@ const Dashboard: React.FC = () => {
               // Department filtering - check document's department
               if (selectedDepartment) {
                 const docDeptId = Number(
-                  a.documentNew?.DepartmentId || 
-                  a.document?.DepartmentId || 
+                  a.documentNew?.DepartmentId ||
+                  a.document?.DepartmentId ||
                   a.documentNew?.departmentId ||
                   a.document?.departmentId ||
-                  a.DepartmentId || 
+                  a.DepartmentId ||
                   a.departmentId ||
                   0
                 );
@@ -523,11 +523,11 @@ const Dashboard: React.FC = () => {
               // Sub-department filtering - check document's sub-department
               if (selectedSubDepartment) {
                 const docSubDeptId = Number(
-                  a.documentNew?.SubDepartmentId || 
-                  a.document?.SubDepartmentId || 
+                  a.documentNew?.SubDepartmentId ||
+                  a.document?.SubDepartmentId ||
                   a.documentNew?.subDepartmentId ||
                   a.document?.subDepartmentId ||
-                  a.SubDepartmentId || 
+                  a.SubDepartmentId ||
                   a.subDepartmentId ||
                   0
                 );
@@ -619,16 +619,16 @@ const Dashboard: React.FC = () => {
         const { totalDocuments, totalPages, fileTypes, uploads, confidentialDocs, createdByUsers } = countsResult.value;
         setTotalDocumentsCount(totalDocuments);
         setTotalPagesCount(totalPages);
-        
+
         // Set uploads from documents (more accurate)
         setUploadsCount(uploads || 0);
-        
+
         // Set confidential docs from documents (more accurate)
         setConfidentialDocsCount(confidentialDocs || 0);
-        
+
         // Store createdByUsers for combining with activities
         documentCreatedByUsers = createdByUsers || new Set<string>();
-        
+
         if (fileTypes) {
           const typeData = Object.entries(fileTypes)
             .map(([name, value]) => ({ name, value }))
@@ -636,12 +636,12 @@ const Dashboard: React.FC = () => {
             .slice(0, 8);
           setDocumentTypeData(typeData);
         }
-        console.log('✅ Filtered totals updated:', { 
-          totalDocuments, 
-          totalPages, 
-          uploads, 
+        console.log('✅ Filtered totals updated:', {
+          totalDocuments,
+          totalPages,
+          uploads,
           confidentialDocs,
-          createdByUsers: documentCreatedByUsers.size 
+          createdByUsers: documentCreatedByUsers.size
         });
       } else if (countsResult.status === 'rejected') {
         console.error('Failed to fetch filtered totals:', countsResult.reason);
@@ -662,7 +662,7 @@ const Dashboard: React.FC = () => {
         const allActiveUsers = new Set([...documentCreatedByUsers, ...activitiesActiveUsers]);
         setActiveUsersCount(allActiveUsers.size);
       }
-      
+
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -672,12 +672,6 @@ const Dashboard: React.FC = () => {
     }
   }, [selectedRole, fetchDocumentList, fetchAllPagesForCount, startDate, endDate, selectedDepartment, selectedSubDepartment, selectedYear]);
 
-  const buildFullSubDeptMap = useCallback(() => {
-    return departmentOptions.reduce((acc, dept) => {
-      acc[dept.value] = getSubDepartmentOptions(Number(dept.value));
-      return acc;
-    }, {} as Record<string, { value: string; label: string }[]>);
-  }, [departmentOptions, getSubDepartmentOptions]);
 
   const checkRoleViewAccess = useCallback(
     async (departmentId: number, subDepartmentId: number) => {
@@ -734,22 +728,11 @@ const Dashboard: React.FC = () => {
         return;
       }
 
-      const isAdmin =
-        selectedRole.Description?.toLowerCase() === 'administrator' ||
-        selectedRole.Description?.toLowerCase() === 'administration';
-
-      if (isAdmin) {
-        if (isMounted) {
-          setIsAccessOptionsLoading(false);
-          setAccessibleDepartments(departmentOptions);
-          setAccessibleSubDepartmentsMap(buildFullSubDeptMap());
-        }
-        return;
-      }
+      // Removed: isAdmin bypass - even admins should only see allocated depts/subdepts
+      // as requested by the user.
 
       setIsAccessOptionsLoading(true);
       try {
-        const deptByValue = new Map<string, { value: string; label: string }>();
         const tasks: Array<{
           deptValue: string;
           deptId: number;
@@ -760,7 +743,7 @@ const Dashboard: React.FC = () => {
           const deptId = Number(dept.value);
           const subOptions = getSubDepartmentOptions(deptId);
           if (!subOptions.length) continue;
-          deptByValue.set(dept.value, dept);
+
           subOptions.forEach((sub) => {
             tasks.push({
               deptValue: dept.value,
@@ -772,20 +755,34 @@ const Dashboard: React.FC = () => {
 
         const allowedDeptSet = new Set<string>();
         const subMap: Record<string, { value: string; label: string }[]> = {};
-        const CONCURRENCY = 5;
 
+        // Use a pending requests map to avoid duplicate concurrent calls
+        const pendingRequests = new Map<string, Promise<boolean>>();
+
+        const checkWithPending = async (deptId: number, subId: number) => {
+          const cacheKey = `${selectedRole.ID}-${deptId}-${subId}`;
+          if (roleAccessCacheRef.current.has(cacheKey)) {
+            return roleAccessCacheRef.current.get(cacheKey)!;
+          }
+          if (pendingRequests.has(cacheKey)) {
+            return pendingRequests.get(cacheKey)!;
+          }
+
+          const request = checkRoleViewAccess(deptId, subId);
+          pendingRequests.set(cacheKey, request);
+          const result = await request;
+          pendingRequests.delete(cacheKey);
+          return result;
+        };
+
+        const CONCURRENCY = 10; // Increased concurrency
         for (let i = 0; i < tasks.length; i += CONCURRENCY) {
           if (!isMounted) return;
           const slice = tasks.slice(i, i + CONCURRENCY);
           const sliceResults = await Promise.all(
             slice.map(async ({ deptValue, deptId, sub }) => {
-              const canView = await checkRoleViewAccess(deptId, Number(sub.value));
-              return canView
-                ? {
-                    deptValue,
-                    sub,
-                  }
-                : null;
+              const canView = await checkWithPending(deptId, Number(sub.value));
+              return canView ? { deptValue, sub } : null;
             })
           );
 
@@ -804,14 +801,19 @@ const Dashboard: React.FC = () => {
         );
 
         if (isMounted) {
+          console.log('✅ Dashboard filters strictly limited by role:', {
+            accessibleDepts: allowedDepts.length,
+            roleId: selectedRole.ID
+          });
           setAccessibleDepartments(allowedDepts);
           setAccessibleSubDepartmentsMap(subMap);
         }
       } catch (error) {
         console.error('Failed to limit filter options by role allocations:', error);
         if (isMounted) {
-          setAccessibleDepartments(departmentOptions);
-          setAccessibleSubDepartmentsMap(buildFullSubDeptMap());
+          // If filtering fails, show nothing to ensure security
+          setAccessibleDepartments([]);
+          setAccessibleSubDepartmentsMap({});
         }
       } finally {
         if (isMounted) {
@@ -827,10 +829,8 @@ const Dashboard: React.FC = () => {
     };
   }, [
     selectedRole?.ID,
-    selectedRole?.Description,
     departmentOptions,
     getSubDepartmentOptions,
-    buildFullSubDeptMap,
     checkRoleViewAccess,
   ]);
 
@@ -930,50 +930,50 @@ const Dashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-      {statCards.map((stat, index) => (
-        <div
-          key={index}
-          className={`relative ${stat.color} bg-gradient-to-r from-white to-slate-50 border border-gray-200 rounded-2xl shadow-lg p-6 flex items-center justify-between transition-all duration-300 ease-out cursor-default hover:shadow-2xl hover:from-indigo-50 ${stat.hoverBorder}`}
-        >
-          {/* Left side: Icon + Title */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-600 shadow-inner hover:scale-105 transition-transform duration-300">
-              {stat.icon}
+        {statCards.map((stat, index) => (
+          <div
+            key={index}
+            className={`relative ${stat.color} bg-gradient-to-r from-white to-slate-50 border border-gray-200 rounded-2xl shadow-lg p-6 flex items-center justify-between transition-all duration-300 ease-out cursor-default hover:shadow-2xl hover:from-indigo-50 ${stat.hoverBorder}`}
+          >
+            {/* Left side: Icon + Title */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-600 shadow-inner hover:scale-105 transition-transform duration-300">
+                {stat.icon}
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-1 tracking-tight">
+                  {stat.title}
+                </h3>
+                {stat.isLoading ? (
+                  <div className="flex items-center text-gray-500 text-sm">
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    <span>Loading...</span>
+                  </div>
+                ) : (
+                  <p className="text-3xl font-bold text-gray-900 tracking-tight leading-tight">
+                    {stat.count || 0}
+                  </p>
+                )}
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-1 tracking-tight">
-                {stat.title}
-              </h3>
-              {stat.isLoading ? (
-                <div className="flex items-center text-gray-500 text-sm">
-                  <LoadingSpinner size="sm" className="mr-2" />
-                  <span>Loading...</span>
-                </div>
-              ) : (
-                <p className="text-3xl font-bold text-gray-900 tracking-tight leading-tight">
-                  {stat.count || 0}
-                </p>
-              )}
+
+            {/* Right accent bar */}
+            <div className="relative">
+              <div className="w-2 h-20 bg-gradient-to-b from-indigo-400 to-blue-500 rounded-full opacity-70 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="absolute -right-1 top-0 w-3 h-20 blur-lg bg-indigo-300 opacity-0 hover:opacity-80 transition-opacity"></div>
             </div>
           </div>
-
-          {/* Right accent bar */}
-          <div className="relative">
-            <div className="w-2 h-20 bg-gradient-to-b from-indigo-400 to-blue-500 rounded-full opacity-70 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="absolute -right-1 top-0 w-3 h-20 blur-lg bg-indigo-300 opacity-0 hover:opacity-80 transition-opacity"></div>
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
 
 
 
-      
+
       {/* --- Filters Section --- */}
-          <div className="bg-gradient-to-b from-blue-50 via-white to-gray-50 p-6 rounded-2xl border border-blue-100 
+      <div className="bg-gradient-to-b from-blue-50 via-white to-gray-50 p-6 rounded-2xl border border-blue-100 
                       shadow-md hover:shadow-lg transition-all duration-300 mb-8 
-                      hover:border-blue-500 hover:ring-2 hover:ring-blue-200">        
-          <div className="flex items-center justify-between mb-6">
+                      hover:border-blue-500 hover:ring-2 hover:ring-blue-200">
+        <div className="flex items-center justify-between mb-6">
           <h3 className="text-base font-bold text-blue-700 uppercase tracking-wider flex items-center gap-2">
             <span className="inline-block w-1.5 h-5 bg-blue-600 rounded-sm shadow-md"></span>
             Filters
@@ -1044,8 +1044,8 @@ const Dashboard: React.FC = () => {
                   {isAccessOptionsLoading
                     ? 'Loading departments...'
                     : accessibleDepartments.length === 0
-                    ? 'No departments available'
-                    : 'Select Department'}
+                      ? 'No departments available'
+                      : 'Select Department'}
                 </option>
                 {accessibleDepartments.map((dept) => (
                   <option key={dept.value} value={dept.value}>
@@ -1080,8 +1080,8 @@ const Dashboard: React.FC = () => {
                   {isAccessOptionsLoading
                     ? 'Loading document types...'
                     : subDepartmentOptions.length === 0
-                    ? 'No document types available'
-                    : 'Select Document Type'}
+                      ? 'No document types available'
+                      : 'Select Document Type'}
                 </option>
                 {subDepartmentOptions.map((subDept) => (
                   <option key={subDept.value} value={subDept.value}>
@@ -1174,44 +1174,44 @@ const Dashboard: React.FC = () => {
 
         {/* Stats Overview */}
         <div className="bg-gradient-to-b from-blue-50 to-white rounded-xl shadow-sm border border-blue-100 p-6 transition-all duration-300 hover:shadow-md hover:border-blue-300 h-[400px]">
-  <div className="flex items-center mb-5">
-    <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full mr-3">
-      <TrendingUp className="h-4 w-4" />
-    </div>
-    <h3 className="text-lg font-semibold text-slate-800">Quick Stats</h3>
-  </div>
+          <div className="flex items-center mb-5">
+            <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full mr-3">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-800">Quick Stats</h3>
+          </div>
 
-  {isAnalyticsLoading || isFilterLoading ? (
-    <div className="flex items-center justify-center h-full">
-      <div className="flex flex-col items-center">
-        <LoadingSpinner size="lg" className="mb-2" />
-        <span className="text-gray-500">Loading statistics...</span>
-      </div>
-    </div>
-  ) : (
-    <div className="space-y-4 h-full flex flex-col justify-center">
-      <div className="flex justify-between items-center pb-3 border-b border-gray-100 transition-all duration-200 hover:bg-blue-50 rounded-lg px-3 py-2">
-        <span className="text-gray-700 font-medium">Total Uploads</span>
-        <span className="text-2xl font-bold text-blue-600">{uploadsCount}</span>
-      </div>
+          {isAnalyticsLoading || isFilterLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="flex flex-col items-center">
+                <LoadingSpinner size="lg" className="mb-2" />
+                <span className="text-gray-500">Loading statistics...</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 h-full flex flex-col justify-center">
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100 transition-all duration-200 hover:bg-blue-50 rounded-lg px-3 py-2">
+                <span className="text-gray-700 font-medium">Total Uploads</span>
+                <span className="text-2xl font-bold text-blue-600">{uploadsCount}</span>
+              </div>
 
-      <div className="flex justify-between items-center pb-3 border-b border-gray-100 transition-all duration-200 hover:bg-blue-50 rounded-lg px-3 py-2">
-        <span className="text-gray-700 font-medium">Total Downloads</span>
-        <span className="text-2xl font-bold text-green-600">{downloadsCount}</span>
-      </div>
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100 transition-all duration-200 hover:bg-blue-50 rounded-lg px-3 py-2">
+                <span className="text-gray-700 font-medium">Total Downloads</span>
+                <span className="text-2xl font-bold text-green-600">{downloadsCount}</span>
+              </div>
 
-      <div className="flex justify-between items-center pb-3 border-b border-gray-100 transition-all duration-200 hover:bg-blue-50 rounded-lg px-3 py-2">
-        <span className="text-gray-700 font-medium">Total Users</span>
-        <span className="text-2xl font-bold text-purple-600">{activeUsersCount}</span>
-      </div>
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100 transition-all duration-200 hover:bg-blue-50 rounded-lg px-3 py-2">
+                <span className="text-gray-700 font-medium">Total Users</span>
+                <span className="text-2xl font-bold text-purple-600">{activeUsersCount}</span>
+              </div>
 
-      <div className="flex justify-between items-center transition-all duration-200 hover:bg-blue-50 rounded-lg px-3 py-2">
-        <span className="text-gray-700 font-medium">Confidential Docs</span>
-        <span className="text-2xl font-bold text-red-600">{confidentialDocsCount}</span>
-      </div>
-    </div>
-  )}
-</div>
+              <div className="flex justify-between items-center transition-all duration-200 hover:bg-blue-50 rounded-lg px-3 py-2">
+                <span className="text-gray-700 font-medium">Confidential Docs</span>
+                <span className="text-2xl font-bold text-red-600">{confidentialDocsCount}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Recent Activity moved to Audit Trail page */}
