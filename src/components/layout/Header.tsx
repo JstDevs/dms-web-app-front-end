@@ -4,6 +4,7 @@ import { Bell, UserCircle, ChevronDown, Settings, LogOut, User } from 'lucide-re
 import { useNotification } from '@/contexts/NotificationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
+import genericLogo from '../../../resources/Generic Logo.ico';
 
 const Header: React.FC = () => {
   const { logout, user, selectedRole, setSelectedRole } = useAuth();
@@ -58,7 +59,10 @@ const Header: React.FC = () => {
     <header className="bg-white border-b border-gray-300 shadow-[0_2px_8px_rgba(0,0,0,0.08),0_4px_16px_rgba(0,0,0,0.04)] z-10 sticky top-0 backdrop-blur-sm bg-white/95">
       <div className="flex items-center justify-between px-4 py-3 md:px-6">
         {/* Placeholder Left Section */}
-        <div className="flex-1" />
+        <div className="flex-1 flex items-center">
+          <img src={genericLogo} alt="Generic logo" className='h-16 mr-6'/>
+          <h1 className="text-xl font-bold text-black text-left">Municipality of LGU</h1>
+        </div>
 
         <div className="ml-4 flex items-center gap-3 md:ml-6">
 
