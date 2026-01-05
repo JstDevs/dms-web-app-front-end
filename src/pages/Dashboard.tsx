@@ -728,8 +728,22 @@ const Dashboard: React.FC = () => {
         return;
       }
 
-      // Removed: isAdmin bypass - even admins should only see allocated depts/subdepts
-      // as requested by the user.
+      const isAdmin =
+        selectedRole?.Description?.toLowerCase() === 'administrator' ||
+        selectedRole?.Description?.toLowerCase() === 'administration';
+
+      if (isAdmin) {
+        const adminDepts = departmentOptions;
+        const adminSubMap: Record<string, { value: string; label: string }[]> = {};
+        for (const dept of adminDepts) {
+          adminSubMap[dept.value] = getSubDepartmentOptions(Number(dept.value));
+        }
+        setAccessibleDepartments(adminDepts);
+        setAccessibleSubDepartmentsMap(adminSubMap);
+        setIsAccessOptionsLoading(false);
+        console.log('🔓 Dashboard filters: Admin bypass active (all depts/subdepts visible)');
+        return;
+      }
 
       setIsAccessOptionsLoading(true);
       try {
@@ -775,7 +789,7 @@ const Dashboard: React.FC = () => {
           return result;
         };
 
-        const CONCURRENCY = 10; // Increased concurrency
+        const CONCURRENCY = 10;
         for (let i = 0; i < tasks.length; i += CONCURRENCY) {
           if (!isMounted) return;
           const slice = tasks.slice(i, i + CONCURRENCY);
@@ -801,7 +815,7 @@ const Dashboard: React.FC = () => {
         );
 
         if (isMounted) {
-          console.log('✅ Dashboard filters strictly limited by role:', {
+          console.log('✅ Dashboard filters restricted by role allocations:', {
             accessibleDepts: allowedDepts.length,
             roleId: selectedRole.ID
           });
@@ -811,7 +825,6 @@ const Dashboard: React.FC = () => {
       } catch (error) {
         console.error('Failed to limit filter options by role allocations:', error);
         if (isMounted) {
-          // If filtering fails, show nothing to ensure security
           setAccessibleDepartments([]);
           setAccessibleSubDepartmentsMap({});
         }
@@ -829,6 +842,7 @@ const Dashboard: React.FC = () => {
     };
   }, [
     selectedRole?.ID,
+    selectedRole?.Description,
     departmentOptions,
     getSubDepartmentOptions,
     checkRoleViewAccess,
