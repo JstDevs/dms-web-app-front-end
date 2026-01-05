@@ -61,9 +61,9 @@ const groupApproversByLevel = (
 
   return sortedLevels.length
     ? sortedLevels.map((sequenceLevel, index) => ({
-        sequenceLevel: index + 1,
-        approvers: grouped[sequenceLevel],
-      }))
+      sequenceLevel: index + 1,
+      approvers: grouped[sequenceLevel],
+    }))
     : [createEmptyLevel(1)];
 };
 
@@ -226,11 +226,11 @@ const ApprovalMatrix = () => {
       );
       return filtered.length
         ? filtered
-            .sort((a, b) => a.sequenceLevel - b.sequenceLevel)
-            .map((level, index) => ({
-              ...level,
-              sequenceLevel: index + 1,
-            }))
+          .sort((a, b) => a.sequenceLevel - b.sequenceLevel)
+          .map((level, index) => ({
+            ...level,
+            sequenceLevel: index + 1,
+          }))
         : [createEmptyLevel(1)];
     });
   };
@@ -241,12 +241,12 @@ const ApprovalMatrix = () => {
       prev.map((level, index) =>
         index === levelIndex
           ? {
-              ...level,
-              approvers: [
-                ...level.approvers,
-                { approverId: '' },
-              ],
-            }
+            ...level,
+            approvers: [
+              ...level.approvers,
+              { approverId: '' },
+            ],
+          }
           : level
       )
     );
@@ -445,15 +445,15 @@ const ApprovalMatrix = () => {
         // 404 is expected when no matrix exists, so we'll try to create
         currentMatrix = null;
       }
-      
+
       // Now decide: update if exists, create if not
       if (currentMatrix?.ID) {
         // Only update if values actually changed
-        const needsUpdate = 
+        const needsUpdate =
           currentMatrix.AllorMajority !== matrixPayload.AllorMajority ||
           currentMatrix.DepartmentId !== matrixPayload.DepartmentId ||
           currentMatrix.SubDepartmentId !== matrixPayload.SubDepartmentId;
-        
+
         if (needsUpdate) {
           try {
             await updateApprovalMatrix(currentMatrix.ID, matrixPayload);
@@ -477,7 +477,7 @@ const ApprovalMatrix = () => {
           const errorMessage = createError?.response?.data?.message || '';
           const errorData = createError?.response?.data?.data;
           const fullErrorData = createError?.response?.data;
-          
+
           if (
             errorMessage.includes('already exists') ||
             errorMessage.includes('Already exists') ||
@@ -486,7 +486,7 @@ const ApprovalMatrix = () => {
             // This is expected - matrix already exists, we'll handle it gracefully
             // Try to get the matrix ID from error response data, or fetch it
             let matrixToUpdate: ApprovalMatrixRecord | null = null;
-            
+
             // Check if matrix info is in the error response
             if (errorData?.ID) {
               matrixToUpdate = errorData as ApprovalMatrixRecord;
@@ -495,7 +495,7 @@ const ApprovalMatrix = () => {
             } else if (fullErrorData?.ID) {
               matrixToUpdate = fullErrorData as ApprovalMatrixRecord;
             }
-            
+
             // If not in error response, fetch it
             if (!matrixToUpdate?.ID) {
               try {
@@ -514,14 +514,14 @@ const ApprovalMatrix = () => {
                 }
               }
             }
-            
+
             if (matrixToUpdate?.ID) {
               // Check if matrix values actually changed
-              const needsUpdate = 
+              const needsUpdate =
                 matrixToUpdate.AllorMajority !== matrixPayload.AllorMajority ||
                 matrixToUpdate.DepartmentId !== matrixPayload.DepartmentId ||
                 matrixToUpdate.SubDepartmentId !== matrixPayload.SubDepartmentId;
-              
+
               if (needsUpdate) {
                 try {
                   await updateApprovalMatrix(matrixToUpdate.ID, matrixPayload);
@@ -576,7 +576,7 @@ const ApprovalMatrix = () => {
       toast.success('Approval matrix saved successfully');
     } catch (error: any) {
       console.error('Error saving approval matrix:', error);
-      
+
       // Log the actual error response from the server
       if (error?.response?.data) {
         console.error('Server error response:', error.response.data);
@@ -706,7 +706,7 @@ const ApprovalMatrix = () => {
                   <p className="text-sm text-blue-800 font-medium">
                     Existing approval matrix found for{' '}
                     <strong className="font-semibold">{selectedDepartmentLabel}</strong> /{' '}
-                    <strong className="font-semibold">{selectedDocumentTypeLabel}</strong>. 
+                    <strong className="font-semibold">{selectedDocumentTypeLabel}</strong>.
                     Saving will update the current configuration.
                   </p>
                 </div>
