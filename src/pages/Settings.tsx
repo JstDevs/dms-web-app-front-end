@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useModulePermissions } from '@/hooks/useDepartmentPermissions';
 import toast from 'react-hot-toast';
+import guideFile from '../../resources/The Guide of the Web DMS is still Under Construction.pdf';
 
 const Settings: React.FC = () => {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
@@ -25,6 +26,9 @@ const Settings: React.FC = () => {
     await logout();
     navigate('/login');
   };
+  function handleClick() {
+      window.open(guideFile, '_blank');  
+  }
 
   return (
     <div className="animate-fade-in">
@@ -122,9 +126,9 @@ const Settings: React.FC = () => {
 
                 {/* View Guide Button */}
                 <button
-                  // onClick={() => {toast.error('Guide is currently unavailable.')}}
-                  onClick={() => {setIsViewerOpen(true)}}
+                  onClick={() => {toast.error('Guide is currently unavailable.'), handleClick()}}
 
+                  // onClick={() => {setIsViewerOpen(true)}}
                   // {setIsViewerOpen(true)}
                   // {toast.error('Guide is currently unavailable.')}
                   className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100"

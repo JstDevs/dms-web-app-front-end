@@ -60,10 +60,17 @@ const Header: React.FC = () => {
       <div className="flex items-center justify-between px-4 py-3 md:px-6">
         {/* Placeholder Left Section */}
         <div className="flex-1 flex items-center">
-          <img src={genericLogo} alt="Generic logo" className='h-16 mr-6'/>
-          <h1 className="text-xl font-bold text-black text-left">Municipality of LGU</h1>
+          <div className="hidden md:flex flex-col items-start">
+            <img src={genericLogo} alt="Generic logo" className='h-16 mr-6'/>
+          </div>          
+          <div className="hidden md:flex flex-col items-start">
+            <h1 className="text-xl font-bold text-black text-left items-start">Municipality of LGU</h1>
+          </div>
         </div>
-
+        
+        <div className="flex md:hidden flex-col items-start">
+          <img src={genericLogo} alt="Generic logo" className='h-16'/>
+        </div>
         <div className="ml-4 flex items-center gap-3 md:ml-6">
 
 

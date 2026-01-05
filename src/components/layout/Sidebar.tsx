@@ -222,7 +222,12 @@ const Sidebar: React.FC = () => {
 
         {/* LGU Name */}
         <div className="flex items-center justify-center h-[88px] px-4 border-b border-blue-800">
-          <h1 className="text-xl font-semibold text-white text-center">Document Management System</h1>
+          <div className="hidden md:flex flex-col items-start">
+            <h1 className="text-xl font-semibold text-white text-center">Document Management System</h1>
+          </div>
+          <div className="flex md:hidden flex-col items-start">
+            <h1 className="text-4xl md:text-5xl font-bold text-white text-center">DMS</h1>
+          </div>
         </div>
 
         <nav className="flex-1 pt-4 pb-4 overflow-y-auto sidebar-custom-scrollbar">
