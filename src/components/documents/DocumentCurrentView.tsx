@@ -1212,23 +1212,36 @@ const DocumentCurrentView = ({
 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* File Format */}
+              {/* File Details */}
               <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-purple-400 transition-all duration-300">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center shadow-inner">
                     <FileText className="h-5 w-5 text-white drop-shadow-sm" />
                   </div>
                   <h4 className="text-base font-semibold text-gray-800 tracking-wide">
-                    File Format
+                    File Details
                   </h4>
                 </div>
 
-                <p
-                  className={`text-gray-900 font-medium leading-relaxed bg-gray-50 border border-gray-100 px-4 py-2 rounded-lg ${currentDocumentInfo?.DataType ? 'text-gray-900' : 'text-gray-500 italic'
-                    }`}
-                >
-                  {getFormattedFileType()}
-                </p>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center bg-gray-50 border border-gray-100 px-3 py-2 rounded-lg">
+                    <span className="text-sm text-gray-500 font-medium">Format</span>
+                    <span className={`text-sm font-semibold ${currentDocumentInfo?.DataType ? 'text-gray-900' : 'text-gray-500 italic'}`}>
+                      {getFormattedFileType()}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center bg-gray-50 border border-gray-100 px-3 py-2 rounded-lg">
+                    <span className="text-sm text-gray-500 font-medium">Pages</span>
+                    <span className={`text-sm font-semibold ${currentDocumentInfo?.PageCount ? 'text-gray-900' : 'text-gray-500 italic'}`}>
+                      {currentDocumentInfo?.PageCount
+                        ? currentDocumentInfo.PageCount === 1
+                          ? '1 Page'
+                          : `${currentDocumentInfo.PageCount} Pages`
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
 
