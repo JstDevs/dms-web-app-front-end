@@ -1,23 +1,23 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, UserCircle, ChevronDown, Settings, LogOut, User } from 'lucide-react';
-import { useNotification } from '@/contexts/NotificationContext';
+import { UserCircle, ChevronDown, LogOut, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'react-hot-toast';
+// import { toast } from 'react-hot-toast';
 import genericLogo from '../../../resources/Generic Logo.ico';
+import { NotificationDropdown } from '../common/NotificationDropdown';
 
 const Header: React.FC = () => {
-  const { logout, user, selectedRole, setSelectedRole } = useAuth();
-  const { notifications, markAsRead, markAllAsRead } = useNotification();
+  const { logout, user, selectedRole } = useAuth();
+  // const { notifications, markAsRead, markAllAsRead } = useNotification(); // Moved to NotificationDropdown
   const navigate = useNavigate();
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
+  // const [isNotificationOpen, setIsNotificationOpen] = useState(false); // Moved to NotificationDropdown
+  // const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null); // Kept if needed for role selector later, or comment out?
   const profileRef = useRef<HTMLDivElement>(null);
-  const notificationRef = useRef<HTMLDivElement>(null);
+  // const notificationRef = useRef<HTMLDivElement>(null); // Moved to NotificationDropdown
 
-  const unreadNotifications = notifications.filter((n) => !n.read).length;
+  // const unreadNotifications = notifications.filter((n) => !n.read).length; // Moved logic
 
   const handleLogout = async () => {
     await logout();
@@ -29,12 +29,9 @@ const Header: React.FC = () => {
       const target = event.target as Node;
       if (
         profileRef.current &&
-        !profileRef.current.contains(target) &&
-        notificationRef.current &&
-        !notificationRef.current.contains(target)
+        !profileRef.current.contains(target)
       ) {
         setIsProfileMenuOpen(false);
-        setIsNotificationOpen(false);
       }
     };
 
@@ -43,7 +40,7 @@ const Header: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  /* const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedId = parseInt(e.target.value);
     setSelectedRoleId(selectedId);
 
@@ -53,7 +50,7 @@ const Header: React.FC = () => {
       toast.success(selectedRole?.ID + ' role selected');
       // navigate(`/dashboard`);
     }
-  };
+  }; */
 
   return (
     <header className="bg-white border-b border-gray-300 shadow-[0_2px_8px_rgba(0,0,0,0.08),0_4px_16px_rgba(0,0,0,0.04)] z-10 sticky top-0 backdrop-blur-sm bg-white/95">
@@ -61,15 +58,15 @@ const Header: React.FC = () => {
         {/* Placeholder Left Section */}
         <div className="flex-1 flex items-center">
           <div className="hidden md:flex flex-col items-start">
-            <img src={genericLogo} alt="Generic logo" className='h-16 mr-6'/>
-          </div>          
+            <img src={genericLogo} alt="Generic logo" className='h-16 mr-6' />
+          </div>
           <div className="hidden md:flex flex-col items-start">
             <h1 className="text-xl font-bold text-black text-left items-start">Municipality of LGU</h1>
           </div>
         </div>
-        
+
         <div className="flex md:hidden flex-col items-start">
-          <img src={genericLogo} alt="Generic logo" className='h-16'/>
+          <img src={genericLogo} alt="Generic logo" className='h-16' />
         </div>
         <div className="ml-4 flex items-center gap-3 md:ml-6">
 
@@ -96,93 +93,30 @@ const Header: React.FC = () => {
           )} */}
 
           {/* Notification Dropdown */}
-          {/* <div className="relative" ref={notificationRef}>
-            <button
-              onClick={() => {
-                setIsNotificationOpen(!isNotificationOpen);
-                setIsProfileMenuOpen(false);
-              }}
-              className="p-1 rounded-full text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 relative"
-            >
-              <Bell className="h-6 w-6" />
-              {unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 flex items-center justify-center text-xs text-white">
-                  {unreadNotifications}
-                </span>
-              )}
-            </button>
-
-            {isNotificationOpen && (
-              <div className="origin-top-right absolute right-0 mt-2 w-72 sm:w-80 max-w-[90vw] rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 animate-fade-in">
-                <div className="py-1">
-                  <div className="px-4 py-2 border-b border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-700">
-                      Notifications
-                    </h3>
-                  </div>
-
-                  {notifications.length > 0 ? (
-                    <div className="max-h-80 overflow-y-auto">
-                      {notifications.map((n) => (
-                        <div
-                          key={n.id}
-                          onClick={() => markAsRead(n.id)}
-                          className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition ${
-                            !n.read ? "bg-blue-50" : ""
-                          }`}
-                        >
-                          <p className="text-sm font-medium text-gray-900">
-                            {n.title}
-                          </p>
-                          <p className="text-xs text-gray-500">{n.message}</p>
-                          <p className="text-xs text-gray-400 mt-1">{n.time}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="px-4 py-3 text-sm text-gray-500">
-                      No notifications
-                    </div>
-                  )}
-
-                  <div className="border-t border-gray-200 px-4 py-2">
-                    <button
-                      className="text-xs text-blue-600 hover:text-blue-800"
-                      onClick={markAllAsRead}
-                    >
-                      Mark all as read
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div> */}
+          <NotificationDropdown />
 
           {/* Enhanced Profile Dropdown with Premium Design */}
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => {
                 setIsProfileMenuOpen(!isProfileMenuOpen);
-                setIsNotificationOpen(false);
               }}
-              className={`max-w-xs flex items-center gap-3 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${
-                isProfileMenuOpen
-                  ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg'
-                  : 'bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 border-2 border-transparent hover:border-blue-100 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:shadow-lg'
-              }`}
+              className={`max-w-xs flex items-center gap-3 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${isProfileMenuOpen
+                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg'
+                : 'bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 border-2 border-transparent hover:border-blue-100 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:shadow-lg'
+                }`}
             >
               {/* Enhanced Profile Icon with Gradient */}
               <div className="relative">
-                <div className={`absolute inset-0 rounded-full bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 opacity-20 blur-sm transition-opacity ${
-                  isProfileMenuOpen ? 'opacity-30' : ''
-                }`}></div>
+                <div className={`absolute inset-0 rounded-full bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 opacity-20 blur-sm transition-opacity ${isProfileMenuOpen ? 'opacity-30' : ''
+                  }`}></div>
                 <div className="relative p-2 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-full shadow-lg ring-2 ring-white">
                   <UserCircle className="h-6 w-6 text-white" />
                 </div>
                 {/* Online Status Indicator */}
                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
               </div>
-              
+
               {/* User Info */}
               <div className="hidden md:flex flex-col items-start">
                 <span className="text-sm font-semibold text-gray-800 leading-tight">
@@ -192,11 +126,10 @@ const Header: React.FC = () => {
                   {selectedRole?.Description || 'User'}
                 </span>
               </div>
-              
+
               {/* Animated Chevron */}
-              <ChevronDown className={`h-4 w-4 text-gray-500 transition-all duration-200 ${
-                isProfileMenuOpen ? 'rotate-180 text-blue-600' : ''
-              }`} />
+              <ChevronDown className={`h-4 w-4 text-gray-500 transition-all duration-200 ${isProfileMenuOpen ? 'rotate-180 text-blue-600' : ''
+                }`} />
             </button>
 
             {isProfileMenuOpen && (
