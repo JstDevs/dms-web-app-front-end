@@ -22,11 +22,47 @@ export const NotificationDropdown: React.FC = () => {
         };
     }, []);
 
-    const handleNotificationClick = async (id: string, link?: string) => {
+    const resolveNotificationPath = (notif: any): string | null => {
+        // If it's a comment or collaboration, prioritize going to the document
+        const link = notif.link || '';
+
+        // 1. Try to extract Document ID from various link formats
+        // Format A: /documents/view-document/LINK_ID/DOCUMENT_ID/...
+        // Format B: /documents/141
+        // Format C: any string containing /document/ followed by numbers
+
+        const docIdMatch = link.match(/\/documents\/view-document\/[^/]+\/(\d+)/) ||
+            link.match(/\/documents\/(\d+)/) ||
+            link.match(/\/document\/(\d+)/);
+
+        if (docIdMatch && docIdMatch[1]) {
+            const docId = docIdMatch[1];
+            // If it's a comment, add the tab parameter
+            if (notif.type === 'COMMENT') {
+                return `/documents/${docId}?tab=collaboration`;
+            }
+            return `/documents/${docId}`;
+        }
+
+        // 2. If no Match but we have metadata
+        if (notif.metadata?.documentId) {
+            return `/documents/${notif.metadata.documentId}${notif.type === 'COMMENT' ? '?tab=collaboration' : ''}`;
+        }
+
+        // 3. Fallback to the link provided if it looks like an internal path
+        if (link.startsWith('/')) {
+            return link;
+        }
+
+        return null;
+    };
+
+    const handleNotificationClick = async (id: string, notif: any) => {
         await markAsRead(id);
-        if (link) {
+        const targetPath = resolveNotificationPath(notif);
+        if (targetPath) {
             setIsOpen(false);
-            navigate(link);
+            navigate(targetPath);
         }
     };
 
@@ -89,7 +125,7 @@ export const NotificationDropdown: React.FC = () => {
                                 {notifications.map((n) => (
                                     <div
                                         key={n.id}
-                                        onClick={() => handleNotificationClick(n.id, n.link)}
+                                        onClick={() => handleNotificationClick(n.id, n)}
                                         className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors relative group ${!n.read ? "bg-blue-50/50" : ""
                                             }`}
                                     >

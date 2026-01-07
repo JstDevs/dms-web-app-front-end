@@ -35,10 +35,21 @@ const DocumentView: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<TabType>('document');
-  
+
+  // Set active tab from query parameter on mount or when URL changes
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const tabParam = searchParams.get('tab') as TabType;
+    if (tabParam && ['document', 'versions', 'collaboration', 'audit', 'restrictions', 'approval'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [location.search]);
+
   // Get filter state from URL query parameters to preserve when going back
   const getBackUrl = () => {
     const searchParams = new URLSearchParams(location.search);
+    // Remove tab parameter when going back to library
+    searchParams.delete('tab');
     const queryString = searchParams.toString();
     return queryString ? `/documents/library?${queryString}` : '/documents/library';
   };
@@ -111,7 +122,7 @@ const DocumentView: React.FC = () => {
         </div>
       );
     }
-    
+
     switch (activeTab) {
       case 'document':
         return <DocumentCurrentView document={currentDocument} permissions={permissions} />;
@@ -205,26 +216,25 @@ const DocumentView: React.FC = () => {
           </h1>
         </div>
       </div>
-      
+
       <div className="mb-6 border-b border-gray-200 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-300 pb-2">
         <nav className="flex flex-nowrap -mb-px">
           {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
-              className={`flex items-center py-3 px-4 sm:px-6 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`flex items-center py-3 px-4 sm:px-6 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               <span className="mr-2">{tab.icon}</span>
-              {tab.name} 
+              {tab.name}
             </button>
           ))}
         </nav>
       </div>
-      
+
       {/* Show permission message if trying to access restricted tab */}
       {activeTab === 'collaboration' && !permissions.Collaborate && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-8 text-center">
@@ -248,11 +258,11 @@ const DocumentView: React.FC = () => {
           </div>
         </div>
       )}
-      
+
       <div className="w-full">
         {renderTabContent()}
       </div>
-      
+
     </div>
   );
 };
