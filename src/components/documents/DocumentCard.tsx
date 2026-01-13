@@ -790,9 +790,7 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
               {/* Show Request Approval button when pending or null and not sent */}
               {(actualApprovalStatus === 'pending' || actualApprovalStatus === null || actualApprovalStatus === 'rejected') &&
                 !requestSent &&
-                permissions.Add &&
-                permissions.Edit &&
-                permissions.Delete && (
+                permissions.View && (
                   <Button
                     onClick={handleRequestApproval}
                     loading={isRequesting}
