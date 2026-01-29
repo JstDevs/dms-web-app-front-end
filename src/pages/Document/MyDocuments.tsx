@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 // import { useDocument } from "@/contexts/DocumentContext";
 import DocumentCard from '@/components/documents/DocumentCard';
 // import { Input, Select } from "@/components/ui"; // Assuming you have these UI components
-import { FileText, Search, Filter, X, Calendar, Building2, FolderOpen, AlertTriangle, Loader2, Sparkles, Send } from 'lucide-react';
+import { FileText, Search, Filter, X, Calendar, Building2, FolderOpen, AlertTriangle, Loader2, Sparkles, Send, ArrowRight } from 'lucide-react';
 import { Button } from '@chakra-ui/react';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
@@ -18,6 +18,7 @@ import { requestDocumentApproval } from '@/api/documentApprovals';
 import { DndContext, DragOverlay, PointerSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent, pointerWithin } from '@dnd-kit/core';
 import { FolderSidebar } from '@/components/documents/FolderSidebar';
 import { moveDocument } from './utils/uploadAPIs';
+import ModernModal from '@/components/ui/ModernModal';
 
 
 
@@ -83,6 +84,8 @@ const MyDocuments: React.FC = () => {
   const [isBulkRequesting, setIsBulkRequesting] = useState(false);
   const [docStatuses, setDocStatuses] = useState<Record<string, string>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [moveInfo, setMoveInfo] = useState<{ docId: string; deptId: string; subDeptId: string; label: string; fileName: string } | null>(null);
 
 
   const handleStatusUpdate = useCallback((id: string, status: string) => {
@@ -825,6 +828,7 @@ const MyDocuments: React.FC = () => {
     if (over) {
       const docId = active.id.toString();
       const dropData = over.data.current as { deptId: string; subDeptId: string; label: string } | undefined;
+      const activeDoc = active.data.current?.document;
 
       if (dropData) {
         const { deptId, subDeptId, label } = dropData;
@@ -834,22 +838,37 @@ const MyDocuments: React.FC = () => {
           return;
         }
 
-        const confirmMove = window.confirm(`Are you sure you want to move this document to ${label}?`);
-        if (!confirmMove) return;
-
-        const moveToastId = toast.loading(`Moving document to ${label}...`);
-
-        try {
-          await moveDocument(Number(docId), Number(deptId), Number(subDeptId));
-          toast.success('Document moved successfully', { id: moveToastId });
-
-          // Refresh the document list
-          loadDocuments();
-        } catch (error: any) {
-          console.error('Failed to move document:', error);
-          toast.error(error?.response?.data?.message || 'Failed to move document', { id: moveToastId });
-        }
+        setMoveInfo({
+          docId,
+          deptId,
+          subDeptId,
+          label,
+          fileName: activeDoc?.FileName || 'this document'
+        });
+        setIsMoveModalOpen(true);
       }
+    }
+  };
+
+  const confirmMove = async () => {
+    if (!moveInfo) return;
+
+    const { docId, deptId, subDeptId, label } = moveInfo;
+    setIsMoveModalOpen(false);
+
+    const moveToastId = toast.loading(`Moving document to ${label}...`);
+
+    try {
+      await moveDocument(Number(docId), Number(deptId), Number(subDeptId));
+      toast.success('Document moved successfully', { id: moveToastId });
+
+      // Refresh the document list
+      loadDocuments();
+    } catch (error: any) {
+      console.error('Failed to move document:', error);
+      toast.error(error?.response?.data?.message || 'Failed to move document', { id: moveToastId });
+    } finally {
+      setMoveInfo(null);
     }
   };
 
@@ -1409,6 +1428,76 @@ const MyDocuments: React.FC = () => {
               </div>
             ) : null}
           </DragOverlay>
+
+          {/* Move Document Confirmation Modal */}
+          <ModernModal
+            isOpen={isMoveModalOpen}
+            onClose={() => {
+              setIsMoveModalOpen(false);
+              setMoveInfo(null);
+            }}
+            size="md"
+          >
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-blue-50 rounded-2xl">
+                  <FolderOpen className="w-8 h-8 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Move Document</h3>
+                  <p className="text-sm text-gray-500 font-medium">Please confirm document relocation</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-2xl p-5 mb-6 border border-gray-100">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <span className="text-sm font-bold text-gray-700 truncate">
+                      {moveInfo?.fileName}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-4 py-2">
+                    <div className="flex-1 h-px bg-gray-200"></div>
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <ArrowRight className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1 h-px bg-gray-200"></div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 shadow-sm flex items-center justify-center flex-shrink-0">
+                      <FolderOpen className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    <span className="text-sm font-bold text-gray-900">
+                      {moveInfo?.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setIsMoveModalOpen(false);
+                    setMoveInfo(null);
+                  }}
+                  className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmMove}
+                  className="flex-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-200 active:scale-95"
+                >
+                  Confirm Move
+                </button>
+              </div>
+            </div>
+          </ModernModal>
         </div>
       </div>
     </DndContext>
