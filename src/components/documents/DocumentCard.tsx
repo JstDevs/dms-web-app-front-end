@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-  Calendar,
   Lock,
   Clock,
   CheckCircle,
@@ -11,6 +10,7 @@ import {
   Layers,
   XCircle,
   Loader2,
+  GripVertical,
 } from 'lucide-react';
 import { Button } from '@chakra-ui/react';
 import axios from '@/api/axios';
@@ -18,6 +18,9 @@ import toast from 'react-hot-toast';
 import { requestDocumentApproval, actOnDocumentApproval } from '@/api/documentApprovals';
 import { useAuth } from '@/contexts/AuthContext';
 import ModernModal from '@/components/ui/ModernModal';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+
 
 interface DocumentCardProps {
   document: {
@@ -67,13 +70,26 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
     ID,
   } = document;
 
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: String(ID),
+    data: {
+      document: document
+    }
+  });
+
+  const style = {
+    transform: transform ? CSS.Translate.toString(transform) : undefined,
+    zIndex: isDragging ? 999 : undefined,
+    opacity: isDragging ? 0.6 : undefined,
+    transition: isDragging ? 'none' : 'transform 200ms ease, box-shadow 200ms ease',
+  };
+
   const { user } = useAuth();
   const [isRequesting, setIsRequesting] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actualApprovalStatus, setActualApprovalStatus] = useState<'approved' | 'rejected' | 'pending' | 'in_progress' | null>(null);
   const [versionNumber, setVersionNumber] = useState<string | null>(null);
-  const [isVersionLoading, setIsVersionLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [pendingRequest, setPendingRequest] = useState<any>(null);
   const [allPendingRequests, setAllPendingRequests] = useState<any[]>([]);
@@ -308,27 +324,19 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   // Only fetch if user has Collaborate permission (required for analytics endpoint)
   // Note: Even with Collaborate permission, backend may return 403 if document belongs to different department
   // Browser console will show 403 errors - this is expected and cannot be disabled (browser security feature)
+  // Don't fetch if user doesn't have Collaborate permission
+  // Check explicitly: if permissions exists and Collaborate is explicitly false or undefined, skip
   React.useEffect(() => {
     const abortController = new AbortController();
 
-    // Don't fetch if user doesn't have Collaborate permission
-    // Check explicitly: if permissions exists and Collaborate is explicitly false or undefined, skip
     const hasCollaboratePermission = permissions?.Collaborate === true;
 
     if (!hasCollaboratePermission) {
       setVersionNumber(null);
-      setIsVersionLoading(false);
       return;
     }
 
-    // Note: Even with permission check, request may still return 403 if:
-    // - Document belongs to different department than permissions checked
-    // - User is new and permissions haven't been configured yet
-    // - Backend has stricter permission checks
-    // Browser console will show these 403 errors - this is normal and expected
-
     const fetchVersion = async () => {
-      setIsVersionLoading(true);
       try {
         const response = await axios.get(`/documents/documents/${ID}/analytics`, {
           signal: abortController.signal
@@ -341,20 +349,16 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
             // Use first version like DocumentCurrentView does: document?.versions?.[0]?.VersionNumber
             const version = documentData.versions[0];
             setVersionNumber(version?.VersionNumber || null);
-            setIsVersionLoading(false);
           } else {
             setVersionNumber(null);
-            setIsVersionLoading(false);
           }
         } else {
           // If success is false (handled by interceptor for 403), version info unavailable
           setVersionNumber(null);
-          setIsVersionLoading(false);
         }
       } catch (error: any) {
         // Ignore abort errors (component unmounted or effect re-run)
         if (error.name === 'AbortError' || error.name === 'CanceledError') {
-          setIsVersionLoading(false);
           return;
         }
 
@@ -363,12 +367,10 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
         if (error?.response?.status === 403) {
           // Silently fail - don't log 403 errors as they're expected for new users/departments
           setVersionNumber(null);
-          setIsVersionLoading(false);
           return;
         }
         // Only log non-403 errors
         console.error('Failed to fetch document version:', error);
-        setIsVersionLoading(false);
         // Don't set default, leave as null if fetch fails
       }
     };
@@ -530,66 +532,46 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   }, [onDelete, ID]);
 
   const getStatusBadge = useMemo(() => {
-    // Use actual approval status from API if available
     if (actualApprovalStatus === 'approved') {
       if (publishing_status) {
         return (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-green-50 text-green-700 border border-green-200/60">
-            <CheckCircle className="w-3.5 h-3.5" />
-            Published
+          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-green-50 text-green-600 border border-green-100 uppercase tracking-tighter">
+            <CheckCircle className="w-3 h-3" />
+            PUBLISHED
           </div>
         );
       }
       return (
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-          <CheckCircle className="w-3.5 h-3.5" />
-          Approved
+        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-tighter">
+          <CheckCircle className="w-3 h-3" />
+          APPROVED
         </div>
       );
     }
 
     if (actualApprovalStatus === 'rejected') {
       return (
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-red-50 text-red-700 border border-red-200/60">
-          <AlertCircle className="w-3.5 h-3.5" />
-          Rejected
+        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-50 text-red-600 border border-red-100 uppercase tracking-tighter">
+          <AlertCircle className="w-3 h-3" />
+          REJECTED
         </div>
       );
     }
 
     if (actualApprovalStatus === 'in_progress') {
       return (
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60 shadow-sm">
-          <Layers className="w-3.5 h-3.5" />
-          <span className="font-medium">In Progress</span>
-        </div>
-      );
-    }
-
-    if (actualApprovalStatus === 'pending') {
-      return (
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 shadow-sm">
-          <Clock className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '2s' }} />
-          <span className="font-medium">Pending Approval</span>
-        </div>
-      );
-    }
-
-    // Fallback to publishing_status
-    if (publishing_status) {
-      return (
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-green-50 text-green-700 border border-green-200/60">
-          <CheckCircle className="w-3.5 h-3.5" />
-          Published
+        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-tighter">
+          <Layers className="w-3 h-3" />
+          IN PROGRESS
         </div>
       );
     }
 
     // Default: pending approval
     return (
-      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 shadow-sm">
-        <Clock className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '2s' }} />
-        <span className="font-medium">Pending Approval</span>
+      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-tighter">
+        <Clock className="w-3 h-3 animate-spin" style={{ animationDuration: '3s' }} />
+        PENDING
       </div>
     );
   }, [actualApprovalStatus, publishing_status]);
@@ -600,232 +582,157 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
   );
 
   return (
-    <div
-      onClick={() => {
-        // Don't navigate if modal is open
-        if (!isDeleteModalOpen && !isRejectModalOpen) {
-          onClick();
-        }
-      }}
-      className="group relative flex flex-col h-full bg-white rounded-2xl border-2 border-gray-200 shadow-md hover:shadow-2xl hover:border-blue-400 transition-all duration-300 cursor-pointer overflow-hidden"
-    >
-      {/* Professional top accent bar with gradient - always visible */}
-      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-500" />
-
-      {/* Confidential Banner */}
-      {Confidential && (
-        <div className="absolute top-2 right-2 bg-red-600 text-white px-4 py-1.5 text-xs font-bold rounded-lg shadow-lg z-10 flex items-center gap-1.5">
-          <Lock className="w-3.5 h-3.5" />
-          CONFIDENTIAL
-        </div>
-      )}
-
-      {/* Selection Checkbox */}
+    <>
       <div
-        className="absolute top-4 left-4 z-20"
-        onClick={(e) => e.stopPropagation()}
+        ref={setNodeRef}
+        style={style}
+        className={`group relative flex flex-col h-full bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-default overflow-hidden ${isDragging ? 'scale-[1.01] rotate-0 shadow-lg ring-1 ring-blue-500/30' : ''}`}
       >
-        <input
-          type="checkbox"
-          checked={selected}
-          disabled={actualApprovalStatus === 'approved' || actualApprovalStatus === 'in_progress'}
-          onChange={(e) => onSelect?.(ID.toString(), e.target.checked)}
-          className="w-5 h-5 rounded-md border-2 border-blue-500 bg-white text-blue-600 focus:ring-blue-500 cursor-pointer shadow-md transition-all hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed accent-blue-600"
-          aria-label={`Select ${FileName}`}
+        {/* Click layer for main card interactions (navigation) */}
+        <div
+          className="absolute inset-0 z-0 cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isDeleteModalOpen && !isRejectModalOpen) {
+              onClick();
+            }
+          }}
         />
-      </div>
 
-      {/* Expiration Warning */}
-      {isExpired && (
-        <div className="absolute top-2 left-2 bg-orange-600 text-white px-4 py-1.5 text-xs font-bold rounded-lg shadow-lg z-10 flex items-center gap-1.5">
-          <AlertCircle className="w-3.5 h-3.5" />
-          EXPIRED
-        </div>
-      )}
+        {/* Top Decor Gradient */}
+        <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none" />
 
-      <div className="p-6 pt-10 flex flex-col h-full relative">
-        {/* Document Icon Header */}
-        <div className="mb-5 flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 group-hover:from-blue-100 group-hover:to-indigo-100 transition-all duration-300 shadow-sm">
-              <FileText className="w-6 h-6 text-blue-600" />
+        <div className="p-4 pt-12 flex flex-col h-full relative z-10 pointer-events-none">
+          {/* Top Controls Bar - Absolute but managed */}
+          <div className="absolute top-3 left-3 right-3 flex justify-between items-center pointer-events-auto z-30">
+            <div onClick={(e) => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={selected}
+                disabled={actualApprovalStatus === 'approved' || actualApprovalStatus === 'in_progress'}
+                onChange={(e) => onSelect?.(ID.toString(), e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 bg-white text-blue-600 focus:ring-blue-500 cursor-pointer transition-all hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label={`Select ${FileName}`}
+              />
             </div>
-            {/* Version Badge */}
-            {versionNumber ? (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-sm">
-                <Layers className="w-3.5 h-3.5" />
-                <span className="font-medium">
-                  {(() => {
-                    // Remove any existing 'v' or 'V' prefix and normalize
-                    const cleanVersion = versionNumber.replace(/^[vV]/i, '').trim();
-                    return `v${cleanVersion}`;
-                  })()}
-                </span>
-              </div>
-            ) : isVersionLoading ? (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200">
-                <Layers className="w-3.5 h-3.5" />
-                <span>Loading...</span>
-              </div>
-            ) : (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-50 text-slate-500 border border-slate-200 shadow-sm">
-                <Layers className="w-3.5 h-3.5" />
-                <span>Not available</span>
-              </div>
-            )}
+
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-slate-100 rounded-md text-slate-300 hover:text-blue-600 transition-colors bg-white shadow-sm border border-slate-100"
+              title="Drag here to move"
+            >
+              <GripVertical className="w-4 h-4" />
+            </div>
           </div>
-          {getStatusBadge}
-        </div>
 
-        {/* Title and Description */}
-        <div className="mb-5 flex-1">
-          <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-700 transition-colors duration-200 leading-tight">
-            {FileName || 'Untitled Document'}
-          </h3>
-          <p className="text-gray-600 text-sm line-clamp-3 leading-relaxed">
-            {FileDescription || 'No description available for this document.'}
-          </p>
-        </div>
-
-        {/* Enhanced Metadata Section */}
-        <div className="space-y-2.5 mb-5">
-          <div className="flex items-center text-sm text-gray-700 bg-gradient-to-r from-gray-50 to-gray-50/50 rounded-lg px-3.5 py-2.5 group-hover:from-gray-100 group-hover:to-gray-100/50 transition-all duration-200 border border-gray-100">
-            <div className="p-1.5 rounded-md bg-blue-50 mr-3">
-              <Calendar className="w-3.5 h-3.5 text-blue-600" />
+          {/* Header Info */}
+          <div className="mb-4 flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-sm">
+                <FileText className="w-5 h-5" />
+              </div>
+              {/* Version Badge */}
+              {versionNumber ? (
+                <div className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-50 text-slate-500 text-[10px] font-bold border border-slate-200">
+                  V{versionNumber.replace(/^[vV]/i, '').trim()}
+                </div>
+              ) : null}
             </div>
-            <div className="flex-1">
-              <span className="font-semibold text-gray-700">Created:</span>
-              <span className="ml-2 text-gray-600">
-                {(CreatedDate || FileDate)
-                  ? new Date(CreatedDate || FileDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })
-                  : 'No date'}
+
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              {getStatusBadge}
+
+              {/* Secondary Banners as subtle badges */}
+              {Confidential && (
+                <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-100 text-[9px] font-bold uppercase">
+                  <Lock className="w-2.5 h-2.5" />
+                  CONFIDENTIAL
+                </div>
+              )}
+
+              {isExpired && (
+                <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 border border-orange-100 text-[9px] font-bold uppercase">
+                  <AlertCircle className="w-2.5 h-2.5" />
+                  EXPIRED
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Title and Description */}
+          <div className="mb-4 flex-1 pointer-events-none">
+            <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors">
+              {FileName || 'Untitled Document'}
+            </h3>
+            <p className="text-slate-500 text-[11px] line-clamp-2 leading-relaxed font-medium">
+              {FileDescription || 'No description provided.'}
+            </p>
+          </div>
+
+          {/* Metadata Section */}
+          <div className="flex items-center justify-between py-3 border-y border-slate-100 pointer-events-none">
+            <div className="flex flex-col">
+              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Date Added</span>
+              <span className="text-xs font-semibold text-slate-600">
+                {CreatedDate ? new Date(CreatedDate).toLocaleDateString() : (FileDate ? new Date(FileDate).toLocaleDateString() : '---')}
               </span>
             </div>
-          </div>
-
-          {Expiration && ExpirationDate && (
-            <div
-              className={`flex items-center text-sm rounded-lg px-3.5 py-2.5 transition-all duration-200 border ${isExpired
-                ? 'bg-gradient-to-r from-red-50 to-red-50/50 group-hover:from-red-100 group-hover:to-red-100/50 border-red-200'
-                : 'bg-gradient-to-r from-gray-50 to-gray-50/50 group-hover:from-gray-100 group-hover:to-gray-100/50 border-gray-100'
-                }`}
-            >
-              <div className={`p-1.5 rounded-md mr-3 ${isExpired ? 'bg-red-100' : 'bg-amber-50'}`}>
-                <Clock className={`w-3.5 h-3.5 ${isExpired ? 'text-red-600' : 'text-amber-600'}`} />
-              </div>
-              <div className="flex-1">
-                <span className={`font-semibold ${isExpired ? 'text-red-700' : 'text-gray-700'}`}>Expires:</span>
-                <span className={`ml-2 ${isExpired ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
-                  {new Date(ExpirationDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
+            {Expiration && ExpirationDate && (
+              <div className="flex flex-col text-right">
+                <span className={`text-[9px] font-bold uppercase tracking-wider ${isExpired ? 'text-red-400' : 'text-slate-400'}`}>Expiry</span>
+                <span className={`text-xs font-semibold ${isExpired ? 'text-red-600' : 'text-slate-600'}`}>
+                  {new Date(ExpirationDate).toLocaleDateString()}
                 </span>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Actions - pushed to bottom with mt-auto */}
-        <div className="mt-auto pt-4 border-t border-gray-200">
-          <div className="flex justify-between items-center gap-2">
-            {/* Delete Button - Left Side */}
-            {permissions.Delete && (
-              <Button
-                onClick={handleDeleteClick}
-                loading={isDeleting}
-                size="sm"
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 flex items-center gap-2"
-                loadingText="Deleting..."
-                title="Delete document"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </Button>
             )}
+          </div>
 
-            {/* Right Side Actions */}
-            <div className="flex justify-end gap-2 flex-wrap">
-              {/* Show Approve/Reject buttons when IN_PROGRESS - enable/disable based on if user is approver */}
-              {actualApprovalStatus === 'in_progress' && (
-                <div className="flex gap-2">
-                  <Button
+          {/* Actions - Bottom */}
+          <div className="mt-auto pt-4 flex flex-col gap-2 pointer-events-auto">
+            <div className="flex items-center gap-2">
+              {permissions.Delete && (
+                <button
+                  onClick={handleDeleteClick}
+                  className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg text-[11px] font-bold transition-all border border-red-100 flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Delete
+                </button>
+              )}
+
+              {actualApprovalStatus === 'in_progress' ? (
+                <div className="flex-1 flex gap-2">
+                  <button
                     onClick={handleApprove}
-                    loading={isProcessing}
                     disabled={!isCurrentUserApprover || isProcessing}
-                    size="sm"
-                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                    loadingText="Processing..."
+                    className="flex-1 px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-[11px] font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    {isProcessing ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <CheckCircle className="w-3.5 h-3.5" />
-                    )}
+                    {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
                     Approve
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     onClick={handleRejectClick}
-                    loading={isProcessing}
                     disabled={!isCurrentUserApprover || isProcessing}
-                    size="sm"
-                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                    loadingText="Processing..."
+                    className="flex-1 px-3 py-1.5 bg-slate-800 text-white hover:bg-slate-700 rounded-lg text-[11px] font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    {isProcessing ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <XCircle className="w-3.5 h-3.5" />
-                    )}
                     Reject
-                  </Button>
+                  </button>
                 </div>
-              )}
-
-              {/* Show Request Approval button when pending or null and not sent */}
-              {(actualApprovalStatus === 'pending' || actualApprovalStatus === null || actualApprovalStatus === 'rejected') &&
-                !requestSent &&
-                permissions.View && (
-                  <Button
-                    onClick={handleRequestApproval}
-                    loading={isRequesting}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 flex items-center gap-2"
-                    loadingText="Sending..."
-                  >
-                    <Send className="w-4 h-4" />
-                    Request Approval
-                  </Button>
-                )}
-
-              {/* Status helper text */}
-              {actualApprovalStatus === 'approved' && (
-                <div className="text-xs text-gray-500 italic">
-                  Approval completed
-                </div>
-              )}
-
-              {requestSent && actualApprovalStatus !== 'in_progress' && (
-                <div className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-green-700 bg-green-50 rounded-lg border border-green-200 shadow-sm">
-                  <CheckCircle className="w-4 h-4" />
-                  Request Sent
-                </div>
+              ) : !requestSent && (actualApprovalStatus === 'rejected' || actualApprovalStatus === 'pending' || actualApprovalStatus === null) && (
+                <button
+                  onClick={handleRequestApproval}
+                  disabled={isRequesting}
+                  className="flex-1 px-3 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
+                >
+                  {isRequesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  Request Approval
+                </button>
               )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Enhanced professional hover overlay with subtle gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 via-indigo-50/0 to-purple-50/0 group-hover:from-blue-50/30 group-hover:via-indigo-50/20 group-hover:to-purple-50/30 transition-all duration-300 pointer-events-none rounded-2xl" />
-
-      {/* Subtle corner accent */}
-      <div className="absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-tl from-blue-100/0 to-blue-100/0 group-hover:from-blue-100/20 group-hover:to-blue-100/10 rounded-tl-full transition-all duration-300 pointer-events-none" />
 
       {/* Delete Confirmation Modal */}
       <ModernModal
@@ -834,9 +741,8 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
         size="md"
       >
         <div className="p-6">
-          {/* Header */}
           <div className="flex items-start gap-4 mb-6">
-            <div className="flex-shrink-0 p-3 rounded-full bg-gradient-to-br from-red-100 to-red-200 shadow-lg">
+            <div className="flex-shrink-0 p-3 rounded-full bg-red-100 shadow-lg">
               <AlertCircle className="w-7 h-7 text-red-600" />
             </div>
             <div className="flex-1 pt-1">
@@ -844,43 +750,24 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
               <p className="text-sm text-gray-500">This action cannot be undone</p>
             </div>
           </div>
-
-          {/* Content */}
           <div className="mb-6">
             <p className="text-gray-700 leading-relaxed">
               Are you sure you want to delete <span className="font-semibold text-gray-900">"{FileName}"</span>?
             </p>
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-800 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                This will permanently remove the document and all associated data.
-              </p>
-            </div>
           </div>
-
-          {/* Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsDeleteModalOpen(false);
-              }}
-              size="sm"
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 hover:shadow-md"
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700"
             >
               Cancel
             </Button>
             <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteConfirm();
-              }}
+              onClick={handleDeleteConfirm}
               loading={isDeleting}
-              size="sm"
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200"
-              loadingText="Deleting..."
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
-              Delete Document
+              Delete
             </Button>
           </div>
         </div>
@@ -889,75 +776,52 @@ const DocumentCard: React.FC<DocumentCardProps> = React.memo(({
       {/* Reject Approval Modal */}
       <ModernModal
         isOpen={isRejectModalOpen}
-        onClose={() => setIsRejectModalOpen(false)}
+        onClose={() => {
+          setIsRejectModalOpen(false);
+          setRejectReason('');
+        }}
         size="md"
       >
         <div className="p-6">
-          {/* Header */}
           <div className="flex items-start gap-4 mb-6">
-            <div className="flex-shrink-0 p-3 rounded-full bg-gradient-to-br from-orange-100 to-red-200 shadow-lg">
+            <div className="flex-shrink-0 p-3 rounded-full bg-orange-100 shadow-lg">
               <XCircle className="w-7 h-7 text-red-600" />
             </div>
             <div className="flex-1 pt-1">
-              <h3 className="text-2xl font-bold text-gray-900 mb-1">Reject Document Approval</h3>
-              <p className="text-sm text-gray-500">Please provide a reason for rejection</p>
+              <h3 className="text-2xl font-bold text-gray-900 mb-1">Reject Approval</h3>
+              <p className="text-sm text-gray-500">Provide a reason for rejection</p>
             </div>
           </div>
-
-          {/* Content */}
           <div className="mb-6">
-            <label
-              htmlFor="reject-reason"
-              className="block text-sm font-semibold text-gray-700 mb-3"
-            >
-              Rejection Reason <span className="text-red-500">*</span>
-            </label>
             <textarea
-              id="reject-reason"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="Enter your reason for rejection..."
-              rows={5}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none transition-all duration-200 text-gray-700 placeholder-gray-400"
-              autoFocus
+              placeholder="Enter reason..."
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 min-h-[120px]"
             />
-            <p className="mt-2 text-xs text-gray-500">
-              A clear reason helps document owners understand why the approval was rejected.
-            </p>
           </div>
-
-          {/* Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <Button
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={() => {
                 setIsRejectModalOpen(false);
                 setRejectReason('');
               }}
-              size="sm"
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 hover:shadow-md"
-              disabled={isProcessing}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700"
             >
               Cancel
             </Button>
             <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRejectConfirm();
-              }}
+              onClick={handleRejectConfirm}
               loading={isProcessing}
-              size="sm"
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-md"
-              loadingText="Rejecting..."
-              disabled={!rejectReason.trim() || isProcessing}
+              disabled={!rejectReason.trim()}
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
-              Reject Approval
+              Reject
             </Button>
           </div>
         </div>
       </ModernModal>
-    </div>
+    </>
   );
 });
 

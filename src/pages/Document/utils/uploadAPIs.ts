@@ -13,7 +13,7 @@ export async function fetchDocuments(userId: number, page: number = 1, searchTer
   const params = new URLSearchParams({
     page: page.toString()
   });
-  
+
   if (searchTerm) {
     params.append('search', searchTerm);
   }
@@ -29,7 +29,7 @@ export async function fetchDocuments(userId: number, page: number = 1, searchTer
   if (endDate) {
     params.append('endDate', endDate);
   }
-  
+
   const response = await axios.get(
     `/documents/documents/${userId}?${params.toString()}`
   );
@@ -48,6 +48,14 @@ export async function editDocument(payload: FormData) {
 export async function deleteDocument(id: number) {
   const response = await axios.delete(`/documents/delete/${id}`, {
     timeout: 30000, // 30 second timeout to prevent hanging
+  });
+  return response.data;
+}
+
+export async function moveDocument(id: number, departmentId: number, subDepartmentId: number) {
+  const response = await axios.patch(`/documents/${id}/move`, {
+    departmentId,
+    subDepartmentId
   });
   return response.data;
 }

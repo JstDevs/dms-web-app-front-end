@@ -39,6 +39,7 @@ export const useNestedDepartmentOptions = () => {
   }, [departments]);
 
   return {
+    departments,
     departmentOptions,
     getSubDepartmentOptions,
     loading,
